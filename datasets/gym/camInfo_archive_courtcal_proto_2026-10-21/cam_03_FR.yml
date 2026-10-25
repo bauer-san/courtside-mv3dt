@@ -1,6 +1,6 @@
 # FR camera (cam_03) - court-based calibration courtcal-proto-0.1
-# World: metres, origin centre court (half-court line x centre line), x toward lounge end,
-#        y toward HEAT-mural sideline, z up. Ground plane z=0.
+# World: metres, origin centre court (half-court line x centre line), x toward right end,
+#        y to the left when facing the right end, z up. Ground plane z=0.
 # Valid for UNDISTORTED 1920x1080 frames (simple_radial k1=-2.280e-08, see undistort_videos.py)
 # Camera position (m): [-11.155, -0.036, 4.586]
 # 3x4 world-to-pixel matrix (row-major):

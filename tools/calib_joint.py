@@ -15,11 +15,11 @@ cur = load_cameras(run/"camInfo_used"); qcur = {c: C.q_of(P) for c, P in cur.ite
 OBS = {}
 for cam in ("NL", "NR", "FL", "FR"):
     o = C.traces(cam); OBS[cam] = {k: v for k, v in o.items() if k in ("Base","FT","lane+","lane-","FTC","Arc","Half","side+","side-")}
-# dims (metres): lane half width, FT line from baseline, FT circle r, arc r, basket from baseline, half_flag, half_lounge, width/2
-NAMES = ["lane_half", "ft_from_base", "ftc_r", "arc_r", "basket", "half_flag", "half_lounge", "w2"]
-def feats(flag, d, step=0.03):
+# dims (metres): lane half width, FT line from baseline, FT circle r, arc r, basket from baseline, half_left, half_right, width/2
+NAMES = ["lane_half", "ft_from_base", "ftc_r", "arc_r", "basket", "half_left", "half_right", "w2"]
+def feats(left, d, step=0.03):
     lane, ftd, r, arc, bko, hf, hl, w2 = d
-    s = -1 if flag else 1; h = hf if flag else hl; b = s * h; ftx = b - s * ftd; bk = b - s * bko
+    s = -1 if left else 1; h = hf if left else hl; b = s * h; ftx = b - s * ftd; bk = b - s * bko
     def seg(p, q, ext=0.0):
         p, q = np.array(p, float), np.array(q, float); dd = (q - p) / np.linalg.norm(q - p); p, q = p - ext * dd, q + ext * dd
         return np.linspace(p, q, max(2, int(np.linalg.norm(q - p) / step)))
@@ -88,7 +88,7 @@ def write_caminfo(q: dict, src_dir, out_dir) -> None:
         cen = q[cam][4:7]
         head = (f"# {cam} camera ({p.stem[:6]}) - joint calibration, far cameras held at their backboard mount\n"
                 f"# (tools/calib_joint.py, standard HS/NCAA court markings; courtcal-proto-0.1 line traces)\n"
-                "# World: metres, origin centre court, x toward lounge end, y toward HEAT-mural sideline, z up.\n"
+                "# World: metres, origin centre court, x toward right end, y to the left when facing the right end, z up.\n"
                 "# Valid for UNDISTORTED 1920x1080 frames.\n"
                 f"# Camera position (m): [{cen[0]:.3f}, {cen[1]:.3f}, {cen[2]:.3f}]  f {np.exp(q[cam][0]):.0f} px\n"
                 "projectionMatrix_3x4_w2p:\n" + "".join(f"- {v:.10g}\n" for v in P.ravel()) + "\n")
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     d, q, per = run_fit(cur_d, fix_dims=True)
     print("line RMS px:", {c: round(v, 2) for c, v in per.items()})
     print("centres:", {c: np.round(q[c][4:7], 2).tolist() for c in CAMS})
-    ref = ROOT / "datasets" / "courtside_full"
+    ref = ROOT / "datasets" / "gym_full"
     ds.mkdir(parents=True, exist_ok=True)
     for name in ("videos", "map.png", "transforms.yml", "manifest.json"):
         if not (ds / name).exists():

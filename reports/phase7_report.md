@@ -1,4 +1,4 @@
-# Courtside multi-camera player tracking: Phase 7 report
+# Multi-camera basketball player tracking: Phase 7 report
 
 Four-camera basketball court, NVIDIA DeepStream 9.1 Multi-View 3D Tracking (MV3DT), evaluated on a Dell XPS 8960
 (RTX 3060 Ti 8 GB) with deployment on a Jetson Orin Nano Super in mind. Date: 2026-10-25.
@@ -64,8 +64,8 @@ measured on hand-labelled ground truth (section 2.3).
 - Brokers: mosquitto (MQTT, inter-camera tracker messages) and Kafka 4.2.0 (MV3DT metadata).
 
 ### 2.2 Cameras and video
-- **Mounting:** two camera pairs, each on one apparatus on top of a backboard, 6-10 in apart. NL + FR sit at the flag
-  end, NR + FL at the lounge end. The N cameras look steeply down at the near half; the F cameras look across at the
+- **Mounting:** two camera pairs, each on one apparatus on top of a backboard, 6-10 in apart. NL + FR sit at the left
+  end, NR + FL at the right end. The N cameras look steeply down at the near half; the F cameras look across at the
   far half.
 - **Video:** the cameras record 4K; this pipeline uses a 1920 × 1080, 30 fps, undistorted transcode of about 15
   minutes. **0:00-7:00 is a game** (red vs maroon, 2 referees); after that comes a warm-up, which is out of scope.
@@ -196,12 +196,12 @@ Over the whole game (mount_r1, default tracker):
 | Interior | 1.2 | 1.8 | 3.4 % |
 | Within 1.5 m of a sideline | 3.4 | 6.9 | 0.6 % |
 | Within 1.5 m of a baseline | 6.2 | 8.1 | 0.5 % |
-| Flag-end third | 1.8 | 2.9 | 4.5 % |
-| Lounge-end third | 1.7 | 2.4 | 1.7 % |
+| Left-end third | 1.8 | 2.9 | 4.5 % |
+| Right-end third | 1.7 | 2.4 | 1.7 % |
 
 - **Lines:** tracks are lost about four times as often near the lines as in the interior. Players leave the court
   there, and often only one camera sees them.
-- **Ends:** the flag end is somewhat worse than the lounge end.
+- **Ends:** the left end is somewhat worse than the right end.
 
 ### 4.6 Offline inputs and their causal replacements
 
@@ -374,7 +374,7 @@ The final calibration places each camera where it physically is: the pairs on th
 - **The constraint costs little:** fitted without the mount constraint, the errors are 1.68, 1.80, 2.05 and 2.41 px.
   FL's larger error comes mostly from its far sideline, which runs along the edge of its image.
 - **Court size:** fitted at 70.3 × 45.1 ft. All tools read it from `tools/court.py`.
-- **Single source of truth:** the camera files are in `datasets/courtside/camInfo`. Earlier versions are archived
+- **Single source of truth:** the camera files are in `datasets/gym/camInfo`. Earlier versions are archived
   beside them, and each run keeps the copy it used in `camInfo_used/`.
 - **Independent check:** the 3-point arc (19.75 ft) wasn't used in the fit, yet it lands on the painted arc (FL shown
   below).
@@ -656,7 +656,7 @@ output (section 4.8) and seated spectators dropped (section 4.9).
 ```bash
 ./scripts/brokers.sh start
 for r in mount_r1 mount_r2 mount_r3; do
-  DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all ./scripts/run_mv3dt.sh courtside_full $r
+  DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all ./scripts/run_mv3dt.sh gym_full $r
   ~/.venvs/mv3dt/bin/python -m tools.jersey from-ds $r
   cp experiments/full_pn263_cf_jersey/{team_model.npz,teams.yml} experiments/$r/
   ~/.venvs/mv3dt/bin/python -m tools.appearance extract $r

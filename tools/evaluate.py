@@ -49,12 +49,12 @@ from pathlib import Path
 import numpy as np
 
 from tools import ROOT
-from tools.court import FT, HALF_FLAG_FT, HALF_LOUNGE_FT, WIDTH_FT
+from tools.court import FT, HALF_LEFT_FT, HALF_RIGHT_FT, WIDTH_FT
 from tools.stitch import Params, clean, save_tracks
 
 SENSORS = {"Camera1": "NL", "Camera2": "FL", "Camera3": "NR", "Camera4": "FR"}  # msgconv: sorted video order
 CAM_ORDER = {c: i for i, c in enumerate(SENSORS.values())}
-X_MIN, X_MAX, Y_HALF = -HALF_FLAG_FT * FT, HALF_LOUNGE_FT * FT, WIDTH_FT * FT / 2
+X_MIN, X_MAX, Y_HALF = -HALF_LEFT_FT * FT, HALF_RIGHT_FT * FT, WIDTH_FT * FT / 2
 FPS_VIDEO = 30
 
 

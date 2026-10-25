@@ -1,9 +1,9 @@
 # FL camera (cam_01) - lines re-traced from the image (tools/court_refine.py), free fit
 # (standard HS/NCAA markings, court size as measured by courtcal-proto-0.1)
-# World: metres, origin centre court, x toward lounge end, y toward HEAT-mural sideline, z up.
+# World: metres, origin centre court, x toward right end, y to the left when facing the right end, z up.
 # Valid for UNDISTORTED 1920x1080 frames.
 # Adopted 2026-10-23 as the single calibration; court-line fit RMS 2.22 px. Previous (hand-traced
-# courtcal-proto-0.1) files: datasets/courtside/camInfo_archive_courtcal_proto_2026-10-21/.
+# courtcal-proto-0.1) files: datasets/gym/camInfo_archive_courtcal_proto_2026-10-21/.
 # Camera position (m): [10.664, 0.369, 4.414]  f 2157 px
 projectionMatrix_3x4_w2p:
 - -98.44607487

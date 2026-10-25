@@ -11,7 +11,7 @@
 The 3-point arc is not used (its painted radius is uncertain). Writes overlays and, with --write, a camera file into
 a separate dataset (never over the existing ones).
 
-  python -m tools.court_refine <run> FL [--frames 25] [--write courtside_full_flfix]
+  python -m tools.court_refine <run> FL [--frames 25] [--write gym_full_flfix]
 """
 
 import argparse

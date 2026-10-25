@@ -1,4 +1,4 @@
-/* Courtside court tracker: C++ port of the default configuration of tools/world_tracker.py.
+/* Gym MV3DT court tracker: C++ port of the default configuration of tools/world_tracker.py.
  * Comments name the Python method each part mirrors; behaviour that decides ties (insertion-ordered counters, stable
  * sorts, list order) follows the Python so that both produce the same output on the same input.
  * SPDX-License-Identifier: Apache-2.0

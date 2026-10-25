@@ -1,4 +1,4 @@
-/* Courtside: the court tracker inside DeepStream (deepstream-test5-court-app).
+/* Gym MV3DT: the court tracker inside DeepStream (deepstream-test5-court-app).
  * SPDX-License-Identifier: Apache-2.0
  */
 #ifndef COURTTRACK_PROBE_H

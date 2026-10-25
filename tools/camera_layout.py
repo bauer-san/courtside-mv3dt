@@ -1,6 +1,6 @@
 """Camera placement study: coverage, image resolution, viewing angle and multi-view geometry of candidate layouts.
 
-Each camera: position (m, court frame of datasets/courtside/camInfo), aim point on the floor, horizontal field of view
+Each camera: position (m, court frame of datasets/gym/camInfo), aim point on the floor, horizontal field of view
 (1920 x 1080, no roll). On a 0.5 m grid over the court (+0.5 m margin), for a standing player 1.8 m tall:
   sees        feet and head both inside the image, in front of the camera
   px          player height in pixels (the reader needs >= READ_PX, the detector >= DETECT_PX)
@@ -115,7 +115,7 @@ ZW = 6.0
 
 
 def current_layout():
-    return {c: P for c, P in load_cameras(ROOT / "datasets" / "courtside" / "camInfo").items()}
+    return {c: P for c, P in load_cameras(ROOT / "datasets" / "gym" / "camInfo").items()}
 
 
 def layouts() -> dict:

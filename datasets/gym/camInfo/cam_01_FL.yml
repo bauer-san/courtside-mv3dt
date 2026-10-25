@@ -2,7 +2,7 @@
 # Lines re-traced from the images (tools/court_refine.py); camera pairs held together on their
 # backboard apparatus (FL with NR, FR with NL, <= 0.25 m apart); standard HS/NCAA markings; court
 # length and width fitted (tools/court.py).
-# World: metres, origin centre court, x toward lounge end, y toward HEAT-mural sideline, z up.
+# World: metres, origin centre court, x toward right end, y to the left when facing the right end, z up.
 # Valid for UNDISTORTED 1920x1080 frames.
 # Adopted 2026-10-24 as the single calibration; court-line fit RMS 3.02 px.
 # Camera position (m): [9.819, 0.194, 4.162]  f 2041 px

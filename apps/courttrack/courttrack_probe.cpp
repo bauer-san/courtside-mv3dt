@@ -1,4 +1,4 @@
-/* Courtside: the court tracker inside DeepStream.
+/* Gym MV3DT: the court tracker inside DeepStream.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Buffer probe behind the secondary GIEs (after jersey_log, which hands over the jersey reads and removes the helper

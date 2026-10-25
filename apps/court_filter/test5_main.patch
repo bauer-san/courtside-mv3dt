@@ -1,13 +1,13 @@
 --- /media/geoff/DATA/Documents/TESTmv3dt/external/DeepStream/src/apps/sample_apps/deepstream-test5/deepstream_test5_app_main.c	2026-10-21 15:49:42.804302100 -0400
-+++ deepstream_test5_app_main.c	2026-10-25 07:45:56.679466800 -0400
++++ deepstream_test5_app_main.c	2026-10-25 14:10:49.660505900 -0400
 @@ -47,6 +47,10 @@
  #include "nvdsmeta_schema.h"
  
  #include "deepstream_test5_app.h"
-+#include "court_filter.h"  /* courtside */
-+#include "jersey_log.h"  /* courtside */
-+#include "torso_objects.h"  /* courtside */
-+#include "courttrack_probe.h"  /* courtside */
++#include "court_filter.h"  /* gym-mv3dt */
++#include "jersey_log.h"  /* gym-mv3dt */
++#include "torso_objects.h"  /* gym-mv3dt */
++#include "courttrack_probe.h"  /* gym-mv3dt */
  
  /* External reference to global error capture buffer */
  extern gchar *g_nvds_last_error_message;
@@ -15,33 +15,33 @@
        return_value = -1;
        goto done;
      }
-+    { /* courtside: court filter before the tracker */
++    { /* gym-mv3dt: court filter before the tracker */
 +      GstPad *cf_pad = gst_element_get_static_pad (
 +          appCtx[i]->pipeline.common_elements.primary_gie_bin.bin, "src");
 +      court_filter_attach (cf_pad);
 +      if (cf_pad)
 +        gst_object_unref (cf_pad);
-+      { /* courtside: text detector -> torso objects */
++      { /* gym-mv3dt: text detector -> torso objects */
 +        GstElement *sg[MAX_SECONDARY_GIE_BINS];
 +        for (guint k = 0; k < MAX_SECONDARY_GIE_BINS; k++)
 +          sg[k] = appCtx[i]->pipeline.common_elements.secondary_gie_bin.sub_bins[k].secondary_gie;
 +        torso_objects_retarget (sg, MAX_SECONDARY_GIE_BINS);
 +      }
-+      if (appCtx[i]->pipeline.common_elements.tracker_bin.bin) { /* courtside: torso objects */
++      if (appCtx[i]->pipeline.common_elements.tracker_bin.bin) { /* gym-mv3dt: torso objects */
 +        GstPad *to_pad = gst_element_get_static_pad (
 +            appCtx[i]->pipeline.common_elements.tracker_bin.bin, "src");
 +        torso_objects_attach (to_pad);
 +        if (to_pad)
 +          gst_object_unref (to_pad);
 +      }
-+      if (appCtx[i]->pipeline.common_elements.secondary_gie_bin.bin) { /* courtside: jersey reads */
++      if (appCtx[i]->pipeline.common_elements.secondary_gie_bin.bin) { /* gym-mv3dt: jersey reads */
 +        /* Probe the pad behind the bin's ghost src: deepstream-app's own probe on the ghost pad (message
 +         * generation) was added earlier and would otherwise see the helper objects before they are removed. */
 +        GstPad *ghost = gst_element_get_static_pad (
 +            appCtx[i]->pipeline.common_elements.secondary_gie_bin.bin, "src");
 +        GstPad *jl_pad = ghost ? gst_ghost_pad_get_target (GST_GHOST_PAD (ghost)) : NULL;
 +        jersey_log_attach (jl_pad ? jl_pad : ghost);
-+        courttrack_attach (jl_pad ? jl_pad : ghost);  /* courtside: after jersey_log (it hands over the reads) */
++        courttrack_attach (jl_pad ? jl_pad : ghost);  /* gym-mv3dt: after jersey_log (it hands over the reads) */
 +        if (jl_pad)
 +          gst_object_unref (jl_pad);
 +        if (ghost)
@@ -55,7 +55,7 @@
  done:
  
    g_print ("Quitting\n");
-+  courttrack_close ();  /* courtside: flush the court tracker */
++  courttrack_close ();  /* gym-mv3dt: flush the court tracker */
  
    /* GENERIC error reporting via msgapi - catches ALL failures
     * Check each appCtx individually since return_value might not be set yet */

@@ -1,4 +1,4 @@
-# Courtside: digit recogniser on the text boxes (PaddleOCR PP-OCRv4 rec, CTC, ONNX, Apache-2.0)
+# Gym MV3DT: digit recogniser on the text boxes (PaddleOCR PP-OCRv4 rec, CTC, ONNX, Apache-2.0)
 # Classifier SGIE; custom parser keeps 1-2 digit reads (see apps/jersey/nvdsinfer_jersey_parsers.cpp).
 # PP-OCR rec preprocessing as in RapidOCR: BGR, (x/255 - 0.5) / 0.5; text left-aligned, padded right
 # Input width 64 (not 320): nvinfer pads with black pixels (RapidOCR pads with grey) and wide black padding

@@ -191,15 +191,15 @@ def main() -> None:
 
     var = "default: team colour + jersey numbers" if not args.no_numbers else "team colour, no numbers"
     fig.suptitle(f"{run.name}, court tracker ({var}), game frames 0-{args.max_frame}\n"
-                 "flag end left (NL+FR mount), lounge end right (NR+FL mount)", fontsize=11)
+                 "left end left (NL+FR mount), right end right (NR+FL mount)", fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.975))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=110)
     print(args.out)
     # numeric summary by court zone
-    zones = {"flag-end third": lambda x, y: x < X_MIN + (X_MAX - X_MIN) / 3,
+    zones = {"left-end third": lambda x, y: x < X_MIN + (X_MAX - X_MIN) / 3,
              "centre third": lambda x, y: X_MIN + (X_MAX - X_MIN) / 3 <= x <= X_MAX - (X_MAX - X_MIN) / 3,
-             "lounge-end third": lambda x, y: x > X_MAX - (X_MAX - X_MIN) / 3}
+             "right-end third": lambda x, y: x > X_MAX - (X_MAX - X_MIN) / 3}
     side = lambda x, y: Y_HALF - abs(y) < 1.5
     base = lambda x, y: min(x - X_MIN, X_MAX - x) < 1.5
     inner = lambda x, y: not side(x, y) and not base(x, y)

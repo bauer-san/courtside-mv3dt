@@ -17,9 +17,9 @@ from pathlib import Path
 import numpy as np
 
 from tools import ROOT
-from tools.court import FT, HALF_FLAG_FT, HALF_LOUNGE_FT
+from tools.court import FT, HALF_LEFT_FT, HALF_RIGHT_FT
 
-BASKET = {"flag": np.array([-(HALF_FLAG_FT - 5.25) * FT, 0.0]), "lounge": np.array([(HALF_LOUNGE_FT - 5.25) * FT, 0.0])}
+BASKET = {"left": np.array([-(HALF_LEFT_FT - 5.25) * FT, 0.0]), "right": np.array([(HALF_RIGHT_FT - 5.25) * FT, 0.0])}
 
 
 LAYOUT = {   # keypoint indices: (left, right) shoulders and wrists, torso top and bottom (single or pairs)

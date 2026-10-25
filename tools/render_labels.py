@@ -39,7 +39,7 @@ UNKNOWN = (235, 235, 235)
 DIM = (110, 110, 110)
 GT_NAME = {}                            # live team (A/B) -> labelled team name, for the label check
 BG, INK, MUTED = (24, 22, 20), (240, 240, 240), (150, 150, 150)
-# court panel: long axis vertical, flag end at the bottom
+# court panel: long axis vertical, left end at the bottom
 PX0, PW, PY0, PH = 980, 280, 30, 660
 Z = 1.0                                 # layout scale (--scale 1.5: 1920x1080)
 
@@ -165,9 +165,9 @@ def main() -> None:
         p = np.array([court_xy(x, y) for x, y in pts], np.int32)
         cv2.polylines(base, [p], False, (90, 90, 90), 1, cv2.LINE_AA)
     top, bottom = court_xy(X_MAX, 0)[1], court_xy(X_MIN, 0)[1]
-    cv2.putText(base, "flag end (NL+FR mount)", (PX0 + PW // 2 - z(75), bottom + z(22)), cv2.FONT_HERSHEY_SIMPLEX, 0.4 * Z,
+    cv2.putText(base, "left end (NL+FR mount)", (PX0 + PW // 2 - z(75), bottom + z(22)), cv2.FONT_HERSHEY_SIMPLEX, 0.4 * Z,
                 MUTED, 1, cv2.LINE_AA)
-    cv2.putText(base, "lounge end (NR+FL mount)", (PX0 + PW // 2 - z(82), top - z(12)), cv2.FONT_HERSHEY_SIMPLEX, 0.4 * Z,
+    cv2.putText(base, "right end (NR+FL mount)", (PX0 + PW // 2 - z(82), top - z(12)), cv2.FONT_HERSHEY_SIMPLEX, 0.4 * Z,
                 MUTED, 1, cv2.LINE_AA)
     cv2.putText(base, "top-down court", (PX0 + PW // 2 - z(50), top - z(34)), cv2.FONT_HERSHEY_SIMPLEX, 0.5 * Z, INK, 1,
                 cv2.LINE_AA)
@@ -183,7 +183,7 @@ def main() -> None:
         x0 += z(30 + 9 * len(s))
     caption = (f"{run.name}: live DeepStream output (per-frame Kafka messages): automatic team + jersey number." if args.live
                else f"{run.name}: court tracker identity output (team + jersey number).")
-    cv2.putText(base, caption + " Cameras on their backboard mounts: NL+FR flag end, NR+FL lounge end.", (z(12), z(690)),
+    cv2.putText(base, caption + " Cameras on their backboard mounts: NL+FR left end, NR+FL right end.", (z(12), z(690)),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.38 * Z, MUTED, 1, cv2.LINE_AA)
     trail = collections.defaultdict(collections.deque)
     check = None                                             # (until frame, text)

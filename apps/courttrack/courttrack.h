@@ -1,4 +1,4 @@
-/* Courtside court tracker: multi-camera player tracking on the court plane with identity output.
+/* Gym MV3DT court tracker: multi-camera player tracking on the court plane with identity output.
  * C++ port of the default configuration of tools/world_tracker.py (Python stays the reference; options that were
  * tested and not adopted are not ported). Causal: everything it reports for a frame is final.
  * SPDX-License-Identifier: Apache-2.0

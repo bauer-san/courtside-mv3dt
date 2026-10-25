@@ -19,7 +19,7 @@ import yaml
 
 from tools import CAMERAS, DATASETS, ROOT
 
-CAMINFO = DATASETS / "courtside" / "camInfo"
+CAMINFO = DATASETS / "gym" / "camInfo"
 KEY = "courtTrackerBias_m"
 
 

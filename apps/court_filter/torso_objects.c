@@ -1,4 +1,4 @@
-/* Courtside: add a "torso" child object to each large player box, for the jersey-number SGIEs.
+/* Gym MV3DT: add a "torso" child object to each large player box, for the jersey-number SGIEs.
  * SPDX-License-Identifier: Apache-2.0
  *
  * nvinfer SGIEs scale the whole object box to the network input; the jersey number then needs a very large

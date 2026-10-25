@@ -32,7 +32,7 @@ def main() -> None:
     from kafka import KafkaConsumer
     from schema_pb2 import Frame
 
-    consumer = KafkaConsumer(bootstrap_servers=args.broker, group_id=f"courtside_record_{args.topic}_{os.getpid()}_{int(time.time())}",
+    consumer = KafkaConsumer(bootstrap_servers=args.broker, group_id=f"gym_record_{args.topic}_{os.getpid()}_{int(time.time())}",
                              auto_offset_reset="latest", enable_auto_commit=False, value_deserializer=lambda x: x)
     consumer.subscribe([args.topic])
     deadline = time.time() + 10

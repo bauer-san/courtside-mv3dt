@@ -1,4 +1,4 @@
-"""Phase 5: complete datasets/courtside/ in the structure of NVIDIA's sample (datasets/mtmc_4cam):
+"""Phase 5: complete datasets/gym/ in the structure of NVIDIA's sample (datasets/mtmc_4cam):
 
   camInfo/cam_XX_POS.yml  projectionMatrix_3x4_w2p + modelInfo for classID 0 and 1
                           (person is class 1 for PeopleNetTransformer, class 0 for PeopleNet 2.6.3 / RT-DETR;
@@ -6,7 +6,7 @@
   map.png                 -> inputs/layout_v2.png (symlink)
   transforms.yml          T_ov2px: world (m) -> map pixel; T_gt2px: same (ground truth is in world frame)
 
-Clip datasets (courtside_*) get map.png / transforms.yml symlinked from the base dataset.
+Clip datasets (gym_*) get map.png / transforms.yml symlinked from the base dataset.
 Run after tools.setup_workspace. Idempotent.
 """
 
@@ -63,7 +63,7 @@ def relink(link: Path, target: Path) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dataset", type=Path, default=DATASETS / "courtside")
+    ap.add_argument("--dataset", type=Path, default=DATASETS / "gym")
     ap.add_argument("--height", type=float, default=1.8, help="person model height (m)")
     ap.add_argument("--radius", type=float, default=0.3, help="person model radius (m)")
     args = ap.parse_args()

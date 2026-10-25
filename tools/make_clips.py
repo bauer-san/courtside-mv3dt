@@ -11,7 +11,7 @@ Verification per clip:
 A manifest.json with the results is written next to videos/.
 
 Example:
-  python -m tools.make_clips --start 3600 --seconds 60 --name courtside_60s
+  python -m tools.make_clips --start 3600 --seconds 60 --name gym_60s
 """
 
 import argparse
@@ -96,7 +96,7 @@ def main() -> None:
     ap.add_argument("--start", type=int, default=3600, help="first source frame (inclusive)")
     ap.add_argument("--seconds", type=float, required=True)
     ap.add_argument("--name", required=True, help="output dataset name under datasets/")
-    ap.add_argument("--base", type=Path, default=DATASETS / "courtside")
+    ap.add_argument("--base", type=Path, default=DATASETS / "gym")
     ap.add_argument("--crf", type=int, default=18)
     args = ap.parse_args()
 

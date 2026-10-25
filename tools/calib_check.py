@@ -26,7 +26,7 @@ from scipy.optimize import least_squares
 from scipy.spatial import cKDTree
 
 from tools import ROOT
-from tools.court import FT, HALF_FLAG_FT, HALF_LOUNGE_FT, WIDTH_FT
+from tools.court import FT, HALF_LEFT_FT, HALF_RIGHT_FT, WIDTH_FT
 from tools.stitch import floor_point, load_cameras
 
 CX, CY = 960.0, 540.0
@@ -65,10 +65,10 @@ def traces(cam: str) -> dict:
     return out
 
 
-def court_features(flag: bool, step: float = 0.02) -> dict:
+def court_features(left: bool, step: float = 0.02) -> dict:
     """Dense floor samples (metres) of each feature of one key, plus half-court line and sidelines."""
-    s = -1 if flag else 1
-    h = (HALF_FLAG_FT if flag else HALF_LOUNGE_FT) * FT
+    s = -1 if left else 1
+    h = (HALF_LEFT_FT if left else HALF_RIGHT_FT) * FT
     w2, lane, ftx = WIDTH_FT / 2 * FT, 6 * FT, s * (h - 19 * FT)
     b = s * h
 
@@ -90,8 +90,8 @@ def court_features(flag: bool, step: float = 0.02) -> dict:
         "FTC": np.c_[ftx + 6 * FT * np.cos(th), 6 * FT * np.sin(th)],
         "Arc": np.c_[bk - s * 19.75 * FT * np.cos(a), 19.75 * FT * np.sin(a)],
         "Half": seg((0, -w2), (0, w2), 0.5),
-        "side+": seg((-HALF_FLAG_FT * FT, w2), (HALF_LOUNGE_FT * FT, w2)),
-        "side-": seg((-HALF_FLAG_FT * FT, -w2), (HALF_LOUNGE_FT * FT, -w2)),
+        "side+": seg((-HALF_LEFT_FT * FT, w2), (HALF_RIGHT_FT * FT, w2)),
+        "side-": seg((-HALF_LEFT_FT * FT, -w2), (HALF_RIGHT_FT * FT, -w2)),
     }
 
 

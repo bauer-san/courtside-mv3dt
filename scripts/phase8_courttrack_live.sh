@@ -11,7 +11,7 @@ RUNS=("${@:-ct_r1 ct_r2 ct_r3}")
 for r in ${RUNS[@]}; do
   echo "=== $r ($(date +%H:%M))"
   env DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all DISPLAY_OUT=0 COURTTRACK=1 \
-    ./scripts/run_mv3dt.sh courtside_full "$r" > "experiments/$r.log" 2>&1 || { echo "run $r failed"; continue; }
+    ./scripts/run_mv3dt.sh gym_full "$r" > "experiments/$r.log" 2>&1 || { echo "run $r failed"; continue; }
   "$PY" -m tools.jersey from-ds "$r" > /dev/null
   cp experiments/full_pn263_cf_jersey/{team_model.npz,teams.yml} "experiments/$r/"
   "$PY" -m tools.appearance extract "$r" > /dev/null

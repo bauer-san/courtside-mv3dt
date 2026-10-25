@@ -1,4 +1,4 @@
-/* Courtside: CSV log of jersey-number reads from the secondary GIEs.
+/* Gym MV3DT: CSV log of jersey-number reads from the secondary GIEs.
  * SPDX-License-Identifier: Apache-2.0
  */
 #ifndef JERSEY_LOG_H

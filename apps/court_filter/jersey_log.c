@@ -1,4 +1,4 @@
-/* Courtside: log jersey-number reads from the secondary GIEs (text detector -> digit recogniser).
+/* Gym MV3DT: log jersey-number reads from the secondary GIEs (text detector -> digit recogniser).
  * SPDX-License-Identifier: Apache-2.0
  *
  * $JERSEY_LOG (if set): CSV path. One line per text box found by the text-detector SGIE (gie id

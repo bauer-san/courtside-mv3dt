@@ -40,7 +40,7 @@ for r in "${RUNS[@]}"; do
   if [[ "${ENV[$r]}" == *int8* && ! -f "$CAL" ]]; then echo "skip $r: no INT8 calibration cache ($CAL)"; continue; fi
   echo "=== $r: ${ENV[$r]} ${EXTRA[$r]:-} ($(date +%H:%M))"
   env DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all DISPLAY_OUT=0 ${ENV[$r]} \
-    ./scripts/run_mv3dt.sh courtside_full "$r" ${EXTRA[$r]:-} > "experiments/$r.log" 2>&1 || { echo "run $r failed"; continue; }
+    ./scripts/run_mv3dt.sh gym_full "$r" ${EXTRA[$r]:-} > "experiments/$r.log" 2>&1 || { echo "run $r failed"; continue; }
   "$PY" -m tools.jersey from-ds "$r" > /dev/null
   cp experiments/full_pn263_cf_jersey/{team_model.npz,teams.yml} "experiments/$r/"
   "$PY" -m tools.appearance extract "$r" > /dev/null

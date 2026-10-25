@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 5a: complete datasets/courtside (modelInfo, map.png, transforms.yml), render overlays, run tests.
+# Phase 5a: complete datasets/gym (modelInfo, map.png, transforms.yml), render overlays, run tests.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${MV3DT_VENV:-$HOME/.venvs/mv3dt}/bin/python"

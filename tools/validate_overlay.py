@@ -89,7 +89,7 @@ def overlay_map(map_img: np.ndarray, T: np.ndarray) -> np.ndarray:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dataset", type=Path, default=DATASETS / "courtside")
+    ap.add_argument("--dataset", type=Path, default=DATASETS / "gym")
     ap.add_argument("--frame", type=int, default=3600)
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()

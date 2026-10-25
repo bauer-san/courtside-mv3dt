@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Run MV3DT headless on a court dataset.
 #   ./scripts/run_mv3dt.sh <dataset> <run-name> [Section.key=value ...]
-#   e.g. ./scripts/run_mv3dt.sh courtside_60s c60_pnt
-#        COURT_FILTER=1 ./scripts/run_mv3dt.sh courtside_60s c60_rtdetr_cf   # drop off-court detections before the tracker
+#   e.g. ./scripts/run_mv3dt.sh gym_60s c60_pnt
+#        COURT_FILTER=1 ./scripts/run_mv3dt.sh gym_60s c60_rtdetr_cf   # drop off-court detections before the tracker
 #        NEIGHBORS=pairs ./scripts/run_mv3dt.sh ...   # camera neighbour topology (tools/pub_sub.py): all|pairs|pairs_centre
 #        JERSEY=1 ./scripts/run_mv3dt.sh ...          # jersey-number SGIEs (apps/jersey) + jersey_reads.csv
-#        DETECTOR_MODEL=PeopleNet2.6.3 ./scripts/run_mv3dt.sh courtside_60s c60_pn263
-#        ./scripts/run_mv3dt.sh courtside_60s c60_nopose PoseEstimator.poseEstimatorType=0
+#        DETECTOR_MODEL=PeopleNet2.6.3 ./scripts/run_mv3dt.sh gym_60s c60_pn263
+#        ./scripts/run_mv3dt.sh gym_60s c60_nopose PoseEstimator.poseEstimatorType=0
 #
 # Configs come from NVIDIA's auto-configurator (their templates + override_tracker_4cam.yml, all 3 other
 # cameras as vision neighbours, streammux/tracker at the 1920x1080 video resolution), then patched:

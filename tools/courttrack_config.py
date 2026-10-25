@@ -24,7 +24,7 @@ import yaml
 from tools import CALIB_HEIGHT, CALIB_WIDTH, CAMERAS
 from tools.appearance import COLOUR_CAMS, HEIGHT_CAMS, MIN_BOX_H
 from tools.calib_bias import KEY
-from tools.court import FT, HALF_FLAG_FT, HALF_LOUNGE_FT, WIDTH_FT
+from tools.court import FT, HALF_LEFT_FT, HALF_RIGHT_FT, WIDTH_FT
 from tools.world_tracker import WTParams
 
 KAFKA_LIB = "/opt/nvidia/deepstream/deepstream/lib/libnvds_kafka_proto.so"
@@ -32,7 +32,7 @@ LOGS = "/workspace/experiments"
 
 
 def config_text(caminfo: Path, kafka: str | None, topic: str, margin: float = 0.3, every: int = 3) -> str:
-    lines = [f"court {-HALF_FLAG_FT * FT:.4f} {HALF_LOUNGE_FT * FT:.4f} {WIDTH_FT * FT / 2:.4f} {margin} "
+    lines = [f"court {-HALF_LEFT_FT * FT:.4f} {HALF_RIGHT_FT * FT:.4f} {WIDTH_FT * FT / 2:.4f} {margin} "
              f"{CALIB_WIDTH} {CALIB_HEIGHT}",
              f"appearance {every} {MIN_BOX_H}"]
     p = WTParams()

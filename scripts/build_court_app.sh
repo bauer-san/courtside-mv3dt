@@ -34,35 +34,35 @@ call = """    if (!create_pipeline (appCtx[i], bbox_generated_probe_after_analyt
 """
 quit = '  g_print ("Quitting\\n");\n'
 assert s.count(inc) == 1 and s.count(call) == 1 and s.count(quit) == 1, "anchors not found: DeepStream source changed?"
-s = s.replace(inc, inc + '#include "court_filter.h"  /* courtside */\n#include "jersey_log.h"  /* courtside */\n#include "torso_objects.h"  /* courtside */\n#include "courttrack_probe.h"  /* courtside */\n')
-s = s.replace(quit, quit + '  courttrack_close ();  /* courtside: flush the court tracker */\n')
-s = s.replace(call, call + """    { /* courtside: court filter before the tracker */
+s = s.replace(inc, inc + '#include "court_filter.h"  /* gym-mv3dt */\n#include "jersey_log.h"  /* gym-mv3dt */\n#include "torso_objects.h"  /* gym-mv3dt */\n#include "courttrack_probe.h"  /* gym-mv3dt */\n')
+s = s.replace(quit, quit + '  courttrack_close ();  /* gym-mv3dt: flush the court tracker */\n')
+s = s.replace(call, call + """    { /* gym-mv3dt: court filter before the tracker */
       GstPad *cf_pad = gst_element_get_static_pad (
           appCtx[i]->pipeline.common_elements.primary_gie_bin.bin, "src");
       court_filter_attach (cf_pad);
       if (cf_pad)
         gst_object_unref (cf_pad);
-      { /* courtside: text detector -> torso objects */
+      { /* gym-mv3dt: text detector -> torso objects */
         GstElement *sg[MAX_SECONDARY_GIE_BINS];
         for (guint k = 0; k < MAX_SECONDARY_GIE_BINS; k++)
           sg[k] = appCtx[i]->pipeline.common_elements.secondary_gie_bin.sub_bins[k].secondary_gie;
         torso_objects_retarget (sg, MAX_SECONDARY_GIE_BINS);
       }
-      if (appCtx[i]->pipeline.common_elements.tracker_bin.bin) { /* courtside: torso objects */
+      if (appCtx[i]->pipeline.common_elements.tracker_bin.bin) { /* gym-mv3dt: torso objects */
         GstPad *to_pad = gst_element_get_static_pad (
             appCtx[i]->pipeline.common_elements.tracker_bin.bin, "src");
         torso_objects_attach (to_pad);
         if (to_pad)
           gst_object_unref (to_pad);
       }
-      if (appCtx[i]->pipeline.common_elements.secondary_gie_bin.bin) { /* courtside: jersey reads */
+      if (appCtx[i]->pipeline.common_elements.secondary_gie_bin.bin) { /* gym-mv3dt: jersey reads */
         /* Probe the pad behind the bin's ghost src: deepstream-app's own probe on the ghost pad (message
          * generation) was added earlier and would otherwise see the helper objects before they are removed. */
         GstPad *ghost = gst_element_get_static_pad (
             appCtx[i]->pipeline.common_elements.secondary_gie_bin.bin, "src");
         GstPad *jl_pad = ghost ? gst_ghost_pad_get_target (GST_GHOST_PAD (ghost)) : NULL;
         jersey_log_attach (jl_pad ? jl_pad : ghost);
-        courttrack_attach (jl_pad ? jl_pad : ghost);  /* courtside: after jersey_log (it hands over the reads) */
+        courttrack_attach (jl_pad ? jl_pad : ghost);  /* gym-mv3dt: after jersey_log (it hands over the reads) */
         if (jl_pad)
           gst_object_unref (jl_pad);
         if (ghost)
@@ -78,7 +78,7 @@ m = m.replace("SRCS:= deepstream_test5_app_main.c deepstream_utc.c",
               "SRCS:= deepstream_test5_app_main.c deepstream_utc.c court_filter.c jersey_log.c torso_objects.c "
               "courttrack_probe.cpp courttrack.cpp online_teams.cpp")
 m = m.replace("CFLAGS+= $(shell pkg-config --cflags $(PKGS))",
-              "CFLAGS+= $(shell pkg-config --cflags $(PKGS))\nCFLAGS+= -ffp-contract=off  # courtside: reproducible court tracker")
+              "CFLAGS+= $(shell pkg-config --cflags $(PKGS))\nCFLAGS+= -ffp-contract=off  # gym-mv3dt: reproducible court tracker")
 mk.write_text(m)
 EOF
 ( cd "$DST" && diff -u "$SRC/deepstream_test5_app_main.c" deepstream_test5_app_main.c > "$ROOT/apps/court_filter/test5_main.patch" || true )

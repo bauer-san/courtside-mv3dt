@@ -1,7 +1,7 @@
-"""Court geometry in world metres (origin centre court, +x lounge end, +y HEAT-mural side, z up).
+"""Court geometry in world metres (origin centre court, +x right end, +y to the left when facing the right end, z up).
 
 Dimensions follow courtcal_prototype (floor_v2.py / overlay_court.py): measured half-lengths
-(flag end 35.65 ft, lounge end 35.51 ft), width 45.48 ft, 12 ft lane, FT line 19 ft from the
+(left end 35.65 ft, right end 35.51 ft), width 45.48 ft, 12 ft lane, FT line 19 ft from the
 baseline, FT circle r = 6 ft, basket centre 5.25 ft from the baseline, 3-pt arc r = 19.75 ft
 with straight corner segments. Only lanes, FT lines, FT circles and baselines were fitted;
 sidelines and the half-court line are measured checks.
@@ -10,7 +10,7 @@ sidelines and the half-court line are measured checks.
 import numpy as np
 
 FT = 0.3048
-HALF_FLAG_FT, HALF_LOUNGE_FT, WIDTH_FT = 35.16, 35.12, 45.05  # fitted with the cameras on their mounts (tools/calib_mount.py, 2026-10-24)
+HALF_LEFT_FT, HALF_RIGHT_FT, WIDTH_FT = 35.16, 35.12, 45.05  # fitted with the cameras on their mounts (tools/calib_mount.py, 2026-10-24)
 
 # World (m) -> layout_v2.png pixel (1 px = 1 inch).
 T_WORLD_TO_MAP = np.array([[39.3701, 0.0, 499.8], [0.0, -39.3701, 344.9], [0.0, 0.0, 1.0]])
@@ -22,13 +22,13 @@ def _ft(pts) -> np.ndarray:
 
 def court_lines(n_arc: int = 120) -> list[tuple[str, np.ndarray]]:
     """Named polylines on the floor (z = 0), each an (N, 2) array in metres."""
-    hf, hl, w2 = HALF_FLAG_FT, HALF_LOUNGE_FT, WIDTH_FT / 2
+    hf, hl, w2 = HALF_LEFT_FT, HALF_RIGHT_FT, WIDTH_FT / 2
     lines = [
         ("boundary", _ft([(-hf, -w2), (hl, -w2), (hl, w2), (-hf, w2), (-hf, -w2)])),
         ("half_court", _ft([(0, -w2), (0, w2)])),
     ]
     th = np.linspace(0, 2 * np.pi, n_arc)
-    for s, h in ((-1, hf), (1, hl)):  # s = -1 flag end (A), +1 lounge end (B)
+    for s, h in ((-1, hf), (1, hl)):  # s = -1 left end (A), +1 right end (B)
         b = s * h
         ft_x = b - s * 19
         bk = b - s * 5.25
@@ -42,12 +42,12 @@ def court_lines(n_arc: int = 120) -> list[tuple[str, np.ndarray]]:
 
 def court_points() -> dict[str, np.ndarray]:
     """Named check points (metres): centre court, FT-line lane corners, baseline/sideline corners."""
-    hf, hl, w2 = HALF_FLAG_FT, HALF_LOUNGE_FT, WIDTH_FT / 2
+    hf, hl, w2 = HALF_LEFT_FT, HALF_RIGHT_FT, WIDTH_FT / 2
     pts = {"centre": (0, 0)}
     for e, s, h in (("A", -1, hf), ("B", 1, hl)):
         b = s * h
-        pts[f"{e}1"] = (b - s * 19, 6)    # FT-line lane corner, HEAT side
-        pts[f"{e}2"] = (b - s * 19, -6)   # FT-line lane corner, lounge side
+        pts[f"{e}1"] = (b - s * 19, 6)    # FT-line lane corner, +y side
+        pts[f"{e}2"] = (b - s * 19, -6)   # FT-line lane corner, right side
         pts[f"{e}_base+"] = (b, w2)
         pts[f"{e}_base-"] = (b, -w2)
     return {k: _ft(v) for k, v in pts.items()}

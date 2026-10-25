@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Phase 6: tracker / detector variants on the court clips.
 #   ./scripts/phase6_variants.sh <dataset> <run-prefix> [variant ...]
-#   e.g. ./scripts/phase6_variants.sh courtside_60s c60            # all variants
-#        ./scripts/phase6_variants.sh courtside_180s c180 vt_reid
+#   e.g. ./scripts/phase6_variants.sh gym_60s c60            # all variants
+#        ./scripts/phase6_variants.sh gym_180s c180 vt_reid
 #
 # Variants (all start from NVIDIA's config_tracker.yml + override_tracker_4cam.yml, PeopleNetTransformer):
 #   nopose    bounding-box anchors only (PoseEstimator off)

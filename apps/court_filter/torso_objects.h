@@ -1,4 +1,4 @@
-/* Courtside: torso child objects for the jersey-number SGIEs.
+/* Gym MV3DT: torso child objects for the jersey-number SGIEs.
  * SPDX-License-Identifier: Apache-2.0
  */
 #ifndef TORSO_OBJECTS_H

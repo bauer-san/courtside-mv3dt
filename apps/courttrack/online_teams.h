@@ -1,4 +1,4 @@
-/* Courtside online team segmentation: two teams and everyone else from torso colour, without an operator.
+/* Gym MV3DT online team segmentation: two teams and everyone else from torso colour, without an operator.
  * C++ port of tools/online_teams.py (Python stays the reference). Causal: labels for frame f come from a model built
  * from frames before f.
  * SPDX-License-Identifier: Apache-2.0

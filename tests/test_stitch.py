@@ -15,7 +15,7 @@ def track(f0, f1, xy0, xy1, gid):
 
 def test_floor_point_inverts_projection():
     for cam_id, pos, _ in CAMERAS:
-        P = np.array(yaml.safe_load((DATASETS / "courtside" / "camInfo" / f"{cam_id}_{pos}.yml").read_text())
+        P = np.array(yaml.safe_load((DATASETS / "gym" / "camInfo" / f"{cam_id}_{pos}.yml").read_text())
                      ["projectionMatrix_3x4_w2p"]).reshape(3, 4)
         xy = np.array([[0.0, 0.0], [3.0, -2.0], [-5.0, 4.0]])
         px, depth = project(P, np.c_[xy, np.zeros(3)])

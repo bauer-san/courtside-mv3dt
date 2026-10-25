@@ -8,7 +8,7 @@ import yaml
 
 from tools import CALIB_HEIGHT, CALIB_WIDTH, CAMERAS, DATASETS, INPUTS
 
-DATASET = DATASETS / "courtside"
+DATASET = DATASETS / "gym"
 ARCHIVE = DATASET / "camInfo_archive_courtcal_proto_2026-10-21"   # the original calibration (court_calibration.json)
 
 

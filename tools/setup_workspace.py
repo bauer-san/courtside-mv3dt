@@ -1,7 +1,7 @@
-"""Phase 1: populate datasets/courtside/ from ./inputs.
+"""Phase 1: populate datasets/gym/ from ./inputs.
 
-- Extracts mv3dt_camInfo.zip into datasets/courtside/camInfo/ as cam_00_NL.yml ... cam_03_FR.yml
-- Symlinks (relative, not copies) the undistorted videos into datasets/courtside/videos/
+- Extracts mv3dt_camInfo.zip into datasets/gym/camInfo/ as cam_00_NL.yml ... cam_03_FR.yml
+- Symlinks (relative, not copies) the undistorted videos into datasets/gym/videos/
   as cam_00_NL.mp4 ... cam_03_FR.mp4
 
 map.png and transforms.yml are added in Phase 5, after reading the sample dataset's format.
@@ -52,9 +52,9 @@ def link_videos(inputs: Path, out_dir: Path) -> list[Path]:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--inputs", type=Path, default=INPUTS)
-    ap.add_argument("--dataset", type=Path, default=DATASETS / "courtside")
+    ap.add_argument("--dataset", type=Path, default=DATASETS / "gym")
     ap.add_argument("--force-caminfo", action="store_true",
-                    help="overwrite datasets/courtside/camInfo with the original calibration zip")
+                    help="overwrite datasets/gym/camInfo with the original calibration zip")
     args = ap.parse_args()
 
     # the adopted calibration (tools/court_refine.py, see camInfo_README.md) replaced the zip's: keep it

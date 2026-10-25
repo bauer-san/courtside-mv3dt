@@ -4,6 +4,6 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 PY="${MV3DT_VENV:-$HOME/.venvs/mv3dt}/bin/python"
 
-"$PY" -m tools.make_clips --start 3600 --seconds 60 --name courtside_60s
-"$PY" -m tools.make_clips --start 3600 --seconds 180 --name courtside_180s
+"$PY" -m tools.make_clips --start 3600 --seconds 60 --name gym_60s
+"$PY" -m tools.make_clips --start 3600 --seconds 180 --name gym_180s
 "$PY" -m pytest -q

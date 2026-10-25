@@ -1,4 +1,4 @@
-"""Courtside MV3DT workspace tools."""
+"""Gym MV3DT workspace tools."""
 
 from pathlib import Path
 

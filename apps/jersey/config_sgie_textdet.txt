@@ -1,4 +1,4 @@
-# Courtside: secondary detector for text on player torsos (PaddleOCR PP-OCRv4 det, DB, ONNX, Apache-2.0)
+# Gym MV3DT: secondary detector for text on player torsos (PaddleOCR PP-OCRv4 det, DB, ONNX, Apache-2.0)
 # Runs on the torso objects (gie 4) that torso_objects.c adds to player boxes >= 150 px, re-inferred on the
 # same tracked player every 6 frames. Input 480x384: smaller inputs lose most numbers (Python test: 320x256
 # 15/26, 480x384 19/26 legible numbers).

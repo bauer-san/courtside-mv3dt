@@ -1,4 +1,4 @@
-/* Courtside: per-camera court filter between the primary detector and the tracker.
+/* Gym MV3DT: per-camera court filter between the primary detector and the tracker.
  * SPDX-License-Identifier: Apache-2.0
  *
  * Config file ($COURT_FILTER_CONFIG), whitespace separated:

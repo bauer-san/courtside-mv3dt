@@ -14,11 +14,11 @@ from pathlib import Path
 import yaml
 
 from tools import CALIB_HEIGHT, CAMERAS
-from tools.court import FT, HALF_FLAG_FT, HALF_LOUNGE_FT, WIDTH_FT
+from tools.court import FT, HALF_LEFT_FT, HALF_RIGHT_FT, WIDTH_FT
 
 
 def config_text(caminfo: Path, margin: float) -> str:
-    lines = [f"{-HALF_FLAG_FT * FT - margin:.4f} {HALF_LOUNGE_FT * FT + margin:.4f} "
+    lines = [f"{-HALF_LEFT_FT * FT - margin:.4f} {HALF_RIGHT_FT * FT + margin:.4f} "
              f"{-WIDTH_FT * FT / 2 - margin:.4f} {WIDTH_FT * FT / 2 + margin:.4f} {CALIB_HEIGHT}"]
     for sid, (cam_id, pos, _) in enumerate(CAMERAS):
         p = yaml.safe_load((caminfo / f"{cam_id}_{pos}.yml").read_text())["projectionMatrix_3x4_w2p"]

@@ -7,7 +7,7 @@ all other pairs 0%, so cross-half links only create wrong associations.
 
 Topologies
   all            every camera subscribes to the other three (what the auto-configurator generates for 4 cams)
-  pairs          NL<->FL (flag half), NR<->FR (lounge half)
+  pairs          NL<->FL (left half), NR<->FR (right half)
   pairs_centre   pairs + FL<->FR (the two end-wall cameras overlap around centre court)
 
   python -m tools.pub_sub pairs <out.yml>

@@ -1,132 +1,112 @@
-# Courtside MV3DT
+# Gym MV3DT
 
-Workspace for running NVIDIA DeepStream Multi-View 3D Tracking (MV3DT) on a 4-camera basketball
-court, locally on Ubuntu 24.04 (RTX 3060 Ti, 8 GB, driver 580).
+Multi-camera basketball player tracking with NVIDIA DeepStream 9.1 Multi-View 3D Tracking (MV3DT) and a court-plane
+tracker that reports each player by identity (team + jersey number). Developed on Ubuntu 24.04 with an RTX 3060 Ti
+(8 GB, driver 580); the target is a Jetson (AGX Orin), so everything that runs live is causal.
+
+Results and the full write-up: [reports/phase7_report.md](reports/phase7_report.md).
 
 ## Cameras and calibration
 
-| Stream | Camera | Mount |
-|---|---|---|
-| 0 | cam_00 NL | flag-end backboard mount (with FR), looks down at the flag-end half |
-| 1 | cam_01 FL | lounge-end backboard mount (with NR), looks across at the flag-end half |
-| 2 | cam_02 NR | lounge-end backboard mount (with FL), looks down at the lounge-end half |
-| 3 | cam_03 FR | flag-end backboard mount (with NL), looks across at the lounge-end half |
+| Stream | Camera | Mount | View |
+|---|---|---|---|
+| 0 | cam_00 NL | left backboard (with FR) | looks down at the left half |
+| 1 | cam_01 FL | right backboard (with NR) | looks across at the left half |
+| 2 | cam_02 NR | right backboard (with FL) | looks down at the right half |
+| 3 | cam_03 FR | left backboard (with NL) | looks across at the right half |
 
-Each pair shares one apparatus on top of a backboard, 6-10 in apart. The calibration is fitted with each pair held
-together on its mount (`tools/calib_mount.py`; partner distances 0.33 and 0.35 m), see
-`datasets/courtside/camInfo_README.md`.
+Each pair shares one apparatus on top of a backboard, 6-10 in apart. The calibration (one 3 x 4 projection matrix per
+camera, valid for **1920 x 1080 undistorted** frames) is fitted with each pair held together on its mount
+(`tools/calib_mount.py`); it lives in `datasets/gym/camInfo/`, with earlier versions archived beside it (see
+`datasets/gym/camInfo_README.md`). Each camera file also stores the court tracker's fixed position bias
+(`courtTrackerBias_m`, measured with `tools/calib_bias.py`).
 
-World frame: metres, origin centre court, +x toward lounge end, +y toward HEAT-mural sideline, z up.
-
-> **Resolution:** the projection matrices are valid only for **1920x1080 undistorted** pixels.
-> Any stage that runs at another resolution needs scaled matrices.
+World frame: metres, origin at centre court, +x toward the right end, +y to the left when facing the right end, z up.
+Court size and markings: `tools/court.py`.
 
 ## Setup
 
-One-time host setup (needs sudo):
+- One-time host setup (needs sudo): `./scripts/install_nvidia_container_toolkit.sh`
+- Python venv at `~/.venvs/mv3dt` (set `MV3DT_VENV` to use another location)
+- Brokers: `./scripts/brokers.sh start|stop|status` (mosquitto on :1883 for MV3DT's inter-camera messages; Kafka
+  4.2.0 in `external/kafka_2.13-4.2.0` on :9092). Kafka must be restarted after a reboot.
+- DeepStream: `external/DeepStream` at tag `v9.1.0.2`, image `nvcr.io/nvidia/deepstream:9.1-triton-multiarch`.
+  The custom app (court filter, torso objects, jersey reads, court tracker) is built with
+  `./scripts/build_court_app.sh` into `external/bin/`.
 
-```bash
-./scripts/install_nvidia_container_toolkit.sh
-```
-
-The Python venv lives at `~/.venvs/mv3dt`; set `MV3DT_VENV` to use a different location.
+Videos, model weights and TensorRT engines are never committed (see `.gitignore`); `datasets/*/videos/` and
+`models/` stay local.
 
 ## Phases
 
 | Phase | Command |
 |---|---|
-| 1. Workspace scaffold + tests | `./scripts/phase1_setup.sh` |
-| 2. 60 s / 180 s synced test clips (from frame 3600) | `./scripts/phase2_clips.sh` |
+| 1. Workspace scaffold and tests | `./scripts/phase1_setup.sh` |
+| 2. 60 s / 180 s synced test clips | `./scripts/phase2_clips.sh` |
 | 3. DeepStream 9.1 MV3DT environment (repo, container, models, brokers) | `./scripts/phase3_setup.sh` |
-| 4. NVIDIA 4-camera sample, as documented (+ GPU log) | `./scripts/phase4_sample.sh` |
-| 5a. Court dataset + overlay check (experiments/overlays/) | `./scripts/phase5_dataset.sh` |
-| 5b. MV3DT on the court, headless (60 s / 180 s / full) | `./scripts/run_mv3dt.sh courtside_60s c60_pnt` (then `courtside_180s c180_pnt`, `courtside_full full_pnt`) |
-| 6. Variants (detectors, pose, tracker, association, topology, court filter) | `./scripts/phase6_variants.sh courtside_60s c60 <variant ...>`, `./scripts/phase6_tracker_sweep.sh courtside_60s t60 <step ...>` |
-| 6b. Court filter app (custom build of deepstream-test5-app) | `./scripts/build_court_app.sh`, then `COURT_FILTER=1 ./scripts/run_mv3dt.sh ...` |
-| 7. Evaluation (raw MV3DT, offline clean-up, court-plane tracker) | `python -m tools.evaluate <run ...> --md report.md` |
-| 7. Report: [reports/phase7_report.md](reports/phase7_report.md); web page `python3 reports/build_page.py` -> reports/phase7_report.html | `JOBS=8 ./scripts/phase8_reevaluate.sh` (every result table and figure) |
-| 8. Court tracker inside DeepStream (C++ probe, per-frame Kafka messages) | `./scripts/build_court_app.sh`, then `COURTTRACK=1 JERSEY=1 COURT_FILTER=1 ./scripts/run_mv3dt.sh ...`, or `./scripts/phase8_courttrack_live.sh` |
+| 4. NVIDIA's 4-camera sample, as documented | `./scripts/phase4_sample.sh` |
+| 5. Court dataset and overlay check | `./scripts/phase5_dataset.sh` |
+| 5b. MV3DT on the court, headless | `./scripts/run_mv3dt.sh gym_60s c60_pnt` (also `gym_180s`, `gym_full`) |
+| 6. Variants (detectors, pose, tracker, association, topology, court filter) | `./scripts/phase6_variants.sh gym_60s c60 <variant ...>`, `./scripts/phase6_tracker_sweep.sh gym_60s t60 <step ...>` |
+| 7. Evaluation and report | `JOBS=8 ./scripts/phase8_reevaluate.sh` (every result table and figure), `python3 reports/build_page.py` (web page) |
+| 7b. Deployment variants (no display, INT8, detector interval) | `./scripts/phase7_deploy_variants.sh` |
+| 8. Court tracker inside DeepStream | `./scripts/build_court_app.sh`, then `./scripts/phase8_courttrack_live.sh` |
 
-Offline tracking on top of DeepStream (no GPU, reads `experiments/<run>/kafka.jsonl.gz`):
-- `python -m tools.world_tracker <run> --write`: court-plane Kalman tracker over all cameras' foot positions
-  (MV3DT IDs ignored), with court filter, per-camera bias correction, duplicate merge, spectator filter and
-  stitching. Writes `tracks_world.csv`.
-- `python -m tools.render_bev experiments/<run>/tracks_world.csv out.mp4 --start 20 --seconds 20`: BEV clip.
+## Running
 
-Identity cues for the court tracker (real games only: numbered jerseys, consistent kits; colour cues only during
-the game, e.g. `--max-frame 12600` for the first 7 min of the test videos):
-- `python -m tools.appearance extract <run>` then `teams <run> --k 5 --max-frame 12600`; check
-  `team_clusters.jpg` and set labels with `set-teams <run> 0=maroon 3=red 4=ref ...` (`other` = no team).
-- `python -m tools.jersey extract <run> --max-frame 12600`: jersey-number reads (RapidOCR, PP-OCRv4 ONNX).
-- `python -m tools.reid extract <run>`: generic ReID embeddings (weak for teammates; not used by the tracker).
-- `WTParams(online_relink=True)` is the causal (deployable) mode; offline stitching is for analysis only.
-onnxruntime-gpu comes with pip CUDA wheels: call `onnxruntime.preload_dlls()` before creating a session.
+`./scripts/run_mv3dt.sh <dataset> <run> [Section.key=value ...]` writes everything to `experiments/<run>/`: generated
+configs, `kafka.jsonl.gz` (all MV3DT messages), `console.log`, `gpu.csv`, `run.txt`, and optionally videos. Options:
 
-Run options for `run_mv3dt.sh`: `DETECTOR_MODEL=PeopleNetTransformer|PeopleNet2.6.3|RTDETR`,
-`COURT_FILTER=1` (drop off-court detections before the tracker; margin `COURT_MARGIN`, default 0.75 m),
-`NEIGHBORS=all|pairs|pairs_centre` (camera neighbour topology, `tools/pub_sub.py`).
-Do not edit `scripts/*.sh` while a run is using them (bash reads scripts incrementally).
+| Variable | Effect |
+|---|---|
+| `DETECTOR_MODEL=PeopleNet2.6.3\|PeopleNetTransformer\|RTDETR` | detector (PeopleNet 2.6.3 is the one used) |
+| `COURT_FILTER=1` | drop detections outside the court (+ `COURT_MARGIN`, default 0.75 m) before the tracker |
+| `JERSEY=1` | jersey-number reading inside DeepStream (text detector + digit recogniser on torso crops) |
+| `COURTTRACK=1` | court tracker + automatic team colours in the pipeline; one Kafka message per frame on topic `courttrack` (needs `JERSEY=1`) |
+| `DISPLAY_OUT=0` | no on-screen display or annotated video |
+| `PGIE_PRECISION=int8`, `PGIE_INTERVAL=n`, `PGIE_THRESHOLD=x` | detector precision, interval and threshold |
+| `NEIGHBORS=all\|pairs\|pairs_centre` | MV3DT camera neighbour topology |
 
-`run_mv3dt.sh <dataset> <run> [Section.key=value ...]` writes to `experiments/<run>/`: generated configs,
-`outVideos/osd.mp4` (tracking view), `bev/*.mp4` (BEV over `layout_v2.png`), `track_dump/` (per-stream
-terminated tracks with foot world X/Y), `tracker-kitti-dump/`, `kafka.jsonl.gz` (all MV3DT messages:
-global IDs + per-camera `footLocation3D`), `console.log`, `gpu.csv`, `run.txt`. Detector via
-`DETECTOR_MODEL=PeopleNetTransformer|PeopleNet2.6.3|RTDETR`; extra args patch `config_tracker.yml`.
+Don't edit `scripts/*.sh` while a run is using them (bash reads scripts as it goes).
 
-Brokers (after a reboot Kafka must be restarted): `./scripts/brokers.sh start|stop|status`.
-MQTT = native mosquitto on :1883 (inter-camera tracker messages); Kafka 4.2.0 in
-`external/kafka_2.13-4.2.0` on :9092, topic `mv3dt` (metadata for the BEV visualizer).
+## Court tracker
 
-DeepStream: `external/DeepStream` at tag `v9.1.0.2`; app in
-`src/apps/reference_apps/deepstream-tracker-3d-multi-view`; image
-`nvcr.io/nvidia/deepstream:9.1-triton-multiarch`
-(`sha256:fd31f5b44ababdbdee8cd397a375e888191b49e402ac237254a4cdc239130f5b`, 27.2 GB).
+- **Python reference:** `tools/world_tracker.py` (`track_run(run, WTParams(online_relink=True))` is the causal mode),
+  with automatic team colours in `tools/online_teams.py` and identity output via `identity_tracks`.
+- **C++ port, used in DeepStream:** `apps/courttrack/` (`courttrack.cpp`, `online_teams.cpp`, probe
+  `courttrack_probe.cpp`). `make -C apps/courttrack` builds `ct_replay`, which replays recorded inputs; the C++ and
+  Python versions give identical output on the same inputs (`tools/courttrack_export.py`).
 
-Clip datasets (`datasets/courtside_60s`, `datasets/courtside_180s`) symlink `camInfo/` (and later
-`map.png`, `transforms.yml`) from `datasets/courtside`; each has a `manifest.json` with the source
-frame range, decoded frame counts and sync-check results.
+## Evaluation
 
-Identity ground truth (small, hand-labelled): `python -m tools.gt_prepare full_pn263_cf_jersey` writes
-`gt/game_2to3/` (30 moments of 2:00-3:00, every 2 s: each tracked person's camera crops, `tasks.json`,
-`sprites/`, and the labelling page `annotate.html`, published as a private claude.ai artifact whose `labels`
-collection holds the labels). Save the labels to `gt/game_2to3/labels/` (ArtifactData list with out_dir), then
-`python -m tools.gt_eval full_pn263_cf_jersey` scores MV3DT and the court-tracker variants (switches,
-tracks per player, impure tracks, duplicates).
-A second, held-out set: `python -m tools.gt_prepare full_pn263_cf_jersey --name game_4to5 --start 7200`
-(4:00-5:00, more flag-end play); score it with `--name game_4to5`.
-DeepStream runs are not repeatable (MV3DT ids/tracklets/reads differ run to run; identity IDF1 moves +-6 pts), so
-decisions use several runs: `python -m tools.multi_eval mount_r1 mount_r2 mount_r3` (configurations, paired vs default)
-and `python -m tools.loss_breakdown mount_r1 mount_r2 mount_r3` (where identity IDF1 is lost).
-Identity output: `identity_tracks(track_run(run, p), track_run.last_det_ident)` reports each detection as the
-player (team:number) its track was identified as at that frame (causal; roster inferred online, `track_run.last_roster`).
-`python -m tools.gt_causes full_pn263_cf_jersey [--events]` classifies every ground-truth switch (swap,
-duplicate, drifted, takeover, lost/reborn) and duplicate (same / different camera).
-`python -m tools.xcam full_pn263_cf_jersey` measures cross-camera position disagreement on the labelled
-people (pairwise per camera pair; per camera radial = along the line of sight vs tangential error).
-`python -m tools.calib_check full_pn263_cf_jersey` refits the cameras on the courtcal line traces (all lines) and with
-the far cameras held at their partner's mount; read-only unless `--write-dir` (never overwrites camera files).
-`python -m tools.jersey_rec_bench` / `tools.jersey_det_bench` benchmark the DeepStream jersey reader stages offline.
-`python -m tools.court_refine <run> <cam>` re-traces a camera's court lines from a median (player-free) image and refits
-it. Since 2026-10-23 its result is THE calibration in `datasets/courtside/camInfo` (see camInfo_README.md); runs before
-that used the hand-traced originals (each run keeps its own copy in `camInfo_used/`). Test datasets `courtside_full_mount`
-(far cameras forced onto their mounts, worse) and `courtside_full_refined` (= the adopted one) were removed.
-`python -m tools.render_labels mount_r1` renders the game (0:00-7:00) with the court tracker's player labels: 2x2 cameras +
-top-down court, 1280x720 -> experiments/mount_r1/labelled_game.mp4.
-`python -m tools.court_heatmap full_pn263_cf_jersey` draws where tracks start, are lost, re-link and duplicate
-(per player-minute), camera coverage, the ground-truth switches and cross-camera disagreement on the court.
+Hand-labelled identity ground truth for two minutes of the game is in `gt/game_2to3/` and `gt/game_4to5/` (labels in
+`labels/`; the labelling pages are private claude.ai artifacts). DeepStream runs are not repeatable, so results are
+averaged over several runs:
+
+- `python -m tools.multi_eval mount_r1 mount_r2 mount_r3 [--jobs 8]`: tracker configurations, paired by run and minute
+- `python -m tools.loss_breakdown ...`: where identity accuracy is lost
+- `python -m tools.causal_eval ...`: offline inputs vs their causal replacements
+- `python -m tools.nonplayer_eval ...`: spectators and other non-players in the output
+- `python -m tools.courttrack_export live <runs>`: runs made with `COURTTRACK=1` (replay checks and scores)
+- `python -m tools.render_labels <run> [--live] [--scale 1.5]`: labelled game video (720p, or 1080p with `--scale 1.5`)
+
+## Shot experiments
+
+Shot candidates and labels from rim motion (`tools/rim_motion.py`, `tools/shot_candidates.py`), pose keypoints for
+every detection (`tools/pose_extract.py`: NVIDIA BodyPose3DNet or RTMPose, which is downloaded into `models/rtmpose/`),
+pose-based shot detection (`tools/shot_pose_eval.py`) and shot attribution (`tools/shot_attribution.py`).
 
 ## Layout
 
 ```
-inputs/               raw inputs (not in git)
-tools/                clip making, validation, evaluation
-datasets/courtside/   MV3DT dataset: videos/ (symlinks), camInfo/, map.png, transforms.yml
-experiments/          generated configs + run outputs (not in git)
-scripts/              run scripts (docker commands)
+apps/        DeepStream additions: court filter, torso objects, jersey reader parser, court tracker (C++)
+datasets/    gym datasets: camInfo/ (calibration), map.png, transforms.yml, videos/ (local only)
+experiments/ run outputs (local only)
+gt/          identity ground truth
+reports/     report, result tables and figures
+scripts/     run scripts (Docker commands)
 tests/
+tools/       Python tools (tracking, evaluation, calibration, rendering)
 ```
 
-`datasets/*/videos/` holds **relative** symlinks into `inputs/`. When running in Docker, mount the
-whole workspace (not just `datasets/`) so the links resolve.
-
-Videos, model weights and TensorRT engines are never committed (see `.gitignore`).
+When running in Docker, mount the whole workspace (not just `datasets/`) so relative links resolve.

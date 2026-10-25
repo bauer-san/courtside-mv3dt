@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 1: create the venv (on ext4, outside this NTFS folder), populate datasets/courtside/, run tests.
+# Phase 1: create the venv (on ext4, outside this NTFS folder), populate datasets/gym/, run tests.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

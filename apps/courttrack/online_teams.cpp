@@ -1,4 +1,4 @@
-/* Courtside online team segmentation: C++ port of tools/online_teams.py.
+/* Gym MV3DT online team segmentation: C++ port of tools/online_teams.py.
  * Arithmetic follows the Python version where it decides outcomes: float32 colour samples and camera means, the
  * order of tracks (it decides which point the random draws pick), stable sorts, first-minimum ties and NumPy's
  * percentile interpolation.

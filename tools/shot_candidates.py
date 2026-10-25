@@ -1,10 +1,10 @@
 """Candidate shot moments from rim motion (tools/rim_motion.py), with a short clip of each for labelling.
 
-A candidate is a burst of motion inside a rim (NL: flag-end rim, NR: lounge-end rim): the 5-frame mean of the changed
+A candidate is a burst of motion inside a rim (NL: left-end rim, NR: right-end rim): the 5-frame mean of the changed
 pixel share above --low, grouped within 2 s, kept if its peak reaches --thr. Frames where the whole rim window changes at
 once (> 0.5: decoder or exposure glitches) and the first 2 s are ignored. Each clip is 3.5 s (2 s before the peak to
 1.5 s after): the rim seen from its backboard camera on the left, the wide view from the far camera that faces that end
-(FL for the flag end, FR for the lounge end) on the right.
+(FL for the left end, FR for the right end) on the right.
 
   python -m tools.shot_candidates [--thr 0.03] -> experiments/shots/candidates.json, experiments/shots/clips/cNN.mp4
 """
@@ -21,7 +21,7 @@ from tools import DATASETS, ROOT
 
 VIDEO = {"NL": "cam_00_NL.mp4", "FL": "cam_01_FL.mp4", "NR": "cam_02_NR.mp4", "FR": "cam_03_FR.mp4"}
 WIDE = {"NL": "FL", "NR": "FR"}
-END = {"NL": "flag", "NR": "lounge"}
+END = {"NL": "left", "NR": "right"}
 PRE, POST = 60, 45
 
 
@@ -48,7 +48,7 @@ def clip(cam: str, peak: int, box, out: Path) -> None:
     x0, y0, x1, y1 = box
     side = max(x1 - x0, y1 - y0)
     cx, cy = (x0 + x1) // 2, (y0 + y1) // 2
-    caps = {c: cv2.VideoCapture(str((DATASETS / "courtside_full" / "videos" / VIDEO[c]).resolve())) for c in (cam, WIDE[cam])}
+    caps = {c: cv2.VideoCapture(str((DATASETS / "gym_full" / "videos" / VIDEO[c]).resolve())) for c in (cam, WIDE[cam])}
     for c in caps.values():
         c.set(cv2.CAP_PROP_POS_FRAMES, max(0, peak - PRE))
     w, h = 1000, 360

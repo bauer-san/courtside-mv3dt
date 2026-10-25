@@ -1,5 +1,5 @@
 
-<title>Courtside Tracking Report</title>
+<title>Player Tracking Report</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -69,7 +69,7 @@ svg.chart .row:hover .hit { fill: var(--accent-soft); }
 </style>
 <div class="wrap"><header class="top">
 <div class="eyebrow">Phase 7 report · 2026-10-24</div>
-<h1>Courtside multi-camera player tracking</h1>
+<h1>Multi-camera basketball player tracking</h1>
 <div class="meta">Four cameras, DeepStream 9.1 MV3DT, RTX 3060 Ti; target device Jetson Orin Nano Super.
 Cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
 <div class="board">
@@ -189,8 +189,8 @@ Orin with INT8, and not feasible on an Orin Nano Super.</p>
 <h3 id="22-cameras-and-video">2.2 Cameras and video</h3>
 <ul>
 <li>
-<p><strong>Mounting:</strong> two camera pairs, each on one apparatus on top of a backboard, 6-10 in apart. NL + FR sit at the flag
-    end, NR + FL at the lounge end. The N cameras look steeply down at the near half; the F cameras look across at the
+<p><strong>Mounting:</strong> two camera pairs, each on one apparatus on top of a backboard, 6-10 in apart. NL + FR sit at the left
+    end, NR + FL at the right end. The N cameras look steeply down at the near half; the F cameras look across at the
     far half.</p>
 </li>
 <li>
@@ -466,13 +466,13 @@ needs. Without them the same pipeline runs at 61 fps per camera; with an INT8 de
 <td>0.5 %</td>
 </tr>
 <tr>
-<td>Flag-end third</td>
+<td>Left-end third</td>
 <td>1.8</td>
 <td>2.9</td>
 <td>4.5 %</td>
 </tr>
 <tr>
-<td>Lounge-end third</td>
+<td>Right-end third</td>
 <td>1.7</td>
 <td>2.4</td>
 <td>1.7 %</td>
@@ -485,7 +485,7 @@ needs. Without them the same pipeline runs at 61 fps per camera; with an INT8 de
     there, and often only one camera sees them.</p>
 </li>
 <li>
-<p><strong>Ends:</strong> the flag end is somewhat worse than the lounge end.</p>
+<p><strong>Ends:</strong> the left end is somewhat worse than the right end.</p>
 </li>
 </ul>
 <h3 id="46-offline-inputs-and-their-causal-replacements">4.6 Offline inputs and their causal replacements</h3>
@@ -881,7 +881,7 @@ players. The rule's thresholds were set on this venue's front row and should be 
 <p><strong>Court size:</strong> fitted at 70.3 × 45.1 ft. All tools read it from <code>tools/court.py</code>.</p>
 </li>
 <li>
-<p><strong>Single source of truth:</strong> the camera files are in <code>datasets/courtside/camInfo</code>. Earlier versions are archived
+<p><strong>Single source of truth:</strong> the camera files are in <code>datasets/gym/camInfo</code>. Earlier versions are archived
     beside them, and each run keeps the copy it used in <code>camInfo_used/</code>.</p>
 </li>
 <li>
@@ -1531,7 +1531,7 @@ frame is detected, so MV3DT works as designed; it needs the same three-run evalu
 <h2 id="10-how-to-reproduce">10. How to reproduce</h2>
 <pre><code class="language-bash">./scripts/brokers.sh start
 for r in mount_r1 mount_r2 mount_r3; do
-  DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all ./scripts/run_mv3dt.sh courtside_full $r
+  DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all ./scripts/run_mv3dt.sh gym_full $r
   ~/.venvs/mv3dt/bin/python -m tools.jersey from-ds $r
   cp experiments/full_pn263_cf_jersey/{team_model.npz,teams.yml} experiments/$r/
   ~/.venvs/mv3dt/bin/python -m tools.appearance extract $r

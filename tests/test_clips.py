@@ -7,7 +7,7 @@ import pytest
 from tools import CAMERAS, DATASETS
 from tools.make_clips import encode_cmd
 
-CLIP_DATASETS = {"courtside_60s": 1800, "courtside_180s": 5400}
+CLIP_DATASETS = {"gym_60s": 1800, "gym_180s": 5400}
 
 
 def test_encode_cmd_selects_by_frame_number(tmp_path):
@@ -35,4 +35,4 @@ def test_clip_dataset(name, frames):
         caminfo = ds / "camInfo"
         assert caminfo.is_symlink()
         assert (caminfo / f"{cam_id}_{pos}.yml").read_text() == \
-            (DATASETS / "courtside" / "camInfo" / f"{cam_id}_{pos}.yml").read_text()
+            (DATASETS / "gym" / "camInfo" / f"{cam_id}_{pos}.yml").read_text()

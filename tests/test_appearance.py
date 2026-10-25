@@ -9,7 +9,7 @@ from tools.court import project
 
 
 def test_person_height_recovers_known_height():
-    P = np.array(yaml.safe_load((DATASETS / "courtside" / "camInfo" / "cam_03_FR.yml").read_text())
+    P = np.array(yaml.safe_load((DATASETS / "gym" / "camInfo" / "cam_03_FR.yml").read_text())
                  ["projectionMatrix_3x4_w2p"]).reshape(3, 4)
     for x, y, h in [(4.0, 1.0, 1.85), (7.0, -2.5, 1.70), (2.0, 3.0, 2.00)]:
         px, _ = project(P, np.array([[x, y, 0.0], [x, y, h]]))

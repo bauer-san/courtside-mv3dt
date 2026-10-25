@@ -78,7 +78,7 @@ def photo(src: str, alt: str, caption: str) -> str:
 
 
 CSS = """
-<title>Courtside Tracking Report</title>
+<title>Player Tracking Report</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -201,7 +201,7 @@ def main() -> None:
     lo, hi = re.findall(r"(\d+)%", d[2])
     header = f"""<header class="top">
 <div class="eyebrow">Phase 7 report · 2026-10-24</div>
-<h1>Courtside multi-camera player tracking</h1>
+<h1>Multi-camera basketball player tracking</h1>
 <div class="meta">Four cameras, DeepStream 9.1 MV3DT, RTX 3060 Ti; target device Jetson Orin Nano Super.
 Cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
 <div class="board">

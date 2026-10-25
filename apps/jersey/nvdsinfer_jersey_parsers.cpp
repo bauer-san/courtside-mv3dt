@@ -1,4 +1,4 @@
-/* Courtside: nvinfer custom parsers for jersey-number reading (text detector runs on torso objects) with PaddleOCR PP-OCRv4 (ONNX, Apache-2.0).
+/* Gym MV3DT: nvinfer custom parsers for jersey-number reading (text detector runs on torso objects) with PaddleOCR PP-OCRv4 (ONNX, Apache-2.0).
  * SPDX-License-Identifier: Apache-2.0
  *
  * NvDsInferParseCustomDBText    secondary detector on person crops: DB probability map [1, H, W] -> text boxes.
@@ -120,7 +120,7 @@ extern "C" bool NvDsInferParseCustomCTCDigits(std::vector<NvDsInferLayerInfo> co
     int idx = static_cast<int>(std::max_element(row, row + NUM_CLASSES) - row);
     if (idx != 0 && idx != prev) {
       char c = digit_of(idx);
-      if (!c) valid = false;            // a non-digit character: not a jersey number (e.g. "COURTSIDE")
+      if (!c) valid = false;            // a non-digit character: not a jersey number (e.g. floor lettering)
       else { text.push_back(c); conf_sum += row[idx]; }
     }
     prev = idx;

@@ -1,4 +1,4 @@
-"""Motion inside each rim, seen from the backboard cameras (NL: flag-end rim, NR: lounge-end rim).
+"""Motion inside each rim, seen from the backboard cameras (NL: left-end rim, NR: right-end rim).
 
 NL and NR sit on top of the backboards looking down, so each sees its own rim at a fixed place in the image. Per frame,
 the share of pixels inside the projected rim (plus a margin) that changed since the previous frame; a ball arriving at
@@ -14,12 +14,12 @@ import cv2
 import numpy as np
 
 from tools import DATASETS, ROOT
-from tools.court import FT, HALF_FLAG_FT, HALF_LOUNGE_FT
+from tools.court import FT, HALF_LEFT_FT, HALF_RIGHT_FT
 from tools.stitch import load_cameras
 
 RIM_R = 0.2286          # m (18 in diameter)
-RIMS = {"NL": np.array([-(HALF_FLAG_FT - 5.25) * FT, 0.0, 10 * FT]),
-        "NR": np.array([(HALF_LOUNGE_FT - 5.25) * FT, 0.0, 10 * FT])}
+RIMS = {"NL": np.array([-(HALF_LEFT_FT - 5.25) * FT, 0.0, 10 * FT]),
+        "NR": np.array([(HALF_RIGHT_FT - 5.25) * FT, 0.0, 10 * FT])}
 VIDEO = {"NL": "cam_00_NL.mp4", "NR": "cam_02_NR.mp4"}
 
 
@@ -39,10 +39,10 @@ def main() -> None:
     ap.add_argument("--diff", type=int, default=25, help="grey-level change counted as motion")
     ap.add_argument("--out", type=Path, default=ROOT / "experiments" / "shots" / "rim_motion.npz")
     a = ap.parse_args()
-    cams = load_cameras(DATASETS / "courtside" / "camInfo")
+    cams = load_cameras(DATASETS / "gym" / "camInfo")
     out = {}
     for cam in ("NL", "NR"):
-        cap = cv2.VideoCapture(str((DATASETS / "courtside_full" / "videos" / VIDEO[cam]).resolve()))
+        cap = cv2.VideoCapture(str((DATASETS / "gym_full" / "videos" / VIDEO[cam]).resolve()))
         ok, prev = cap.read()
         mask = rim_mask(cams[cam], RIMS[cam], prev.shape[:2])
         ys, xs = np.where(mask)

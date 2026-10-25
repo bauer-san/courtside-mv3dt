@@ -1,4 +1,4 @@
-"""Phase 5 checks: court model, BEV transform, and the assembled courtside dataset."""
+"""Phase 5 checks: court model, BEV transform, and the assembled gym dataset."""
 
 import csv
 
@@ -10,7 +10,7 @@ from tools import CAMERAS, DATASETS, INPUTS
 from tools.build_dataset import PERSON_CLASS_IDS
 from tools.court import T_WORLD_TO_MAP, court_points, project, world_to_map
 
-DATASET = DATASETS / "courtside"
+DATASET = DATASETS / "gym"
 
 
 @pytest.fixture(scope="module")
@@ -22,12 +22,12 @@ def alignment_points():
 def test_court_points_geometry():
     # alignment_points_v2.csv used the original court size; since 2026-10-24 the length/width are fitted
     # (tools/calib_mount.py), so check the markings against the court's own baselines instead
-    from tools.court import FT, HALF_FLAG_FT, HALF_LOUNGE_FT
+    from tools.court import FT, HALF_LEFT_FT, HALF_RIGHT_FT
     pts = court_points()
-    np.testing.assert_allclose(pts["A1"], [-(HALF_FLAG_FT - 19) * FT, 6 * FT], atol=1e-6)
-    np.testing.assert_allclose(pts["A2"], [-(HALF_FLAG_FT - 19) * FT, -6 * FT], atol=1e-6)
-    np.testing.assert_allclose(pts["B1"], [(HALF_LOUNGE_FT - 19) * FT, 6 * FT], atol=1e-6)
-    np.testing.assert_allclose(pts["B2"], [(HALF_LOUNGE_FT - 19) * FT, -6 * FT], atol=1e-6)
+    np.testing.assert_allclose(pts["A1"], [-(HALF_LEFT_FT - 19) * FT, 6 * FT], atol=1e-6)
+    np.testing.assert_allclose(pts["A2"], [-(HALF_LEFT_FT - 19) * FT, -6 * FT], atol=1e-6)
+    np.testing.assert_allclose(pts["B1"], [(HALF_RIGHT_FT - 19) * FT, 6 * FT], atol=1e-6)
+    np.testing.assert_allclose(pts["B2"], [(HALF_RIGHT_FT - 19) * FT, -6 * FT], atol=1e-6)
 
 
 def test_map_transform_matches_alignment_csv(alignment_points):

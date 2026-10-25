@@ -48,7 +48,10 @@ TEAM_LABELS = ("A", "B")
 
 def run_dataset(run: Path) -> Path:
     m = re.search(r"dataset=(\S+)", (run / "run.txt").read_text())
-    return DATASETS / m.group(1)
+    d = DATASETS / m.group(1)
+    if not d.exists():   # runs made before the datasets were renamed (courtside* -> gym*, 2026-10-25)
+        d = DATASETS / m.group(1).replace("courtside", "gym")
+    return d
 
 
 def load_boxes(run: Path, step: int) -> dict:

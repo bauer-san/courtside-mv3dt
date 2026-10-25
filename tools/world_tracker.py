@@ -1151,7 +1151,7 @@ def track_run(run: Path, p: WTParams | None = None, sp: StitchParams | None = No
         if not bias:                 # runs recorded before the bias was stored: the current calibration's values
             import sys
             bias = stored()
-            print(f"track_run: {run.name}/camInfo_used has no stored bias; using datasets/courtside/camInfo",
+            print(f"track_run: {run.name}/camInfo_used has no stored bias; using datasets/gym/camInfo",
                   file=sys.stderr)
         bias = bias or None
     else:                            # True: estimated over the whole run (offline; the reported results)
