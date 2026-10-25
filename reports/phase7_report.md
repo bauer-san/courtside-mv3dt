@@ -316,6 +316,31 @@ The court tracker now runs live in the pipeline (`scripts/run_mv3dt.sh` with `CO
   evaluation only and would be off in deployment. The Kafka send is timed together with them (1.7-2.8 ms per frame
   on average, including the stalls).
 
+### 4.9 Seated spectators in the output
+
+The labels include 160 crops of people who aren't players (453 detections over the three mount runs). Almost all of
+them are spectators in the front-row seats, seen by FR (414 of the 453), which looks across the court at them
+(`tools/nonplayer_eval.py`, `reports/nonplayer_output.md`).
+
+| Labelled detections | In the output | With an identity |
+|---|---|---|
+| Players, Python reference, deployable (mount runs) | 100 % | 94 % |
+| Seated spectators, Python reference, deployable (mount runs) | 61 % | 15 % |
+| Seated spectators, live in DeepStream (ct2 runs) | 61 % | 24 % |
+
+- **Why they get through:** their boxes end at the line, so the court filter keeps them. MV3DT's body model assumes a
+  standing person, so it places their feet about 2 m inside the court (median), among the players.
+- **What it costs:** the identities they get are real players' (A:1, B:0, A:3, ...), so the output then carries the
+  same identity twice. Their tracks also move several metres, presumably because players passing by get merged into
+  them. The identity score doesn't show this, because it is scored on players only; the spectator filter of
+  section 4.6 doesn't catch it either, since these tracks aren't static.
+- **A cheap cue separates them:** for a seated person, the box bottom projected onto the floor lands at their seat,
+  at or just outside the line, while MV3DT puts the feet 2 m further in. For players the two agree to about 0.3 m.
+  Dropping detections whose two foot points are more than 1 m apart *and* whose box-bottom point is less than 0.6 m
+  inside the lines would remove 96 % of the spectator detections and 0.5 % of the player detections. Body height
+  alone separates them poorly (23 % of spectators under 1.4 m, against 3 % of players). The rule hasn't been tried
+  in the tracker yet.
+
 ## 5. Calibration
 
 The final calibration places each camera where it physically is: the pairs on their backboard apparatus.
@@ -608,7 +633,9 @@ Kafka output (section 4.8).
    without an identity.
 6. **Label a third minute** (6:00-7:00 is still unused, up to the end of the game) for a clean held-out score before
    any final claims.
-7. **Use the official roster** (numbers per team, available for real games): reject reads of numbers on neither
+7. **Drop seated spectators** with the foot-point rule of section 4.9, and measure its effect on the output and on
+   the identity score.
+8. **Use the official roster** (numbers per team, available for real games): reject reads of numbers on neither
    roster, and settle the team of a number only one team wears. The roster can't say which colour is which team, but
    the tracker can learn that from which numbers each colour cluster is read with. This also targets the wrong-team
    errors on shared numbers.

@@ -740,6 +740,56 @@ and NumPy's percentile formula is matched exactly.</p>
     on average, including the stalls).</p>
 </li>
 </ul>
+<h3 id="49-seated-spectators-in-the-output">4.9 Seated spectators in the output</h3>
+<p>The labels include 160 crops of people who aren't players (453 detections over the three mount runs). Almost all of
+them are spectators in the front-row seats, seen by FR (414 of the 453), which looks across the court at them
+(<code>tools/nonplayer_eval.py</code>, <code>reports/nonplayer_output.md</code>).</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Labelled detections</th>
+<th>In the output</th>
+<th>With an identity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Players, Python reference, deployable (mount runs)</td>
+<td>100 %</td>
+<td>94 %</td>
+</tr>
+<tr>
+<td>Seated spectators, Python reference, deployable (mount runs)</td>
+<td>61 %</td>
+<td>15 %</td>
+</tr>
+<tr>
+<td>Seated spectators, live in DeepStream (ct2 runs)</td>
+<td>61 %</td>
+<td>24 %</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>
+<p><strong>Why they get through:</strong> their boxes end at the line, so the court filter keeps them. MV3DT's body model assumes a
+    standing person, so it places their feet about 2 m inside the court (median), among the players.</p>
+</li>
+<li>
+<p><strong>What it costs:</strong> the identities they get are real players' (A:1, B:0, A:3, ...), so the output then carries the
+    same identity twice. Their tracks also move several metres, presumably because players passing by get merged into
+    them. The identity score doesn't show this, because it is scored on players only; the spectator filter of
+    section 4.6 doesn't catch it either, since these tracks aren't static.</p>
+</li>
+<li>
+<p><strong>A cheap cue separates them:</strong> for a seated person, the box bottom projected onto the floor lands at their seat,
+    at or just outside the line, while MV3DT puts the feet 2 m further in. For players the two agree to about 0.3 m.
+    Dropping detections whose two foot points are more than 1 m apart <em>and</em> whose box-bottom point is less than 0.6 m
+    inside the lines would remove 96 % of the spectator detections and 0.5 % of the player detections. Body height
+    alone separates them poorly (23 % of spectators under 1.4 m, against 3 % of players). The rule hasn't been tried
+    in the tracker yet.</p>
+</li>
+</ul>
 <h2 id="5-calibration">5. Calibration</h2>
 <p>The final calibration places each camera where it physically is: the pairs on their backboard apparatus.</p>
 <ul>
@@ -1437,6 +1487,10 @@ frame is detected, so MV3DT works as designed; it needs the same three-run evalu
 <li>
 <p><strong>Label a third minute</strong> (6:00-7:00 is still unused, up to the end of the game) for a clean held-out score before
     any final claims.</p>
+</li>
+<li>
+<p><strong>Drop seated spectators</strong> with the foot-point rule of section 4.9, and measure its effect on the output and on
+    the identity score.</p>
 </li>
 <li>
 <p><strong>Use the official roster</strong> (numbers per team, available for real games): reject reads of numbers on neither
