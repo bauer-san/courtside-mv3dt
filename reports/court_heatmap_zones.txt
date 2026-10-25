@@ -1,0 +1,9 @@
+reports/figures/court_heatmap.png
+
+per player-minute            occupancy  new   lost  relink  dup-share
+  flag-end third                 26.5    2.26  3.73   2.90     3.8%
+  centre third                   23.8    1.97  2.73   1.55     2.4%
+  lounge-end third               27.6    2.10  3.19   1.89     2.1%
+  within 1.5 m of a sideline      4.7    3.21  7.27   2.57     0.5%
+  within 1.5 m of a baseline      7.1    4.21  6.59   3.37     0.1%
+  interior (not near a line)     67.0    1.82  2.64   1.97     3.2%

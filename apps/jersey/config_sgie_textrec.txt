@@ -1,0 +1,28 @@
+# Courtside: digit recogniser on the text boxes (PaddleOCR PP-OCRv4 rec, CTC, ONNX, Apache-2.0)
+# Classifier SGIE; custom parser keeps 1-2 digit reads (see apps/jersey/nvdsinfer_jersey_parsers.cpp).
+# PP-OCR rec preprocessing as in RapidOCR: BGR, (x/255 - 0.5) / 0.5; text left-aligned, padded right
+# Input width 64 (not 320): nvinfer pads with black pixels (RapidOCR pads with grey) and wide black padding
+# wrecks the reads (Python test, same text boxes: NR 27 % grey/320, 7 % black/320, 25 % black/64). 64 px still
+# gives the CTC head 8 time steps, enough for 2 digits, at ~5x less compute.
+[property]
+gpu-id=0
+onnx-file=/workspace/models/OCR/ch_PP-OCRv4_rec_infer.onnx
+model-engine-file=/workspace/models/OCR/ch_PP-OCRv4_rec_infer.onnx_b32_gpu0_fp16_w64.engine
+infer-dims=3;48;64
+batch-size=32
+network-mode=2
+network-type=1
+process-mode=2
+gie-unique-id=3
+operate-on-gie-id=2
+operate-on-class-ids=0
+model-color-format=1
+net-scale-factor=0.0078431373
+offsets=127.5;127.5;127.5
+maintain-aspect-ratio=1
+symmetric-padding=0
+output-blob-names=softmax_11.tmp_0
+classifier-threshold=0.6
+classifier-async-mode=0
+parse-classifier-func-name=NvDsInferParseCustomCTCDigits
+custom-lib-path=/workspace/bin/libnvdsinfer_jersey.so

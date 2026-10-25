@@ -1,0 +1,33 @@
+# Courtside: secondary detector for text on player torsos (PaddleOCR PP-OCRv4 det, DB, ONNX, Apache-2.0)
+# Runs on the torso objects (gie 4) that torso_objects.c adds to player boxes >= 150 px, re-inferred on the
+# same tracked player every 6 frames. Input 480x384: smaller inputs lose most numbers (Python test: 320x256
+# 15/26, 480x384 19/26 legible numbers).
+# Preprocessing as RapidOCR feeds PP-OCRv4: BGR, (x/255 - 0.5) / 0.5.
+# Aspect ratio kept (padded): stretching wide top-down torsos (NL, NR) to 480x384 distorted the digits.
+[property]
+gpu-id=0
+onnx-file=/workspace/models/OCR/ch_PP-OCRv4_det_infer.onnx
+model-engine-file=/workspace/models/OCR/ch_PP-OCRv4_det_infer.onnx_b16_gpu0_fp16.engine
+infer-dims=3;480;384
+batch-size=16
+network-mode=2
+network-type=0
+num-detected-classes=1
+process-mode=2
+gie-unique-id=2
+operate-on-gie-id=4
+operate-on-class-ids=0
+input-object-min-height=70
+secondary-reinfer-interval=6
+model-color-format=1
+net-scale-factor=0.0078431373
+offsets=127.5;127.5;127.5
+maintain-aspect-ratio=1
+symmetric-padding=1
+output-blob-names=sigmoid_0.tmp_0
+cluster-mode=4
+parse-bbox-func-name=NvDsInferParseCustomDBText
+custom-lib-path=/workspace/bin/libnvdsinfer_jersey.so
+
+[class-attrs-all]
+pre-cluster-threshold=0.5

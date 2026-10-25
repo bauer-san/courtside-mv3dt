@@ -1,0 +1,48 @@
+{
+  "start_frame": 0,
+  "frames": 26970,
+  "fps": 30,
+  "crf": 18,
+  "cameras": {
+    "cam_00": {
+      "source": "00_NL_1080p_15mins_cfr_undist.mp4",
+      "frames": 26970,
+      "sync": {
+        "mad_prev": null,
+        "mad_same": 0.189,
+        "mad_next": 0.406,
+        "ok": true
+      }
+    },
+    "cam_01": {
+      "source": "01_FL_1080p_15mins_cfr_undist.mp4",
+      "frames": 26970,
+      "sync": {
+        "mad_prev": null,
+        "mad_same": 0.199,
+        "mad_next": 1.826,
+        "ok": true
+      }
+    },
+    "cam_02": {
+      "source": "02_NR_1080p_15mins_cfr_undist.mp4",
+      "frames": 26970,
+      "sync": {
+        "mad_prev": null,
+        "mad_same": 0.291,
+        "mad_next": 1.443,
+        "ok": true
+      }
+    },
+    "cam_03": {
+      "source": "03_FR_1080p_15mins_cfr_undist.mp4",
+      "frames": 26970,
+      "sync": {
+        "mad_prev": null,
+        "mad_same": 0.242,
+        "mad_next": 1.719,
+        "ok": true
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+# FL camera (cam_01) - joint calibration on the physical mounts (tools/calib_mount.py)
+# Lines re-traced from the images (tools/court_refine.py); camera pairs held together on their
+# backboard apparatus (FL with NR, FR with NL, <= 0.25 m apart); standard HS/NCAA markings; court
+# length and width fitted (tools/court.py).
+# World: metres, origin centre court, x toward lounge end, y toward HEAT-mural sideline, z up.
+# Valid for UNDISTORTED 1920x1080 frames.
+# Adopted 2026-10-24 as the single calibration; court-line fit RMS 3.02 px.
+# Camera position (m): [9.819, 0.194, 4.162]  f 2041 px
+projectionMatrix_3x4_w2p:
+- -105.1148249
+- 190.1509088
+- -11.73775973
+- 1044.055853
+- -18.74314944
+- 2.489772759
+- -202.7913892
+- 1027.531624
+- -0.09489334863
+- -0.006470246879
+- -0.01608765755
+- 1
+
+# Person model (metres). classID 1 = person for PeopleNetTransformer;
+# classID 0 = person for PeopleNet 2.6.3 and RT-DETR. Other classes are filtered by the detector configs.
+modelInfo:
+  - classID: 0
+    height: 1.8
+    radius: 0.3
+  - classID: 1
+    height: 1.8
+    radius: 0.3
+
+# Court tracker position bias (m): constant offset of this camera's foot points, subtracted before
+# court tracking. Measured with tools/calib_bias.py on mount_r1, mount_r2, mount_r3.
+# Re-measure whenever the calibration above changes.
+courtTrackerBias_m: [-0.0292, 0.0253]

@@ -1,0 +1,30 @@
+# FR camera (cam_03) - lines re-traced from the image (tools/court_refine.py), free fit
+# (standard HS/NCAA markings, court size as measured by courtcal-proto-0.1)
+# World: metres, origin centre court, x toward lounge end, y toward HEAT-mural sideline, z up.
+# Valid for UNDISTORTED 1920x1080 frames.
+# Adopted 2026-10-23 as the single calibration; court-line fit RMS 2.18 px. Previous (hand-traced
+# courtcal-proto-0.1) files: datasets/courtside/camInfo_archive_courtcal_proto_2026-10-21/.
+# Camera position (m): [-10.593, -0.002, 4.346]  f 2117 px
+projectionMatrix_3x4_w2p:
+- 82.19577291
+- -191.0314021
+- -12.74314034
+- 925.8219726
+- 17.01493664
+- -1.469419133
+- -195.0844109
+- 1028.166461
+- 0.08844349787
+- -0.001354522316
+- -0.014516538
+- 1
+
+# Person model (metres). classID 1 = person for PeopleNetTransformer;
+# classID 0 = person for PeopleNet 2.6.3 and RT-DETR. Other classes are filtered by the detector configs.
+modelInfo:
+  - classID: 0
+    height: 1.8
+    radius: 0.3
+  - classID: 1
+    height: 1.8
+    radius: 0.3

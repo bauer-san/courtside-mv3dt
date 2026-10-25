@@ -1,0 +1,25 @@
+# World (metres, origin centre court) -> map.png pixel (layout_v2.png, 1 px = 1 inch):
+#   u = 499.8 + 39.3701 * x,  v = 344.9 - 39.3701 * y
+# Row-major 3x3, same layout as NVIDIA's datasets/mtmc_4cam/transforms.yml.
+T_ov2px:
+  - 39.370100
+  - 0.000000
+  - 499.800000
+  - 0.000000
+  - -39.370100
+  - 344.900000
+  - 0.000000
+  - 0.000000
+  - 1.000000
+
+# Ground truth (if any) is in the same world frame.
+T_gt2px:
+  - 39.370100
+  - 0.000000
+  - 499.800000
+  - 0.000000
+  - -39.370100
+  - 344.900000
+  - 0.000000
+  - 0.000000
+  - 1.000000

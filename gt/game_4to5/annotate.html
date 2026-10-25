@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Court ID Labels 4-5</title>
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1c1a; --muted: #6b6862; --line: #dedbd4;
+  --accent: #2f6fdf; --ok: #2e8b57; --warn: #b7791f;
+  --red: #d33a2c; --maroon: #7a2140; --ref: #3d3d3d; --none: #8a8780; --unclear: #b7791f;
+  --chip: #efede8; --chip-on: #1d1c1a; --chip-on-ink: #ffffff;
+  --court: #e9dcc4; --court-line: #9c8a6a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --panel: #201f1d; --ink: #ecebe7; --muted: #a29e96; --line: #36342f;
+    --accent: #6f9dff; --ok: #4fbf7f; --warn: #e0a64a;
+    --red: #ff6b5c; --maroon: #d0668c; --ref: #c9c9c9; --none: #8f8b84; --unclear: #e0a64a;
+    --chip: #2c2b28; --chip-on: #ecebe7; --chip-on-ink: #161615;
+    --court: #3a3326; --court-line: #8f7c58;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --panel: #201f1d; --ink: #ecebe7; --muted: #a29e96; --line: #36342f;
+  --accent: #6f9dff; --ok: #4fbf7f; --warn: #e0a64a;
+  --red: #ff6b5c; --maroon: #d0668c; --ref: #c9c9c9; --none: #8f8b84; --unclear: #e0a64a;
+  --chip: #2c2b28; --chip-on: #ecebe7; --chip-on-ink: #161615;
+  --court: #3a3326; --court-line: #8f7c58;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 980px; margin: 0 auto;
+  padding: 0 max(16px, env(safe-area-inset-right)) 80px max(16px, env(safe-area-inset-left)); }
+header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line);
+  padding: 10px 0 8px; }
+h1 { font-size: 18px; margin: 0 0 4px; }
+.sub { color: var(--muted); font-size: 13px; }
+.navrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+button { font: inherit; color: inherit; background: var(--chip); border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 11px; cursor: pointer; min-height: 34px; }
+button:hover { border-color: var(--muted); }
+button.on { background: var(--chip-on); color: var(--chip-on-ink); border-color: var(--chip-on); }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+select, input { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 5px 8px; min-height: 34px; }
+.moment-title { font-weight: 600; }
+.progress { margin-left: auto; font-size: 13px; color: var(--muted); }
+.bar { height: 4px; background: var(--line); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.bar > div { height: 100%; background: var(--ok); width: 0; transition: width .2s; }
+.banner { margin: 12px 0; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--warn); color: var(--warn); }
+details.help { margin: 12px 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+details.help summary { cursor: pointer; font-weight: 600; }
+details.help p, details.help li { color: var(--muted); font-size: 14px; }
+.map { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; margin: 12px 0; }
+.map svg { width: 100%; height: auto; display: block; }
+.card { background: var(--panel); border: 1px solid var(--line); border-left: 5px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; margin: 10px 0; scroll-margin-top: 120px; }
+.card.done { border-left-color: var(--ok); }
+.card.focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.card-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.card-head b { color: var(--ink); font-size: 15px; }
+.crops { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.crop { position: relative; border-radius: 6px; overflow: hidden; cursor: zoom-in; background-repeat: no-repeat;
+  border: 1px solid var(--line); flex: none; }
+.crop .tag { position: absolute; left: 3px; top: 3px; font-size: 11px; background: rgba(0,0,0,.65); color: #fff;
+  padding: 1px 5px; border-radius: 4px; }
+.crop .ovr { position: absolute; left: 3px; bottom: 3px; font-size: 11px; background: var(--accent); color: #fff;
+  padding: 1px 5px; border-radius: 4px; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+.row .lbl { font-size: 12px; color: var(--muted); width: 54px; }
+.t-red.on { background: var(--red); border-color: var(--red); color: #fff; }
+.t-maroon.on { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+.t-ref.on { background: var(--ref); border-color: var(--ref); color: var(--bg); }
+.num { min-width: 42px; }
+.num-other { width: 70px; }
+.guess { font-size: 13px; }
+.status { margin-left: auto; font-weight: 600; }
+.status.ok { color: var(--ok); }
+.percrop { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); display: grid; gap: 6px; }
+.percrop .pc { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.linkish { background: none; border: none; color: var(--accent); padding: 4px 0; min-height: 0; }
+.zoom { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: none; align-items: center; justify-content: center;
+  z-index: 20; cursor: zoom-out; }
+.zoom.show { display: flex; }
+.zoom div { background-repeat: no-repeat; border-radius: 6px; }
+footer { display: flex; gap: 8px; justify-content: space-between; margin-top: 16px; }
+@media (max-width: 560px) { .row .lbl { width: 100%; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Court ID labels · 4:00–5:00</h1>
+    <div class="sub" id="sub">Loading…</div>
+    <div class="navrow">
+      <button id="prev" aria-label="Previous moment">‹</button>
+      <select id="momentSel" aria-label="Moment"></select>
+      <button id="next" aria-label="Next moment">›</button>
+      <button id="nextOpen">Next unlabelled</button>
+      <span class="progress" id="progress"></span>
+    </div>
+    <div class="bar"><div id="barFill"></div></div>
+  </header>
+
+  <div id="banner"></div>
+
+  <details class="help">
+    <summary>How to label</summary>
+    <ul>
+      <li>Each card is one person as the tracker saw them at this moment: all camera crops it assigned to that person. The yellow box marks the detection.</li>
+      <li>Pick the team, then the jersey number. Use <b>?</b> when you can tell the team but not the number. Refs: A/B if you can tell them apart, otherwise ?.</li>
+      <li><b>Not a player</b>: spectator, bench, staff, or a box on nobody. <b>Unclear</b>: can't tell who it is.</li>
+      <li>If the crops on one card show different people, tap <b>Crops are different people</b> and label the odd ones.</li>
+      <li>The guess comes from the tracker and can be wrong; nothing counts until you tap. Tap a crop to enlarge it. The court map shows where each card's person is; tap a dot to jump to its card.</li>
+      <li>Labels save as you go. You can stop and come back any time, from any device.</li>
+    </ul>
+  </details>
+
+  <div class="map"><svg id="map" viewBox="-11.6 -7.6 23.2 15.2" role="img" aria-label="Court map of this moment"></svg></div>
+  <div id="cards"></div>
+  <footer>
+    <button id="prev2">‹ Previous moment</button>
+    <button id="next2" class="primary">Next moment ›</button>
+  </footer>
+</div>
+<div class="zoom" id="zoom"><div id="zoomImg"></div></div>
+
+<script>
+(() => {
+  const CROP_PX = 220;          // crop height in the sprites (tools/gt_prepare.py CROP_H)
+  const SHOW_H = 150;           // displayed crop height
+  const $ = (id) => document.getElementById(id);
+  let T = null, db = null, canWrite = true, cur = 0, focusId = null;
+  const labels = {};            // group id -> {label, crops}
+  const openPC = new Set();     // group ids with the per-crop panel open
+  const queues = {};            // group id -> pending write promise
+
+  const pretty = (lab) => {
+    if (!lab) return "";
+    if (lab === "none") return "not a player";
+    if (lab === "unclear") return "unclear";
+    const [t, n] = lab.split(":");
+    return t === "ref" ? (n === "?" ? "ref" : "ref " + n) : `${t} ${n === "?" ? "#?" : "#" + n}`;
+  };
+  const short = (lab) => {
+    if (!lab) return "";
+    if (lab === "none") return "×";
+    if (lab === "unclear") return "?";
+    const [t, n] = lab.split(":");
+    return t === "ref" ? "Rf" : (t === "red" ? "R" : "M") + (n === "?" ? "?" : n);
+  };
+  const guessToLabel = (g) => {
+    if (!g) return null;
+    const [t, n] = g.split(" ");
+    if (t === "ref") return "ref:?";
+    if (t === "red" || t === "maroon") return `${t}:${n || "?"}`;
+    return null;
+  };
+  const allGroups = () => T.moments.flatMap((m) => m.groups);
+  const isDone = (id) => !!(labels[id] && labels[id].label);
+
+  function numbers() {
+    const s = new Set();
+    Object.values(T.roster).forEach((a) => a.forEach((n) => s.add(n)));
+    allGroups().forEach((g) => { const m = /(\d+)$/.exec(g.guess || ""); if (m) s.add(m[1]); });
+    Object.values(labels).forEach((l) => [l.label, ...Object.values(l.crops || {})].forEach((x) => {
+      const m = /^(red|maroon):(\d+)$/.exec(x || ""); if (m) s.add(m[2]);
+    }));
+    return [...s].sort((a, b) => +a - +b || a.length - b.length);
+  }
+
+  // ---------- storage ----------
+  function save(id) {
+    if (!db || !canWrite) return;
+    const body = labels[id];
+    const ref = db.collection("labels").doc(id);
+    const prev = queues[id] || Promise.resolve();
+    queues[id] = prev.then(async () => {
+      try {
+        if (!body || !body.label) await ref.delete();
+        else await ref.set({ label: body.label, crops: body.crops || {}, frame: +id.split("_")[0], at: Date.now() });
+      } catch (e) {
+        if (e && e.code === "unavailable") {
+          await new Promise((r) => setTimeout(r, 400 + Math.random() * 600));
+          try { if (body && body.label) await ref.set({ label: body.label, crops: body.crops || {}, frame: +id.split("_")[0], at: Date.now() }); else await ref.delete(); return; } catch (e2) { e = e2; }
+        }
+        if (e && (e.code === "invalid_argument" || e.code === "revoked" || e.code === "not_granted")) {
+          canWrite = false;
+          showBanner("You can view these labels but not change them.");
+          render();
+        } else if (e && e.code === "quota_exceeded") {
+          showBanner("Storage is full; this label was not saved.");
+        } else {
+          showBanner("A label could not be saved. Check your connection and tap it again.");
+        }
+      }
+    });
+  }
+  function showBanner(msg) { $("banner").innerHTML = msg ? `<div class="banner"></div>` : ""; if (msg) $("banner").firstChild.textContent = msg; }
+
+  function setLabel(id, label) {
+    const l = labels[id] || (labels[id] = { label: null, crops: {} });
+    l.label = label;
+    if (!label) l.crops = {};
+    save(id);
+    render();
+  }
+  function setCrop(id, key, label) {
+    const l = labels[id] || (labels[id] = { label: null, crops: {} });
+    if (label) l.crops[key] = label; else delete l.crops[key];
+    l.crops = { ...l.crops };
+    if (l.label) save(id);
+    render();
+  }
+
+  // ---------- rendering ----------
+  function cropEl(m, c, h) {
+    const s = h / CROP_PX, [x, y, w, hh] = c.r;
+    const d = document.createElement("div");
+    d.className = "crop";
+    d.style.width = `${w * s}px`; d.style.height = `${hh * s}px`;
+    d.style.backgroundImage = `url(${m.sprite})`;
+    d.style.backgroundSize = `${m.size[0] * s}px ${m.size[1] * s}px`;
+    d.style.backgroundPosition = `${-x * s}px ${-y * s}px`;
+    return d;
+  }
+
+  function teamRow(id, cur, onPick, compact) {
+    const row = document.createElement("div");
+    row.className = "row";
+    if (!compact) row.innerHTML = `<span class="lbl">Who</span>`;
+    const team = cur ? cur.split(":")[0] : null;
+    [["red", "Red"], ["maroon", "Maroon"], ["ref", "Ref"], ["none", "Not a player"], ["unclear", "Unclear"]].forEach(([k, txt]) => {
+      const b = document.createElement("button");
+      b.textContent = txt; b.className = `t-${k}` + (team === k ? " on" : "");
+      b.disabled = !canWrite;
+      b.onclick = () => {
+        if (k === "none" || k === "unclear") onPick(k);
+        else if (team === k) return;
+        else onPick(k === "ref" ? "ref:?" : `${k}:?`);
+      };
+      row.appendChild(b);
+    });
+    return row;
+  }
+
+  function numberRow(cur, onPick) {
+    const [team, num] = cur.split(":");
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<span class="lbl">${team === "ref" ? "Which" : "Number"}</span>`;
+    const opts = team === "ref" ? ["A", "B", "?"] : [...numbers(), "?"];
+    opts.forEach((n) => {
+      const b = document.createElement("button");
+      b.textContent = n === "?" ? "?" : (team === "ref" ? n : "#" + n);
+      b.className = "num" + (num === n ? " on" : "");
+      b.disabled = !canWrite;
+      b.onclick = () => onPick(`${team}:${n}`);
+      row.appendChild(b);
+    });
+    if (team !== "ref") {
+      const inp = document.createElement("input");
+      inp.className = "num-other"; inp.inputMode = "numeric"; inp.placeholder = "other"; inp.maxLength = 2;
+      inp.setAttribute("aria-label", "Other number");
+      inp.disabled = !canWrite;
+      inp.onkeydown = (e) => { if (e.key === "Enter") commit(); };
+      inp.onblur = () => commit();
+      function commit() { const v = inp.value.trim(); if (/^\d{1,2}$/.test(v)) onPick(`${team}:${v}`); }
+      row.appendChild(inp);
+    }
+    return row;
+  }
+
+  function card(m, g) {
+    const l = labels[g.id] || { label: null, crops: {} };
+    const el = document.createElement("div");
+    el.className = "card" + (l.label ? " done" : "") + (focusId === g.id ? " focus" : "");
+    el.id = "card-" + g.id;
+    const idx = m.groups.indexOf(g) + 1;
+    const head = document.createElement("div");
+    head.className = "card-head";
+    head.innerHTML = `<b>Person ${idx}</b><span>${g.crops.map((c) => c.cam).join(" + ")}</span>` +
+      (g.track == null ? `<span>· not in a track</span>` : "") +
+      `<span class="status ${l.label ? "ok" : ""}"></span>`;
+    head.querySelector(".status").textContent = l.label ? pretty(l.label) : "not labelled";
+    el.appendChild(head);
+
+    const crops = document.createElement("div");
+    crops.className = "crops";
+    g.crops.forEach((c) => {
+      const d = cropEl(m, c, SHOW_H);
+      const key = `${c.cam}:${c.gid}`;
+      d.innerHTML = `<span class="tag">${c.cam}</span>` + (l.crops && l.crops[key] ? `<span class="ovr"></span>` : "");
+      if (l.crops && l.crops[key]) d.querySelector(".ovr").textContent = pretty(l.crops[key]);
+      d.onclick = () => zoom(m, c);
+      crops.appendChild(d);
+    });
+    el.appendChild(crops);
+
+    const gl = guessToLabel(g.guess);
+    if (g.guess) {
+      const row = document.createElement("div");
+      row.className = "row guess";
+      row.innerHTML = `<span class="lbl">Guess</span><span></span>`;
+      row.children[1].textContent = g.guess.replace(/ (\d+)$/, " #$1").replace(/^\? /, "team? ");
+      if (gl && !l.label) {
+        const b = document.createElement("button");
+        b.textContent = "Accept"; b.disabled = !canWrite;
+        b.onclick = () => { setLabel(g.id, gl); if (!gl.endsWith(":?")) advance(g.id); };
+        row.appendChild(b);
+      }
+      el.appendChild(row);
+    }
+
+    el.appendChild(teamRow(g.id, l.label, (lab) => {
+      setLabel(g.id, lab);
+      if (lab === "none" || lab === "unclear") advance(g.id);
+    }));
+    if (l.label && l.label.includes(":")) {
+      el.appendChild(numberRow(l.label, (lab) => { setLabel(g.id, lab); advance(g.id); }));
+    }
+
+    const tools = document.createElement("div");
+    tools.className = "row";
+    if (g.crops.length > 1) {
+      const b = document.createElement("button");
+      b.className = "linkish";
+      b.textContent = openPC.has(g.id) ? "Hide per-crop labels" : "Crops are different people";
+      b.onclick = () => { openPC.has(g.id) ? openPC.delete(g.id) : openPC.add(g.id); render(); };
+      tools.appendChild(b);
+    }
+    if (l.label) {
+      const b = document.createElement("button");
+      b.className = "linkish"; b.textContent = "Clear"; b.disabled = !canWrite;
+      b.style.marginLeft = "auto";
+      b.onclick = () => setLabel(g.id, null);
+      tools.appendChild(b);
+    }
+    if (tools.children.length) el.appendChild(tools);
+
+    if (openPC.has(g.id) && g.crops.length > 1) {
+      const pc = document.createElement("div");
+      pc.className = "percrop";
+      const note = document.createElement("div");
+      note.className = "sub";
+      note.textContent = l.label ? "Change only the crops that are not the card's person." : "Label the card first (its main person), then fix the odd crops.";
+      pc.appendChild(note);
+      g.crops.forEach((c) => {
+        const key = `${c.cam}:${c.gid}`;
+        const line = document.createElement("div");
+        line.className = "pc";
+        line.appendChild(cropEl(m, c, 70));
+        const sel = document.createElement("select");
+        sel.setAttribute("aria-label", `Label for the ${c.cam} crop`);
+        sel.disabled = !canWrite || !l.label;
+        const opts = [["", "same as card"], ["none", "not a player"], ["unclear", "unclear"], ["ref:?", "ref"], ["ref:A", "ref A"], ["ref:B", "ref B"]];
+        ["red", "maroon"].forEach((t) => { opts.push([`${t}:?`, `${t} #?`]); numbers().forEach((n) => opts.push([`${t}:${n}`, `${t} #${n}`])); });
+        const curv = (l.crops || {})[key] || "";
+        if (curv && !opts.some(([v]) => v === curv)) opts.push([curv, pretty(curv)]);
+        opts.forEach(([v, txt]) => { const o = document.createElement("option"); o.value = v; o.textContent = txt; if (v === curv) o.selected = true; sel.appendChild(o); });
+        sel.onchange = () => setCrop(g.id, key, sel.value || null);
+        const tag = document.createElement("span"); tag.textContent = c.cam;
+        line.appendChild(tag); line.appendChild(sel);
+        pc.appendChild(line);
+      });
+      el.appendChild(pc);
+    }
+    return el;
+  }
+
+  function drawMap(m) {
+    const svg = $("map");
+    const css = getComputedStyle(document.documentElement);
+    const col = (lab) => {
+      if (!lab) return css.getPropertyValue("--muted");
+      const t = lab.split(":")[0];
+      return css.getPropertyValue({ red: "--red", maroon: "--maroon", ref: "--ref", none: "--none", unclear: "--unclear" }[t] || "--muted");
+    };
+    let h = `<rect x="-11.6" y="-7.6" width="23.2" height="15.2" rx=".4" fill="var(--court)"/>`;
+    T.court.forEach((pts) => {
+      h += `<polyline fill="none" stroke="var(--court-line)" stroke-width=".07" points="${pts.map(([x, y]) => `${x},${-y}`).join(" ")}"/>`;
+    });
+    m.groups.forEach((g, i) => {
+      if (!g.xy) return;
+      const l = labels[g.id], lab = l && l.label;
+      const [x, y] = g.xy;
+      const f = focusId === g.id;
+      h += `<g data-id="${g.id}" style="cursor:pointer">` +
+        `<circle cx="${x}" cy="${-y}" r="${f ? .62 : .5}" fill="${lab ? col(lab) : "var(--panel)"}" stroke="${f ? "var(--accent)" : col(lab)}" stroke-width="${f ? .16 : .09}"/>` +
+        `<text x="${x}" y="${-y + .19}" text-anchor="middle" font-size=".5" font-weight="700" fill="${lab ? "#fff" : "var(--ink)"}">${lab ? short(lab) : i + 1}</text></g>`;
+    });
+    svg.innerHTML = h;
+    svg.querySelectorAll("g[data-id]").forEach((n) => n.onclick = () => focus(n.dataset.id, true));
+  }
+
+  function render() {
+    if (!T) return;
+    const m = T.moments[cur];
+    const groups = allGroups();
+    const done = groups.filter((g) => isDone(g.id)).length;
+    $("progress").textContent = `${done} / ${groups.length} labelled`;
+    $("barFill").style.width = `${(100 * done / groups.length).toFixed(1)}%`;
+    const mm = Math.floor(m.t / 60), ss = Math.floor(m.t % 60);
+    $("sub").textContent = `Game clock in the video: ${mm}:${String(ss).padStart(2, "0")} · frame ${m.frame} · ${m.groups.length} people on this moment`;
+    [...$("momentSel").options].forEach((o, i) => {
+      const gs = T.moments[i].groups, k = gs.filter((g) => isDone(g.id)).length;
+      o.textContent = `Moment ${i + 1} / ${T.moments.length}  ${k === gs.length ? "✓" : `(${k}/${gs.length})`}`;
+    });
+    $("momentSel").value = String(cur);
+    $("prev").disabled = $("prev2").disabled = cur === 0;
+    $("next").disabled = $("next2").disabled = cur === T.moments.length - 1;
+    const y = window.scrollY;
+    const box = $("cards");
+    box.replaceChildren(...m.groups.map((g) => card(m, g)));
+    window.scrollTo(0, y);
+    drawMap(m);
+  }
+
+  function focus(id, scroll) {
+    focusId = id;
+    render();
+    if (scroll) { const el = $("card-" + id); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  }
+  function advance(id) {
+    const m = T.moments[cur];
+    const i = m.groups.findIndex((g) => g.id === id);
+    const nxt = m.groups.slice(i + 1).find((g) => !isDone(g.id)) || m.groups.find((g) => !isDone(g.id));
+    if (nxt) focus(nxt.id, true);
+  }
+  function goto(i) {
+    cur = Math.max(0, Math.min(T.moments.length - 1, i));
+    focusId = null;
+    try { localStorage.setItem("gt-moment", String(cur)); } catch (e) {}
+    render();
+    window.scrollTo({ top: 0 });
+  }
+  function nextOpen() {
+    for (let k = 0; k < T.moments.length; k++) {
+      const i = (cur + k) % T.moments.length;
+      const g = T.moments[i].groups.find((g) => !isDone(g.id));
+      if (g) { if (i !== cur) goto(i); focus(g.id, true); return; }
+    }
+  }
+  function zoom(m, c) {
+    const z = $("zoom"), d = $("zoomImg");
+    const h = Math.min(window.innerHeight * 0.85, CROP_PX * 2.2);
+    const s = h / CROP_PX, [x, y, w] = c.r;
+    const wmax = window.innerWidth * 0.95;
+    const s2 = Math.min(s, wmax / w);
+    d.style.width = `${w * s2}px`; d.style.height = `${CROP_PX * s2}px`;
+    d.style.backgroundImage = `url(${m.sprite})`;
+    d.style.backgroundSize = `${m.size[0] * s2}px ${m.size[1] * s2}px`;
+    d.style.backgroundPosition = `${-x * s2}px ${-y * s2}px`;
+    z.classList.add("show");
+  }
+  $("zoom").onclick = () => $("zoom").classList.remove("show");
+  $("prev").onclick = $("prev2").onclick = () => goto(cur - 1);
+  $("next").onclick = $("next2").onclick = () => goto(cur + 1);
+  $("nextOpen").onclick = nextOpen;
+  $("momentSel").onchange = (e) => goto(+e.target.value);
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+    if (e.key === "ArrowLeft") goto(cur - 1);
+    if (e.key === "ArrowRight") goto(cur + 1);
+    if (e.key === "Escape") $("zoom").classList.remove("show");
+  });
+
+  async function start() {
+    try {
+      const r = await fetch("tasks.json");
+      T = await r.json();
+    } catch (e) {
+      $("sub").textContent = "Could not load the tasks.";
+      return;
+    }
+    T.moments.forEach((m, i) => { const o = document.createElement("option"); o.value = String(i); $("momentSel").appendChild(o); });
+    try { const v = +localStorage.getItem("gt-moment"); if (v >= 0 && v < T.moments.length) cur = v; } catch (e) {}
+    render();
+
+    db = window.claude && window.claude.use ? await window.claude.use("db") : null;
+    if (!db) {
+      canWrite = false;
+      showBanner("Labels can't be saved in this view. Open the page signed in to claude.ai to label.");
+      render();
+      return;
+    }
+    const user = await window.claude.use("user");
+    if (user && typeof user.can === "function") {
+      const w = await user.can("data.write");
+      if (w === false) { canWrite = false; showBanner("You can view these labels but not change them."); }
+    }
+    db.collection("labels").onSnapshot((snap) => {
+      snap.docChanges().forEach((ch) => {
+        const id = ch.doc.id;
+        if (queues[id] && ch.doc.metadata.hasPendingWrites) return;
+        if (ch.type === "removed") delete labels[id];
+        else { const d = ch.doc.data(); labels[id] = { label: d.label || null, crops: { ...(d.crops || {}) } }; }
+      });
+      const a = document.activeElement;
+      if (a && a.tagName === "INPUT") a.addEventListener("blur", () => setTimeout(render, 0), { once: true });
+      else render();
+    }, (e) => {
+      showBanner("Live updates stopped; reload the page to see the latest labels.");
+    });
+  }
+  start();
+})();
+</script>
+</body>
+</html>

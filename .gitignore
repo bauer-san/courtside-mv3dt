@@ -1,0 +1,47 @@
+# Media, models, engines: never commit
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.h264
+*.h265
+*.engine
+*.plan
+*.onnx
+*.etlt
+*.pt
+*.pth
+*.trt
+*.npy
+*.zip
+
+# Raw inputs (large / private); keep locally only
+inputs/
+
+# Third-party checkouts and generated outputs
+external/
+experiments/*/
+!experiments/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+
+# Build outputs (apps/courttrack, apps/jersey; the court app itself is built under external/)
+*.o
+*.a
+*.so
+apps/courttrack/ct_replay
+
+# Run logs and loose files at the top of experiments/ (run outputs live in experiments/<run>/)
+experiments/*
+!experiments/.gitkeep
+
+# Images of people: ground-truth crops and frames from the game video stay local
+gt/*/sprites/
+reports/figures/fl_calibration_before_after.jpg

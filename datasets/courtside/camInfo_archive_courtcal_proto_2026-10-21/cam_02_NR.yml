@@ -1,0 +1,32 @@
+# NR camera (cam_02) - court-based calibration courtcal-proto-0.1
+# World: metres, origin centre court (half-court line x centre line), x toward lounge end,
+#        y toward HEAT-mural sideline, z up. Ground plane z=0.
+# Valid for UNDISTORTED 1920x1080 frames (simple_radial k1=-8.270e-08, see undistort_videos.py)
+# Camera position (m): [9.581, 0.044, 3.922]
+# 3x4 world-to-pixel matrix (row-major):
+#   -68.5841   71.636  -98.3191   1039.6
+#    33.7982  -1.99089  -98.1035   61.0711
+#   -0.0641352  -0.0104096  -0.0981729   1
+projectionMatrix_3x4_w2p:
+- -68.58405422
+- 71.63601745
+- -98.31907765
+- 1039.599143
+- 33.79817264
+- -1.990888397
+- -98.10354758
+- 61.07105484
+- -0.06413516326
+- -0.01040963395
+- -0.09817289724
+- 1
+
+# Person model (metres). classID 1 = person for PeopleNetTransformer;
+# classID 0 = person for PeopleNet 2.6.3 and RT-DETR. Other classes are filtered by the detector configs.
+modelInfo:
+  - classID: 0
+    height: 1.8
+    radius: 0.3
+  - classID: 1
+    height: 1.8
+    radius: 0.3
