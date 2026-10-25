@@ -90,12 +90,6 @@ averaged over several runs:
 - `python -m tools.courttrack_export live <runs>`: runs made with `COURTTRACK=1` (replay checks and scores)
 - `python -m tools.render_labels <run> [--live] [--scale 1.5]`: labelled game video (720p, or 1080p with `--scale 1.5`)
 
-## Shot experiments
-
-Shot candidates and labels from rim motion (`tools/rim_motion.py`, `tools/shot_candidates.py`), pose keypoints for
-every detection (`tools/pose_extract.py`: NVIDIA BodyPose3DNet or RTMPose, which is downloaded into `models/rtmpose/`),
-pose-based shot detection (`tools/shot_pose_eval.py`) and shot attribution (`tools/shot_attribution.py`).
-
 ## Layout
 
 ```
