@@ -5,10 +5,19 @@ team; refs grey; tracks without an identity white with their track number. At th
 (gt/*) a strip shows how many labelled detections carry the right label, and wrong boxes are outlined in yellow.
 
   python -m tools.render_labels mount_r1 [--start 0] [--end 12600] [--out experiments/mount_r1/labelled_game.mp4]
+  python -m tools.render_labels ct3_r1 --live     # what a COURTTRACK=1 run sent: per-frame Kafka messages
+
+--live draws the DeepStream run's own output instead of re-running the tracker: positions and labels from the
+per-frame messages (courttrack.jsonl.gz), detection identities from courttrack_identities.csv. Boxes that are not
+in that frame's message (dropped seated spectators, unconfirmed tracks) are thin grey. The automatic team model names
+the teams A and B; their colours follow the labelled team they match (for display and the label check only).
 """
 
 import argparse
 import collections
+import csv
+import gzip
+import json
 import subprocess
 from pathlib import Path
 
@@ -27,6 +36,8 @@ CW, CH = 480, 270                       # one camera tile
 GRID = [("NL", 0, 0), ("NR", 1, 0), ("FL", 0, 1), ("FR", 1, 1)]   # (cam, col, row): each end's cameras in a column
 TEAM = {"red": (60, 60, 230), "maroon": (170, 70, 190), "ref": (170, 170, 170)}
 UNKNOWN = (235, 235, 235)
+DIM = (110, 110, 110)
+GT_NAME = {}                            # live team (A/B) -> labelled team name, for the label check
 BG, INK, MUTED = (24, 22, 20), (240, 240, 240), (150, 150, 150)
 # court panel: long axis vertical, flag end at the bottom
 PX0, PW, PY0, PH = 980, 280, 30, 660
@@ -48,7 +59,31 @@ def text(label: str) -> str:
     if label.startswith("t"):
         return label
     team, num = label.split(":")
+    if team in ("A", "B"):
+        return f"{team}{num}"
     return f"{team[0].upper()}{num}" if team in ("red", "maroon") else team
+
+
+def live_output(run: Path, start: int, end: int):
+    """Labels, court positions and output detections of a COURTTRACK=1 run."""
+    label = {}
+    with open(run / "courttrack_identities.csv") as f:
+        for r in csv.DictReader(f):
+            k = (int(r["frame"]), r["sensor"], r["object_id"])
+            label[k] = r["identity"] or f"t{r['track']}"
+    pos, out_keys = collections.defaultdict(list), set()
+    with gzip.open(run / "courttrack.jsonl.gz", "rt") as f:
+        for line in f:
+            m = json.loads(line)
+            fr = m["frame"]
+            if not start <= fr <= end:
+                continue
+            for p in m["players"]:
+                lab = p["identity"] or f"t{p['track']}"
+                pos[fr].append((p["x"], p["y"], lab, p["track"]))
+                for d in p["detections"]:
+                    out_keys.add((fr, d["sensor"], d["objectId"]))
+    return label, pos, out_keys
 
 
 def tag(img, x, y, s, col, scale=0.4):
@@ -64,29 +99,42 @@ def main() -> None:
     ap.add_argument("--start", type=int, default=0)
     ap.add_argument("--end", type=int, default=12600)
     ap.add_argument("--out", type=Path)
+    ap.add_argument("--live", action="store_true", help="draw the run's live DeepStream output (COURTTRACK=1 runs)")
     args = ap.parse_args()
     run = Path(args.run) if Path(args.run).is_dir() else ROOT / "experiments" / args.run
-    out = args.out or run / "labelled_game.mp4"
-
-    print("tracking ...", flush=True)
-    T = track_run(run, WTParams(online_relink=True))
-    di = track_run.last_det_ident
-    label, pos = {}, collections.defaultdict(list)          # det key -> label; frame -> [(x, y, label)]
-    for t in T:
-        lab_at = {}
-        for k in t.dets:
-            k = (int(k[0]), str(k[1]), str(k[2]))
-            label[k] = di.get(k) or f"t{t.tid}"
-            lab_at.setdefault(k[0], label[k])
-        for f, x, y, _ in t.out:
-            if args.start <= f <= args.end:
-                pos[f].append((x, y, lab_at.get(f, f"t{t.tid}"), t.tid))
+    out = args.out or run / ("labelled_game_live.mp4" if args.live else "labelled_game.mp4")
+    out_keys = None
+    if args.live:
+        label, pos, out_keys = live_output(run, args.start, args.end)
+    else:
+        print("tracking ...", flush=True)
+        T = track_run(run, WTParams(online_relink=True))
+        di = track_run.last_det_ident
+        label, pos = {}, collections.defaultdict(list)          # det key -> label; frame -> [(x, y, label)]
+        for t in T:
+            lab_at = {}
+            for k in t.dets:
+                k = (int(k[0]), str(k[1]), str(k[2]))
+                label[k] = di.get(k) or f"t{t.tid}"
+                lab_at.setdefault(k[0], label[k])
+            for f, x, y, _ in t.out:
+                if args.start <= f <= args.end:
+                    pos[f].append((x, y, lab_at.get(f, f"t{t.tid}"), t.tid))
     print("boxes ...", flush=True)
     boxes = load_boxes(run, 1)
     gt = {}
     for name in ("game_2to3", "game_4to5"):
         gt.update(load_gt(name, run))
     gt_frames = sorted({k[0] for k in gt})
+    if args.live:   # which labelled team each automatic team (A/B) corresponds to: majority over the labelled moments
+        votes = collections.Counter((label[k].split(":")[0], v.split(":")[0]) for k, v in gt.items()
+                                    if k in out_keys and ":" in label.get(k, ""))
+        for team in ("A", "B"):
+            best = max((n, g) for (t_, g), n in votes.items() if t_ == team) if any(t_ == team for t_, _ in votes) else None
+            if best:
+                GT_NAME[team] = best[1]
+                TEAM[team] = TEAM.get(best[1], UNKNOWN)
+    shown = lambda lab: (GT_NAME.get(lab.split(":")[0], lab.split(":")[0]) + ":" + lab.split(":")[1]) if ":" in lab else lab
 
     ds = run_dataset(run)
     caps = {pos_: cv2.VideoCapture(str((ds / "videos" / f"{cid}_{pos_}.mp4").resolve())) for cid, pos_, _ in CAMERAS}
@@ -106,15 +154,20 @@ def main() -> None:
                 MUTED, 1, cv2.LINE_AA)
     cv2.putText(base, "top-down court", (PX0 + PW // 2 - 50, top - 34), cv2.FONT_HERSHEY_SIMPLEX, 0.5, INK, 1,
                 cv2.LINE_AA)
-    legend = [("red", TEAM["red"]), ("maroon", TEAM["maroon"]), ("ref", TEAM["ref"]), ("no identity yet", UNKNOWN)]
+    if args.live:
+        legend = [(f"team {t} ({GT_NAME.get(t, '?')} shirts)", TEAM.get(t, UNKNOWN)) for t in ("A", "B")] + \
+                 [("no identity yet", UNKNOWN), ("not in the output", DIM)]
+    else:
+        legend = [("red", TEAM["red"]), ("maroon", TEAM["maroon"]), ("ref", TEAM["ref"]), ("no identity yet", UNKNOWN)]
     x0 = 12
     for s, col in legend:
         cv2.rectangle(base, (x0, 600), (x0 + 12, 612), col, -1)
         cv2.putText(base, s, (x0 + 18, 611), cv2.FONT_HERSHEY_SIMPLEX, 0.45, INK, 1, cv2.LINE_AA)
         x0 += 30 + 9 * len(s)
-    cv2.putText(base, f"{run.name}: court tracker identity output (team + jersey number). Cameras on their backboard "
-                "mounts: NL+FR flag end, NR+FL lounge end.", (12, 690), cv2.FONT_HERSHEY_SIMPLEX, 0.38, MUTED, 1,
-                cv2.LINE_AA)
+    caption = (f"{run.name}: live DeepStream output (per-frame Kafka messages): automatic team + jersey number." if args.live
+               else f"{run.name}: court tracker identity output (team + jersey number).")
+    cv2.putText(base, caption + " Cameras on their backboard mounts: NL+FR flag end, NR+FL lounge end.", (12, 690),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.38, MUTED, 1, cv2.LINE_AA)
     trail = collections.defaultdict(collections.deque)
     check = None                                             # (until frame, text)
     for f in range(args.start, args.end + 1):
@@ -125,7 +178,7 @@ def main() -> None:
             for k, ident in gt.items():
                 if k[0] == f:
                     n_all += 1
-                    if label.get(k) == ident:
+                    if shown(label.get(k, "")) == ident and (out_keys is None or k in out_keys):
                         n_ok += 1
                     else:
                         wrong_keys.add(k)
@@ -140,6 +193,9 @@ def main() -> None:
             for g, l, t, r, b in boxes.get((cam, f), []):
                 k = (f, cam, str(g))
                 lab = label.get(k)
+                if out_keys is not None and k not in out_keys:
+                    cv2.rectangle(tile, (int(l * s), int(t * s)), (int(r * s), int(b * s)), DIM, 1)
+                    continue
                 if lab is None:
                     continue
                 c = colour(lab)
