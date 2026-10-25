@@ -12,8 +12,9 @@ court, locally on Ubuntu 24.04 (RTX 3060 Ti, 8 GB, driver 580).
 | 2 | cam_02 NR | lounge-end backboard mount (with FL), looks down at the lounge-end half |
 | 3 | cam_03 FR | flag-end backboard mount (with NL), looks across at the lounge-end half |
 
-Each pair shares one apparatus on top of a backboard (user, 2026-10-23). The current calibrations put FL 1.1 m and
-FR 2.0 m from their partner (further back and higher): a calibration inconsistency, not the physical layout.
+Each pair shares one apparatus on top of a backboard, 6-10 in apart. The calibration is fitted with each pair held
+together on its mount (`tools/calib_mount.py`; partner distances 0.33 and 0.35 m), see
+`datasets/courtside/camInfo_README.md`.
 
 World frame: metres, origin centre court, +x toward lounge end, +y toward HEAT-mural sideline, z up.
 
@@ -28,8 +29,7 @@ One-time host setup (needs sudo):
 ./scripts/install_nvidia_container_toolkit.sh
 ```
 
-The Python venv lives on ext4 at `~/.venvs/mv3dt`, outside this NTFS folder. To use a different
-location, set `MV3DT_VENV`.
+The Python venv lives at `~/.venvs/mv3dt`; set `MV3DT_VENV` to use a different location.
 
 ## Phases
 
@@ -40,12 +40,12 @@ location, set `MV3DT_VENV`.
 | 3. DeepStream 9.1 MV3DT environment (repo, container, models, brokers) | `./scripts/phase3_setup.sh` |
 | 4. NVIDIA 4-camera sample, as documented (+ GPU log) | `./scripts/phase4_sample.sh` |
 | 5a. Court dataset + overlay check (experiments/overlays/) | `./scripts/phase5_dataset.sh` |
-| 5b. MV3DT on the court, headless (60 s / 180 s / full) | `./scripts/run_mv3dt.sh courtside_60s c60_pnt` (then `courtside_180s c180_pnt`, `courtside full_pnt`) |
-
+| 5b. MV3DT on the court, headless (60 s / 180 s / full) | `./scripts/run_mv3dt.sh courtside_60s c60_pnt` (then `courtside_180s c180_pnt`, `courtside_full full_pnt`) |
 | 6. Variants (detectors, pose, tracker, association, topology, court filter) | `./scripts/phase6_variants.sh courtside_60s c60 <variant ...>`, `./scripts/phase6_tracker_sweep.sh courtside_60s t60 <step ...>` |
 | 6b. Court filter app (custom build of deepstream-test5-app) | `./scripts/build_court_app.sh`, then `COURT_FILTER=1 ./scripts/run_mv3dt.sh ...` |
 | 7. Evaluation (raw MV3DT, offline clean-up, court-plane tracker) | `python -m tools.evaluate <run ...> --md report.md` |
-| 7. Report (draft, 2026-10-23): [reports/phase7_report.md](reports/phase7_report.md); web page `python3 reports/build_page.py` -> reports/phase7_report.html | `python -m tools.multi_eval mount_r1 mount_r2 mount_r3`; figures: `python reports/make_figures.py` |
+| 7. Report: [reports/phase7_report.md](reports/phase7_report.md); web page `python3 reports/build_page.py` -> reports/phase7_report.html | `JOBS=8 ./scripts/phase8_reevaluate.sh` (every result table and figure) |
+| 8. Court tracker inside DeepStream (C++ probe, per-frame Kafka messages) | `./scripts/build_court_app.sh`, then `COURTTRACK=1 JERSEY=1 COURT_FILTER=1 ./scripts/run_mv3dt.sh ...`, or `./scripts/phase8_courttrack_live.sh` |
 
 Offline tracking on top of DeepStream (no GPU, reads `experiments/<run>/kafka.jsonl.gz`):
 - `python -m tools.world_tracker <run> --write`: court-plane Kalman tracker over all cameras' foot positions
