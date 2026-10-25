@@ -41,6 +41,19 @@ GT_NAME = {}                            # live team (A/B) -> labelled team name,
 BG, INK, MUTED = (24, 22, 20), (240, 240, 240), (150, 150, 150)
 # court panel: long axis vertical, flag end at the bottom
 PX0, PW, PY0, PH = 980, 280, 30, 660
+Z = 1.0                                 # layout scale (--scale 1.5: 1920x1080)
+
+
+def z(v: float) -> int:
+    return int(round(v * Z))
+
+
+def set_scale(scale: float) -> None:
+    global Z, W, H, CW, CH, PX0, PW, PY0, PH
+    Z = scale
+    W, H, CW, CH = z(1280), z(720), z(480), z(270)
+    W, H = W + W % 2, H + H % 2          # H.264 needs even sizes
+    PX0, PW, PY0, PH = z(980), z(280), z(30), z(660)
 
 
 def court_xy(x, y):
@@ -87,10 +100,12 @@ def live_output(run: Path, start: int, end: int):
 
 
 def tag(img, x, y, s, col, scale=0.4):
+    scale *= Z
     (tw, th), _ = cv2.getTextSize(s, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
-    cv2.rectangle(img, (x, y - th - 4), (x + tw + 4, y), col, -1)
+    cv2.rectangle(img, (x, y - th - z(4)), (x + tw + z(4), y), col, -1)
     dark = sum(col) < 380
-    cv2.putText(img, s, (x + 2, y - 3), cv2.FONT_HERSHEY_SIMPLEX, scale, INK if dark else (20, 20, 20), 1, cv2.LINE_AA)
+    cv2.putText(img, s, (x + z(2), y - z(3)), cv2.FONT_HERSHEY_SIMPLEX, scale, INK if dark else (20, 20, 20), 1,
+                cv2.LINE_AA)
 
 
 def main() -> None:
@@ -100,7 +115,9 @@ def main() -> None:
     ap.add_argument("--end", type=int, default=12600)
     ap.add_argument("--out", type=Path)
     ap.add_argument("--live", action="store_true", help="draw the run's live DeepStream output (COURTTRACK=1 runs)")
+    ap.add_argument("--scale", type=float, default=1.0, help="layout scale: 1 = 1280x720, 1.5 = 1920x1080")
     args = ap.parse_args()
+    set_scale(args.scale)
     run = Path(args.run) if Path(args.run).is_dir() else ROOT / "experiments" / args.run
     out = args.out or run / ("labelled_game_live.mp4" if args.live else "labelled_game.mp4")
     out_keys = None
@@ -148,26 +165,26 @@ def main() -> None:
         p = np.array([court_xy(x, y) for x, y in pts], np.int32)
         cv2.polylines(base, [p], False, (90, 90, 90), 1, cv2.LINE_AA)
     top, bottom = court_xy(X_MAX, 0)[1], court_xy(X_MIN, 0)[1]
-    cv2.putText(base, "flag end (NL+FR mount)", (PX0 + PW // 2 - 75, bottom + 22), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+    cv2.putText(base, "flag end (NL+FR mount)", (PX0 + PW // 2 - z(75), bottom + z(22)), cv2.FONT_HERSHEY_SIMPLEX, 0.4 * Z,
                 MUTED, 1, cv2.LINE_AA)
-    cv2.putText(base, "lounge end (NR+FL mount)", (PX0 + PW // 2 - 82, top - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+    cv2.putText(base, "lounge end (NR+FL mount)", (PX0 + PW // 2 - z(82), top - z(12)), cv2.FONT_HERSHEY_SIMPLEX, 0.4 * Z,
                 MUTED, 1, cv2.LINE_AA)
-    cv2.putText(base, "top-down court", (PX0 + PW // 2 - 50, top - 34), cv2.FONT_HERSHEY_SIMPLEX, 0.5, INK, 1,
+    cv2.putText(base, "top-down court", (PX0 + PW // 2 - z(50), top - z(34)), cv2.FONT_HERSHEY_SIMPLEX, 0.5 * Z, INK, 1,
                 cv2.LINE_AA)
     if args.live:
         legend = [(f"team {t} ({GT_NAME.get(t, '?')} shirts)", TEAM.get(t, UNKNOWN)) for t in ("A", "B")] + \
                  [("no identity yet", UNKNOWN), ("not in the output", DIM)]
     else:
         legend = [("red", TEAM["red"]), ("maroon", TEAM["maroon"]), ("ref", TEAM["ref"]), ("no identity yet", UNKNOWN)]
-    x0 = 12
+    x0 = z(12)
     for s, col in legend:
-        cv2.rectangle(base, (x0, 600), (x0 + 12, 612), col, -1)
-        cv2.putText(base, s, (x0 + 18, 611), cv2.FONT_HERSHEY_SIMPLEX, 0.45, INK, 1, cv2.LINE_AA)
-        x0 += 30 + 9 * len(s)
+        cv2.rectangle(base, (x0, z(600)), (x0 + z(12), z(612)), col, -1)
+        cv2.putText(base, s, (x0 + z(18), z(611)), cv2.FONT_HERSHEY_SIMPLEX, 0.45 * Z, INK, 1, cv2.LINE_AA)
+        x0 += z(30 + 9 * len(s))
     caption = (f"{run.name}: live DeepStream output (per-frame Kafka messages): automatic team + jersey number." if args.live
                else f"{run.name}: court tracker identity output (team + jersey number).")
-    cv2.putText(base, caption + " Cameras on their backboard mounts: NL+FR flag end, NR+FL lounge end.", (12, 690),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.38, MUTED, 1, cv2.LINE_AA)
+    cv2.putText(base, caption + " Cameras on their backboard mounts: NL+FR flag end, NR+FL lounge end.", (z(12), z(690)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.38 * Z, MUTED, 1, cv2.LINE_AA)
     trail = collections.defaultdict(collections.deque)
     check = None                                             # (until frame, text)
     for f in range(args.start, args.end + 1):
@@ -200,12 +217,12 @@ def main() -> None:
                     continue
                 c = colour(lab)
                 p1, p2 = (int(l * s), int(t * s)), (int(r * s), int(b * s))
-                cv2.rectangle(tile, p1, p2, c, 2 if not lab.startswith("t") else 1)
+                cv2.rectangle(tile, p1, p2, c, max(1, z(2)) if not lab.startswith("t") else max(1, z(1)))
                 if k in wrong_keys:
-                    cv2.rectangle(tile, (p1[0] - 3, p1[1] - 3), (p2[0] + 3, p2[1] + 3), (0, 230, 255), 2)
-                tag(tile, p1[0], max(p1[1], 14), text(lab), c)
-            cv2.putText(tile, cam, (6, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.5, INK, 1, cv2.LINE_AA)
-            y0, x0 = 30 + row_ * CH, 10 + col_ * CW
+                    cv2.rectangle(tile, (p1[0] - z(3), p1[1] - z(3)), (p2[0] + z(3), p2[1] + z(3)), (0, 230, 255), z(2))
+                tag(tile, p1[0], max(p1[1], z(14)), text(lab), c)
+            cv2.putText(tile, cam, (z(6), z(18)), cv2.FONT_HERSHEY_SIMPLEX, 0.5 * Z, INK, 1, cv2.LINE_AA)
+            y0, x0 = z(30) + row_ * CH, z(10) + col_ * CW
             img[y0:y0 + CH, x0:x0 + CW] = tile
         for x, y, lab, tid in pos.get(f, []):
             q = trail[tid]
@@ -224,15 +241,15 @@ def main() -> None:
             if q and len(q) > 1:
                 cv2.polylines(img, [np.array(q, np.int32)], False, tuple(int(v * 0.6) for v in c), 1, cv2.LINE_AA)
             p = court_xy(x, y)
-            cv2.circle(img, p, 6, c, -1, cv2.LINE_AA)
-            tag(img, p[0] + 7, p[1] + 4, text(lab), c, 0.35)
+            cv2.circle(img, p, z(6), c, -1, cv2.LINE_AA)
+            tag(img, p[0] + z(7), p[1] + z(4), text(lab), c, 0.35)
         mm, ss = divmod(f // 30, 60)
-        cv2.putText(img, f"game clock {mm}:{ss:02d}  (frame {f})", (12, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.55, INK, 1,
+        cv2.putText(img, f"game clock {mm}:{ss:02d}  (frame {f})", (z(12), z(22)), cv2.FONT_HERSHEY_SIMPLEX, 0.55 * Z, INK, 1,
                     cv2.LINE_AA)
         if check and f <= check[0]:
-            cv2.rectangle(img, (10, 618), (960, 646), (0, 120, 160), -1)
-            cv2.putText(img, check[1] + "  (wrong boxes outlined yellow on that frame)", (18, 637),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, INK, 1, cv2.LINE_AA)
+            cv2.rectangle(img, (z(10), z(618)), (z(960), z(646)), (0, 120, 160), -1)
+            cv2.putText(img, check[1] + "  (wrong boxes outlined yellow on that frame)", (z(18), z(637)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5 * Z, INK, 1, cv2.LINE_AA)
         ff.stdin.write(img.tobytes())
         if f % 1800 == 0:
             print(f"frame {f}", flush=True)
