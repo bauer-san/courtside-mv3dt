@@ -45,3 +45,6 @@ experiments/*
 # Images of people: ground-truth crops and frames from the game video stay local
 gt/*/sprites/
 reports/figures/fl_calibration_before_after.jpg
+
+# Downloaded models (RTMPose etc.)
+models/
