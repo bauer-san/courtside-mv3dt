@@ -61,6 +61,55 @@ def prep(run: Path) -> None:
     (out / "boxes.json").write_text(json.dumps(meta, indent=1))
 
 
+def evaluate(run: Path, model: str) -> None:
+    from tools.shot_pose_eval import BASKET, arms_up
+    from tools.world_tracker import load_detections
+    shots = {s["id"]: s for s in json.loads((SHOTS / "shots_gt.json").read_text())}
+    meta = json.loads((SHOTS / "attribution" / "boxes.json").read_text())
+    truth = json.loads((SHOTS / "shooters.json").read_text())
+    z = np.load(run / ("pose.npz" if model == "bodypose3d" else f"pose_{model}.npz"))
+    d = load_detections(run / "kafka.jsonl.gz")
+    pos = {(int(f), str(c), str(g)): np.array([x, y]) for f, c, g, x, y in zip(d["frame"], d["cam"], d["gid"], d["x"], d["y"])}
+    xy = np.array([pos.get((int(f), str(c), str(g)), (np.nan, np.nan)) for f, c, g in zip(z["frame"], z["cam"], z["gid"])])
+    both, one = arms_up(z["kp"], 0.3, "bodypose3d" if model == "bodypose3d" else "coco")
+    rows = []
+    for sid, box in truth.items():
+        s, m = shots[sid], meta[sid]
+        win = (z["frame"] >= s["frame"] - 60) & (z["frame"] <= s["frame"] - 5) & \
+            (np.hypot(*(xy - BASKET[s["end"]]).T) <= 9)
+        res = {"id": sid, "time": s["time"], "truth": box}
+        for name, sc in (("both", both), ("one", one)):
+            cand = np.where(win & np.isfinite(sc))[0]
+            if not len(cand):
+                res[name] = "no candidate"
+                continue
+            i = cand[np.argmax(sc[cand])]
+            if box in ("none", "unsure"):
+                res[name] = "-"
+                continue
+            f, cam, g = int(z["frame"][i]), str(z["cam"][i]), str(z["gid"][i])
+            if cam == m["camera"] and g == box:
+                res[name] = "correct"
+                continue
+            # another camera, or another id: compare court positions with the labelled shooter at the nearest frame
+            near = [pos[(ff, m["camera"], box)] for ff in range(f - 6, f + 7) if (ff, m["camera"], box) in pos]
+            p = pos.get((f, cam, g))
+            if near and p is not None:
+                dist = min(np.hypot(*(p - q)) for q in near)
+                res[name] = "correct" if dist < 1.0 else f"wrong ({dist:.1f} m away)"
+            else:
+                res[name] = "wrong (no position)"
+        rows.append(res)
+    print("| shot | time | labelled box | pick: both arms up | pick: highest wrist |")
+    print("|---|---|---|---|---|")
+    for r in rows:
+        print(f"| {r['id']} | {r['time']} | {r['truth']} | {r['both']} | {r['one']} |")
+    lab = [r for r in rows if r["truth"] not in ("none", "unsure")]
+    for name in ("both", "one"):
+        ok = sum(r[name] == "correct" for r in lab)
+        print(f"{name}: correct {ok} of {len(lab)} shots with a visible shooter")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cmd", choices=("prep", "eval"))
@@ -71,7 +120,7 @@ def main() -> None:
     if a.cmd == "prep":
         prep(run)
     else:
-        raise SystemExit("eval: needs experiments/shots/shooters.json (labelled shooter boxes)")
+        evaluate(run, a.model)
 
 
 if __name__ == "__main__":
