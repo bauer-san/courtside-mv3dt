@@ -33,7 +33,12 @@ for r in "${MOUNT[@]}"; do for n in game_2to3 game_4to5; do
   "$PY" -m tools.xcam "$r" --name "$n" 2>/dev/null > "reports/xcam_${r}_${n}.txt"
 done; done
 step "court tracker inside DeepStream (section 4.8)"
-"$PY" -m tools.courttrack_export live ct2_r1 ct2_r2 ct2_r3 2>/dev/null > reports/courttrack_live.txt
+"$PY" -m tools.courttrack_export live ${LIVE:-ct3_r1 ct3_r2 ct3_r3} 2>/dev/null > reports/courttrack_live.txt
+step "non-players in the output (section 4.9)"
+"$PY" -m tools.nonplayer_eval mount_r1 mount_r2 mount_r3 ${LIVE:-ct3_r1 ct3_r2 ct3_r3} --jobs 6 --md reports/nonplayer_output.md \
+  2>/dev/null > /dev/null
+"$PY" -m tools.nonplayer_eval mount_r1 mount_r2 mount_r3 --no-seated --jobs 3 --md reports/nonplayer_output_without_rule.md \
+  2>/dev/null > /dev/null
 step "figures"
 "$PY" reports/make_figures.py > /dev/null
 step "done"

@@ -2,21 +2,21 @@
 
 | configuration | mean IDF1 | spread (min-max) | vs default (paired mean) | pairs better / worse | mean switches |
 |---|---|---|---|---|---|
-| MV3DT global IDs | 52.4% | 38%-61% | -25.3% | 0 / 6 | 30 |
-| default (identity output) | 77.8% | 72%-84% | — | — | 33 |
-| previous default (no identity freshness) | 75.6% | 68%-82% | -2.1% | 2 / 4 | 31 |
-| track IDs instead of identities | 65.8% | 55%-70% | -11.9% | 0 / 6 | 29 |
-| no per-player look | 72.3% | 67%-84% | -5.4% | 0 / 5 | 35 |
-| old association (isotropic, plain Mahalanobis) | 68.9% | 61%-76% | -8.9% | 0 / 6 | 44 |
-| numbers: old rule (team optional, 60 s) | 72.2% | 66%-78% | -5.5% | 0 / 6 | 42 |
-| no team colour | 59.8% | 42%-70% | -18.0% | 0 / 6 | 30 |
-| no jersey numbers (track IDs) | 62.0% | 54%-68% | -15.7% | 0 / 6 | 29 |
-| close-encounter swap resolution | 75.7% | 68%-82% | -2.1% | 2 / 4 | 32 |
-| unknown identity after close encounters | 62.6% | 58%-68% | -15.2% | 0 / 6 | 62 |
-| majority swap split without recent-read identity | 75.9% | 68%-81% | -1.9% | 1 / 4 | 30 |
-| recent-read identity without majority split | 77.1% | 70%-82% | -0.7% | 2 / 3 | 33 |
-| stricter identity rule (3 reads, 70 %) | 73.1% | 67%-80% | -4.7% | 0 / 5 | 35 |
-| court edges: detections to 0.75 m + 5 s coasting | 77.9% | 71%-88% | +0.2% | 4 / 2 | 31 |
-| larger cross-camera noise (0.65 / 0.45 m) | 73.6% | 69%-79% | -4.2% | 1 / 3 | 34 |
+| MV3DT global IDs | 52.4% | 38%-61% | -26.8% | 0 / 6 | 30 |
+| default (identity output) | 79.2% | 74%-89% | — | — | 28 |
+| previous default (no identity freshness) | 76.4% | 69%-83% | -2.8% | 3 / 3 | 28 |
+| track IDs instead of identities | 68.3% | 58%-79% | -11.0% | 1 / 5 | 25 |
+| no per-player look | 73.4% | 66%-85% | -5.8% | 0 / 6 | 30 |
+| old association (isotropic, plain Mahalanobis) | 66.9% | 63%-72% | -12.3% | 0 / 6 | 43 |
+| numbers: old rule (team optional, 60 s) | 74.0% | 69%-82% | -5.2% | 0 / 5 | 43 |
+| no team colour | 60.1% | 49%-69% | -19.1% | 0 / 6 | 28 |
+| no jersey numbers (track IDs) | 62.2% | 55%-70% | -17.0% | 0 / 6 | 29 |
+| close-encounter swap resolution | 74.3% | 60%-89% | -4.9% | 1 / 4 | 30 |
+| unknown identity after close encounters | 62.6% | 55%-71% | -16.7% | 0 / 6 | 58 |
+| majority swap split without recent-read identity | 77.0% | 69%-83% | -2.3% | 1 / 5 | 28 |
+| recent-read identity without majority split | 79.5% | 73%-83% | +0.2% | 2 / 3 | 29 |
+| stricter identity rule (3 reads, 70 %) | 74.1% | 64%-83% | -5.1% | 2 / 4 | 31 |
+| court edges: detections to 0.75 m + 5 s coasting | 79.5% | 70%-88% | +0.3% | 2 / 4 | 33 |
+| larger cross-camera noise (0.65 / 0.45 m) | 74.9% | 70%-82% | -4.3% | 2 / 4 | 32 |
 
-Per run and minute (default): mount_r1 game_2to3 81%, mount_r1 game_4to5 73%, mount_r2 game_2to3 84%, mount_r2 game_4to5 78%, mount_r3 game_2to3 79%, mount_r3 game_4to5 72%
+Per run and minute (default): mount_r1 game_2to3 82%, mount_r1 game_4to5 80%, mount_r2 game_2to3 89%, mount_r2 game_4to5 76%, mount_r3 game_2to3 74%, mount_r3 game_4to5 74%

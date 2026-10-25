@@ -65,6 +65,7 @@ struct Config {
   int frame_w = 1920, frame_h = 1080;
   int appearance_every = 3;
   double min_box_h = 80;
+  double seated_gap = -1, seated_edge = 0.6;   // seated-person rule (tools/world_tracker.seated); gap < 0 = off
   std::vector<Camera> cams;               // by source id
   std::string kafka_lib, kafka_conn, kafka_topic, kafka_cfg;
   std::string ident_log, input_log;
@@ -122,6 +123,7 @@ bool parse_config(const char *path) {
     if (!(s >> key) || key[0] == '#') continue;
     if (key == "court") s >> cfg.xmin >> cfg.xmax >> cfg.yhalf >> cfg.margin >> cfg.frame_w >> cfg.frame_h;
     else if (key == "appearance") s >> cfg.appearance_every >> cfg.min_box_h;
+    else if (key == "seated") s >> cfg.seated_gap >> cfg.seated_edge;
     else if (key == "camera") {
       Camera c;
       int colour, height;
@@ -473,6 +475,12 @@ GstPadProbeReturn probe(GstPad *, GstPadProbeInfo *info, gpointer) {
       bool on = front && fx >= cfg.xmin - cfg.margin && fx <= cfg.xmax + cfg.margin &&
                 std::fabs(fy) <= cfg.yhalf + cfg.margin;
       if (!on && b < cfg.frame_h - 5) continue;   // feet below the image edge: position unknown, kept
+      if (cfg.seated_gap >= 0 && front && b < cfg.frame_h - 5) {
+        // seated person: MV3DT's standing-person model puts the feet well inside the court while the box bottom stays
+        // at the seat (both points before the camera bias, as tools/world_tracker.seated)
+        double edge = std::min(std::min(fx - cfg.xmin, cfg.xmax - fx), cfg.yhalf - std::fabs(fy));
+        if (std::hypot(fx - foot[0], fy - foot[1]) > cfg.seated_gap && edge < cfg.seated_edge) continue;
+      }
       if (std::find(seen.begin(), seen.end(), obj->object_id) != seen.end()) continue;
       seen.push_back(obj->object_id);
       Detection d;

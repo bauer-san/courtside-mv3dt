@@ -1,5 +1,5 @@
 --- /media/geoff/DATA/Documents/TESTmv3dt/external/DeepStream/src/apps/sample_apps/deepstream-test5/deepstream_test5_app_main.c	2026-10-21 15:49:42.804302100 -0400
-+++ deepstream_test5_app_main.c	2026-10-25 02:05:21.388847700 -0400
++++ deepstream_test5_app_main.c	2026-10-25 07:45:56.679466800 -0400
 @@ -47,6 +47,10 @@
  #include "nvdsmeta_schema.h"
  

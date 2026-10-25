@@ -152,6 +152,12 @@ class WTParams:
     split_share: float = 0.66      # at least two thirds
     id_gap: int = 300             # frames (10 s): identity re-link window (60 s chained wrong identities)
     id_merge_dist: float = 2.0    # m: live tracks with the same identity closer than this merge
+    # seated people (front-row spectators): MV3DT's standing-person model puts their feet ~2 m inside the court while
+    # the box bottom, projected onto the floor, stays at their seat. Drop detections whose two foot points are more
+    # than seated_gap apart while the box-bottom point is less than seated_edge inside the lines (None = off).
+    # Removes 96 % of labelled spectator detections and 0.5 % of player detections (report section 4.9).
+    seated_gap: float | None = 1.0
+    seated_edge: float = 0.6
     num_needs_team: bool = True   # identity = team + number: number relinks/merges need both teams known and
                                   # equal, and a numbered track still pays the colour penalty (both teams
                                   # can wear the same number)
@@ -1013,6 +1019,22 @@ def estimate_bias(by_frame, max_dist: float = 1.5) -> dict[str, tuple[float, flo
     return {c: (float(sol[idx[c], 0]), float(sol[idx[c], 1])) for c in cams}
 
 
+def seated(d: dict, cams: dict, gap: float, edge: float, frame_h: int = 1080) -> np.ndarray:
+    """Detections of seated people: MV3DT foot point more than `gap` from the box-bottom floor point, and the box-bottom
+    point less than `edge` inside the court lines. Boxes cut by the bottom image edge are never flagged."""
+    from tools.stitch import floor_point
+    out = np.zeros(len(d["frame"]), bool)
+    for cam, P in cams.items():
+        sel = np.where(d["cam"] == cam)[0]
+        if not len(sel):
+            continue
+        xy, ok = floor_point(P, d["u"][sel], d["v"][sel])
+        g = np.hypot(xy[:, 0] - d["x"][sel], xy[:, 1] - d["y"][sel])
+        e = np.array([_edge_dist(x, y) for x, y in xy])
+        out[sel] = ok & (g > gap) & (e < edge) & (d["v"][sel] < frame_h - 5)
+    return out
+
+
 def is_static_edge(t: WTrack, radius: float = 1.0, edge: float = 2.0) -> bool:
     """Track that never moves more than `radius` and sits within `edge` of a court line: a seated spectator."""
     from tools.evaluate import X_MAX, X_MIN, Y_HALF
@@ -1116,6 +1138,8 @@ def track_run(run: Path, p: WTParams | None = None, sp: StitchParams | None = No
     d = load_detections(run / "kafka.jsonl.gz")
     cams = load_cameras(run / "camInfo_used")
     keep = ground_filter(d, cams, inside_fn, sp)
+    if p.seated_gap is not None:
+        keep &= ~seated(d, cams, p.seated_gap, p.seated_edge, sp.frame_h)
     app = None
     if appearance and (run / "appearance.npz").exists() and (run / "teams.yml").exists():
         from tools.appearance import team_probs

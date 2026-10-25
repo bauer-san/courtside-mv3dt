@@ -1,29 +1,32 @@
 ### Python reference, deployable (mount runs): mount_r1, mount_r2, mount_r3
 
+Identity IDF1 (players): 80.4% (72%-90%); per run-minute 87.1%, 74.3%, 90.2%, 75.4%, 83.4%, 72.1%
+
 | labelled as | detections | in the output | with an identity |
 |---|---|---|---|
-| player | 2227 | 2221 (100%) | 2086 (94%) |
-| referee | 343 | 334 (97%) | 161 (47%) |
-| not a player | 453 | 278 (61%) | 66 (15%) |
-| unclear | 200 | 197 (98%) | 177 (88%) |
+| player | 2227 | 2211 (99%) | 2099 (94%) |
+| referee | 343 | 329 (96%) | 155 (45%) |
+| not a player | 453 | 17 (4%) | 0 (0%) |
+| unclear | 200 | 184 (92%) | 167 (84%) |
 
 Not-a-player detections (453):
 - position: 0% outside the lines, 23% within 1.5 m inside, 77% further in (median +1.99 m from the nearest line)
-- in the output: 278; their tracks' 90th-percentile spread around the median position: median 3.15 m, 21% under 1 m
-- identities given to them: A:1 x15, B:0 x15, A:3 x13, A:22 x10, A:94 x5, B:3 x4, A:7 x3, B:1 x1
+- in the output: 17; their tracks' 90th-percentile spread around the median position: median 1.45 m, 0% under 1 m
 - body height from the box (FL/FR crops): non-players median 1.48 m (n=438, 23% under 1.4 m); players median 1.81 m (n=1104, 3% under 1.4 m)
 
-### Live in DeepStream (ct2 runs): ct2_r1, ct2_r2, ct2_r3
+### Live in DeepStream: ct3_r1, ct3_r2, ct3_r3
+
+Identity IDF1 (players): 80.0% (71%-87%); per run-minute 87.1%, 74.1%, 84.4%, 71.4%, 86.9%, 76.2%
 
 | labelled as | detections | in the output | with an identity |
 |---|---|---|---|
-| player | 2228 | 2222 (100%) | 2084 (94%) |
-| referee | 345 | 336 (97%) | 227 (66%) |
-| not a player | 457 | 280 (61%) | 111 (24%) |
-| unclear | 199 | 196 (98%) | 175 (88%) |
+| player | 2220 | 2205 (99%) | 2082 (94%) |
+| referee | 344 | 325 (94%) | 185 (54%) |
+| not a player | 455 | 16 (4%) | 1 (0%) |
+| unclear | 198 | 178 (90%) | 163 (82%) |
 
-Not-a-player detections (457):
-- position: 0% outside the lines, 17% within 1.5 m inside, 82% further in (median +1.99 m from the nearest line)
-- in the output: 280; their tracks' 90th-percentile spread around the median position: median 8.14 m, 13% under 1 m
-- identities given to them: A:1 x26, B:0 x24, A:3 x14, B:3 x13, A:22 x10, B:1 x7, A:94 x5, B:2 x5
-- body height from the box (FL/FR crops): non-players median 1.48 m (n=442, 22% under 1.4 m); players median 1.81 m (n=1106, 3% under 1.4 m)
+Not-a-player detections (455):
+- position: 0% outside the lines, 15% within 1.5 m inside, 85% further in (median +2.00 m from the nearest line)
+- in the output: 16; their tracks' 90th-percentile spread around the median position: median 10.74 m, 0% under 1 m
+- identities given to them: B:3 x1
+- body height from the box (FL/FR crops): non-players median 1.48 m (n=440, 22% under 1.4 m); players median 1.81 m (n=1099, 3% under 1.4 m)

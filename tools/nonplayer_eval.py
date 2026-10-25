@@ -11,6 +11,8 @@ body height estimated from the box (FL/FR, tools/appearance), as candidate cues 
   ct2 runs     the live DeepStream output, replayed from its recorded inputs (identical to the live output)
 
   python -m tools.nonplayer_eval mount_r1 mount_r2 mount_r3 ct2_r1 ct2_r2 ct2_r3 [--jobs 6] [--md out.md]
+  python -m tools.nonplayer_eval mount_r1 mount_r2 mount_r3 --no-seated   # without the seated-person rule (mount runs)
+Also reports identity IDF1 per labelled minute (identity output), so a rule's cost on players is visible.
 """
 
 import argparse
@@ -53,7 +55,7 @@ def categories(run: Path) -> dict:
 
 
 def job(args) -> dict:
-    run_name, other = args
+    run_name, other, seated_gap = args
     from tools import world_tracker as wtm
     from tools.appearance import load_appearance
     from tools.world_tracker import _edge_dist, load_detections
@@ -67,8 +69,13 @@ def job(args) -> dict:
         from tools.online_teams import track_run_online
         b = fixed_bias(ROOT / "experiments" / other)
         wtm.estimate_bias = lambda bf, **k: b
-        tracks = track_run_online(run, post=False)
+        p = wtm.WTParams(online_relink=True) if seated_gap == "default" else wtm.WTParams(online_relink=True, seated_gap=seated_gap)
+        tracks = track_run_online(run, p, post=False)
         det_ident = wtm.track_run.last_det_ident
+    from tools.gt_eval import load_gt, score
+    from tools.world_tracker import identity_tracks
+    G = identity_tracks(tracks, det_ident)
+    idf1 = [score(G, load_gt(n, run))["idf1"] for n in MINUTES]
     owner = {}
     for t in tracks:
         for k in t.dets:
@@ -90,7 +97,7 @@ def job(args) -> dict:
         rows.append(dict(cat=cat, label=lab, out=t is not None, ident=det_ident.get(k) or "",
                          edge=_edge_dist(*p) if p else None, spread=moving.get(id(t)) if t else None,
                          height=height.get(k), key=k))
-    return {"run": run_name, "rows": rows}
+    return {"run": run_name, "rows": rows, "idf1": idf1}
 
 
 def main() -> None:
@@ -98,18 +105,24 @@ def main() -> None:
     ap.add_argument("runs", nargs="+")
     ap.add_argument("--jobs", type=int, default=1)
     ap.add_argument("--md", type=Path)
+    ap.add_argument("--no-seated", action="store_true", help="without the seated-person rule (mount runs only; the live runs "
+                    "were filtered in the pipeline)")
     a = ap.parse_args()
     mount = [r for r in a.runs if r.startswith("mount_")]
     others = {r: mount[(i + 1) % len(mount)] if mount else None for i, r in enumerate(mount)}
     with ProcessPoolExecutor(a.jobs, max_tasks_per_child=1) as ex:
-        res = list(ex.map(job, [(r, others.get(r)) for r in a.runs]))
+        res = list(ex.map(job, [(r, others.get(r), None if a.no_seated else "default") for r in a.runs]))
     lines = []
     for group, names in (("Python reference, deployable (mount runs)", [r for r in a.runs if r in mount]),
-                         ("Live in DeepStream (ct2 runs)", [r for r in a.runs if r not in mount])):
+                         ("Live in DeepStream", [r for r in a.runs if r not in mount])):
         rows = [x for r in res if r["run"] in names for x in r["rows"]]
         if not rows:
             continue
-        lines += [f"### {group}: {', '.join(names)}", "",
+        idf = [x for r in res if r["run"] in names for x in r["idf1"]]
+        rule = " (without the seated-person rule)" if a.no_seated and group.startswith("Python") else ""
+        lines += [f"### {group}{rule}: {', '.join(names)}", "",
+                  f"Identity IDF1 (players): {np.mean(idf):.1%} ({min(idf):.0%}-{max(idf):.0%}); per run-minute "
+                  + ", ".join(f"{x:.1%}" for x in idf), "",
                   "| labelled as | detections | in the output | with an identity |", "|---|---|---|---|"]
         for c in CATS:
             xs = [x for x in rows if x["cat"] == c]
