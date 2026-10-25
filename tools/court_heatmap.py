@@ -191,7 +191,7 @@ def main() -> None:
 
     var = "default: team colour + jersey numbers" if not args.no_numbers else "team colour, no numbers"
     fig.suptitle(f"{run.name}, court tracker ({var}), game frames 0-{args.max_frame}\n"
-                 "left end left (NL+FR mount), right end right (NR+FL mount)", fontsize=11)
+                 "left end (NL+FR mount) on the left, right end (NR+FL mount) on the right", fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.975))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=110)

@@ -7,6 +7,10 @@ team; refs grey; tracks without an identity white with their track number. At th
   python -m tools.render_labels mount_r1 [--start 0] [--end 12600] [--out experiments/mount_r1/labelled_game.mp4]
   python -m tools.render_labels ct3_r1 --live     # what a COURTTRACK=1 run sent: per-frame Kafka messages
 
+--sanitize pixelates what could identify people or the venue: everything whose floor projection (calibration) lies
+outside the court lines (crowd, walls, signs), the centre logo and the lanes (floor lettering), and every person's
+head (top of each detection box). --still N writes only frame N as an image (--out x.jpg).
+
 --live draws the DeepStream run's own output instead of re-running the tracker: positions and labels from the
 per-frame messages (courttrack.jsonl.gz), detection identities from courttrack_identities.csv. Boxes that are not
 in that frame's message (dropped seated spectators, unconfirmed tracks) are thin grey. The automatic team model names
@@ -68,6 +72,82 @@ def colour(label: str):
     return TEAM.get(label.split(":")[0], UNKNOWN)
 
 
+def floor_masks(cams: dict, w: int = 1920, h: int = 1080) -> dict:
+    """Per camera: pixels to pixelate for --sanitize (outside the court + 0.4 m, centre logo disc, lanes)."""
+    from tools.court import FT
+    out = {}
+    u, v = np.meshgrid(np.arange(w, dtype=np.float64), np.arange(h, dtype=np.float64))
+    for cam, P in cams.items():
+        H = P[:, [0, 1, 3]]
+        X = np.linalg.solve(H, np.stack([u.ravel(), v.ravel(), np.ones(u.size)]))
+        x, y = X[0] / X[2], X[1] / X[2]
+        front = (P @ np.stack([x, y, np.zeros_like(x), np.ones_like(x)]))[2] > 0
+        m = 0.4
+        outside = ~front | (x < X_MIN - m) | (x > X_MAX + m) | (np.abs(y) > Y_HALF + m)
+        logo = np.hypot(x, y) < 4.0
+        lane_w, lane_l = 6 * FT + 0.15, 19 * FT + 0.15
+        lanes = (np.abs(y) < lane_w) & ((x < X_MIN + lane_l) | (x > X_MAX - lane_l))
+        out[cam] = (outside | logo | lanes).reshape(h, w)
+    return out
+
+
+_FACE = None
+
+
+def faces(img: np.ndarray, thr: float = 0.15) -> list[tuple[int, int, int, int]]:
+    """Face boxes from PeopleNet's face class (DetectNet_v2 output: stride 16, bbox norm 35, offset 0.5), on four
+    full-resolution 960 x 544 tiles so that small faces are not lost."""
+    global _FACE
+    if _FACE is None:
+        import onnxruntime as ort
+        ort.preload_dlls()
+        ort.set_default_logger_severity(3)
+        _FACE = ort.InferenceSession(str(ROOT / "external/DeepStream/src/apps/reference_apps/deepstream-tracker-3d-multi-view/"
+                                         "models/PeopleNet2.6.3/resnet34_peoplenet.onnx"),
+                                     providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+    gx = (np.arange(60) * 16 + 0.5) / 35.0
+    gy = (np.arange(34) * 16 + 0.5) / 35.0
+    out = []
+    H, W = img.shape[:2]
+    for y0 in (0, H - 544):
+        for x0 in (0, W - 960):
+            tile = cv2.cvtColor(img[y0:y0 + 544, x0:x0 + 960], cv2.COLOR_BGR2RGB).astype(np.float32) / 255
+            cov, bb = _FACE.run(None, {"input_1:0": tile.transpose(2, 0, 1)[None]})
+            c, b = cov[0, 2], bb[0, 8:12]          # class 2 = Face
+            for j, i in zip(*np.where(c >= thr)):
+                x1 = (b[0, j, i] - gx[i]) * -35.0
+                y1 = (b[1, j, i] - gy[j]) * -35.0
+                x2 = (b[2, j, i] + gx[i]) * 35.0
+                y2 = (b[3, j, i] + gy[j]) * 35.0
+                out.append((x0 + x1, y0 + y1, x0 + x2, y0 + y2))
+    return [tuple(map(int, f)) for f in out]
+
+
+def pixelate(img: np.ndarray, block: int = 18) -> np.ndarray:
+    h, w = img.shape[:2]
+    small = cv2.resize(img, (max(1, w // block), max(1, h // block)), interpolation=cv2.INTER_AREA)
+    return cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
+
+
+def sanitize(img: np.ndarray, mask: np.ndarray, people: list) -> np.ndarray:
+    """Pixelate `mask` except people's bodies, and every person's head (top 24 % of the box, widened)."""
+    m = mask.copy()
+    heads = np.zeros_like(m)
+    for _, l, t, r, b in people:
+        l, t, r, b = int(l), int(t), int(r), int(b)
+        hh = int(0.24 * (b - t))
+        m[max(0, t + hh):max(0, b), max(0, l):max(0, r)] = False
+        heads[max(0, t - hh // 3):max(0, t + hh), max(0, l - (r - l) // 6):max(0, r + (r - l) // 6)] = True
+    m |= heads
+    for x1, y1, x2, y2 in faces(img):                 # faces, whether or not the person has a box
+        w, h = x2 - x1, y2 - y1
+        m[max(0, int(y1 - 0.3 * h)):max(0, int(y2 + 0.3 * h)), max(0, int(x1 - 0.3 * w)):max(0, int(x2 + 0.3 * w))] = True
+    px = pixelate(img)
+    img = img.copy()
+    img[m] = px[m]
+    return img
+
+
 def text(label: str) -> str:
     if label.startswith("t"):
         return label
@@ -116,10 +196,18 @@ def main() -> None:
     ap.add_argument("--out", type=Path)
     ap.add_argument("--live", action="store_true", help="draw the run's live DeepStream output (COURTTRACK=1 runs)")
     ap.add_argument("--scale", type=float, default=1.0, help="layout scale: 1 = 1280x720, 1.5 = 1920x1080")
+    ap.add_argument("--sanitize", action="store_true", help="pixelate faces, the crowd, signs and floor lettering")
+    ap.add_argument("--still", type=int, help="write only this frame, as an image (--out x.jpg)")
     args = ap.parse_args()
     set_scale(args.scale)
     run = Path(args.run) if Path(args.run).is_dir() else ROOT / "experiments" / args.run
+    if args.still is not None:
+        args.start = args.end = args.still
     out = args.out or run / ("labelled_game_live.mp4" if args.live else "labelled_game.mp4")
+    masks = None
+    if args.sanitize:
+        from tools.stitch import load_cameras
+        masks = floor_masks(load_cameras(run / "camInfo_used"))
     out_keys = None
     if args.live:
         label, pos, out_keys = live_output(run, args.start, args.end)
@@ -144,8 +232,9 @@ def main() -> None:
         gt.update(load_gt(name, run))
     gt_frames = sorted({k[0] for k in gt})
     if args.live:   # which labelled team each automatic team (A/B) corresponds to: majority over the labelled moments
+        all_keys = out_keys if args.still is None else live_output(run, 0, 10 ** 9)[2]
         votes = collections.Counter((label[k].split(":")[0], v.split(":")[0]) for k, v in gt.items()
-                                    if k in out_keys and ":" in label.get(k, ""))
+                                    if k in all_keys and ":" in label.get(k, ""))
         for team in ("A", "B"):
             best = max((n, g) for (t_, g), n in votes.items() if t_ == team) if any(t_ == team for t_, _ in votes) else None
             if best:
@@ -157,7 +246,7 @@ def main() -> None:
     caps = {pos_: cv2.VideoCapture(str((ds / "videos" / f"{cid}_{pos_}.mp4").resolve())) for cid, pos_, _ in CAMERAS}
     for c in caps.values():
         c.set(cv2.CAP_PROP_POS_FRAMES, args.start)
-    ff = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{W}x{H}",
+    ff = None if args.still is not None else subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{W}x{H}",
                            "-r", "30", "-i", "-", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
                            "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out)], stdin=subprocess.PIPE)
     base = np.full((H, W, 3), BG, np.uint8)
@@ -205,6 +294,8 @@ def main() -> None:
             ok, frame = caps[cam].read()
             if not ok:
                 continue
+            if masks is not None:
+                frame = sanitize(frame, masks[cam], boxes.get((cam, f), []))
             s = CW / frame.shape[1]
             tile = cv2.resize(frame, (CW, CH), interpolation=cv2.INTER_AREA)
             for g, l, t, r, b in boxes.get((cam, f), []):
@@ -250,11 +341,15 @@ def main() -> None:
             cv2.rectangle(img, (z(10), z(618)), (z(960), z(646)), (0, 120, 160), -1)
             cv2.putText(img, check[1] + "  (wrong boxes outlined yellow on that frame)", (z(18), z(637)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5 * Z, INK, 1, cv2.LINE_AA)
-        ff.stdin.write(img.tobytes())
+        if ff is None:
+            cv2.imwrite(str(out), img, [cv2.IMWRITE_JPEG_QUALITY, 88])
+        else:
+            ff.stdin.write(img.tobytes())
         if f % 1800 == 0:
             print(f"frame {f}", flush=True)
-    ff.stdin.close()
-    ff.wait()
+    if ff is not None:
+        ff.stdin.close()
+        ff.wait()
     print(out)
 
 

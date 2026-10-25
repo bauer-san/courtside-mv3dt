@@ -6,6 +6,17 @@ tracker that reports each player by identity (team + jersey number). Developed o
 
 Results and the full write-up: [reports/phase7_report.md](reports/phase7_report.md).
 
+![Live output: four camera views with player labels and the top-down court](docs/images/live_output.jpg)
+
+*The court tracker running inside DeepStream (one frame of the live output, 2:44 into the test game): each player
+labelled by automatically found team (A/B) and jersey number, and their positions on the court. Faces, the crowd,
+signs and the floor logo are pixelated (`python -m tools.render_labels <run> --live --scale 1.5 --sanitize --still
+<frame>`).*
+
+![Court heat map: where tracks start, are lost, re-link and duplicate](reports/figures/court_heatmap.png)
+
+*Where on the court tracks start, are lost, re-link and duplicate, per player-minute (`tools/court_heatmap.py`).*
+
 ## Cameras and calibration
 
 | Stream | Camera | Mount | View |
