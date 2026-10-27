@@ -39,17 +39,28 @@ def _boxes(run: Path, step: int) -> dict:
     return _BOXES[(run, step)]
 
 
+def frame_offsets(run: Path) -> dict:
+    """Camera position -> first source frame of the run's dataset clip for that camera, relative to the clip start
+    (tools/make_clips --offsets; empty when the cameras' clips start at the same source frame)."""
+    from tools.appearance import run_dataset
+    m = run_dataset(run) / "manifest.json"
+    return json.loads(m.read_text()).get("offsets", {}) if m.exists() else {}
+
+
 def remap(gt: dict, src: Path, dst: Path, step: int = 60, min_iou: float = 0.6) -> dict:
-    """Carry labels made on run `src`'s detections over to run `dst` (other MV3DT ids): same frame and camera,
-    best box overlap >= min_iou."""
-    a, b = _boxes(src, step), _boxes(dst, step)
+    """Carry labels made on run `src`'s detections over to run `dst` (other MV3DT ids): same moment and camera (the
+    frame shifted by the datasets' per-camera offsets, if any), best box overlap >= min_iou."""
+    off_src, off_dst = frame_offsets(src), frame_offsets(dst)
+    a = _boxes(src, step)
+    b = _boxes(dst, 1 if off_src != off_dst else step)
     out = {}
     for (fr, cam, gid), ident in gt.items():
         box = next((x[1:] for x in a.get((cam, fr), []) if str(x[0]) == gid), None)
         if box is None:
             continue
+        fr_dst = fr + off_src.get(cam, 0) - off_dst.get(cam, 0)
         best, best_iou = None, min_iou
-        for g2, l, t, r, bb in b.get((cam, fr), []):
+        for g2, l, t, r, bb in b.get((cam, fr_dst), []):
             iw = min(r, box[2]) - max(l, box[0])
             ih = min(bb, box[3]) - max(t, box[1])
             if iw <= 0 or ih <= 0:
@@ -59,7 +70,7 @@ def remap(gt: dict, src: Path, dst: Path, step: int = 60, min_iou: float = 0.6) 
             if iou > best_iou:
                 best, best_iou = str(g2), iou
         if best is not None:
-            out[(fr, cam, best)] = ident
+            out[(fr_dst, cam, best)] = ident
     return out
 
 

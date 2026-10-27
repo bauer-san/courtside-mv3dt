@@ -10,8 +10,14 @@ Verification per clip:
   - sync: clip frame 0 must match source frame `start` better than source frames start-1/start+1
 A manifest.json with the results is written next to videos/.
 
+--offsets shifts single cameras' windows to correct a time offset between the recordings (GitHub issue #3): with
+NL=26, NL's clip starts at source frame start + 26. A camera that shows a moment k frames *later* than another needs
+the k-frame later start, so that frame n of every clip shows the same moment. The offsets are recorded in the
+manifest; tools.gt_eval shifts ground-truth labels accordingly.
+
 Example:
   python -m tools.make_clips --start 3600 --seconds 60 --name gym_60s
+  python -m tools.make_clips --start 0 --seconds 898 --offsets NL=26,FL=13,NR=4 --name gym_sync
 """
 
 import argparse
@@ -98,7 +104,11 @@ def main() -> None:
     ap.add_argument("--name", required=True, help="output dataset name under datasets/")
     ap.add_argument("--base", type=Path, default=DATASETS / "gym")
     ap.add_argument("--crf", type=int, default=18)
+    ap.add_argument("--offsets", default="", help="per-camera extra start frames, e.g. FL=13,NR=22,FR=26")
     args = ap.parse_args()
+    offsets = {k: int(v) for k, v in (x.split("=") for x in args.offsets.split(",") if x)}
+    if set(offsets) - {pos for _, pos, _ in CAMERAS} or any(v < 0 for v in offsets.values()):
+        raise SystemExit(f"--offsets: camera positions {[p for _, p, _ in CAMERAS]}, values >= 0")
 
     if args.start < 0:
         raise SystemExit("--start must be >= 0")
@@ -107,17 +117,19 @@ def main() -> None:
     (out / "videos").mkdir(parents=True, exist_ok=True)
     link_shared(args.base, out)
 
-    manifest = {"start_frame": args.start, "frames": count, "fps": FPS, "crf": args.crf, "cameras": {}}
+    manifest = {"start_frame": args.start, "frames": count, "fps": FPS, "crf": args.crf, "offsets": offsets,
+                "cameras": {}}
     for cam_id, pos, _ in CAMERAS:
         name = f"{cam_id}_{pos}.mp4"
         src = (args.base / "videos" / name).resolve()
         dst = out / "videos" / name
-        print(f"[{cam_id}] encoding frames {args.start}..{args.start + count - 1} -> {dst.relative_to(DATASETS)}", flush=True)
-        subprocess.run(encode_cmd(src, dst, args.start, count, args.crf), check=True)
+        start = args.start + offsets.get(pos, 0)
+        print(f"[{cam_id}] encoding frames {start}..{start + count - 1} -> {dst.relative_to(DATASETS)}", flush=True)
+        subprocess.run(encode_cmd(src, dst, start, count, args.crf), check=True)
         n = count_frames(dst)
-        sync = sync_check(src, dst, args.start)
+        sync = sync_check(src, dst, start)
         print(f"[{cam_id}] frames={n} sync={sync}", flush=True)
-        manifest["cameras"][cam_id] = {"source": src.name, "frames": n, "sync": sync}
+        manifest["cameras"][cam_id] = {"source": src.name, "start_frame": start, "frames": n, "sync": sync}
 
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     counts = {c["frames"] for c in manifest["cameras"].values()}

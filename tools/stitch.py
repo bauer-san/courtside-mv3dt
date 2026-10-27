@@ -57,7 +57,7 @@ class Track:
 
 
 def load_detections(path: Path) -> dict:
-    """Flat arrays: frame, cam, gid, x, y (MV3DT foot), u, v (bbox bottom-centre pixel)."""
+    """Flat arrays: frame, cam, gid, x, y (MV3DT foot), u, v (bbox bottom-centre pixel), top (bbox top y)."""
     cols = collections.defaultdict(list)
     with gzip.open(path, "rt") as f:
         for line in f:
@@ -70,7 +70,8 @@ def load_detections(path: Path) -> dict:
                 b = o.get("bbox", {})  # protobuf JSON omits zero-valued fields
                 x, y = (float(v) for v in fl.split(","))
                 for k, v in (("frame", fr), ("cam", cam), ("gid", o["id"]), ("x", x), ("y", y),
-                             ("u", (b.get("leftX", 0.0) + b.get("rightX", 0.0)) / 2), ("v", b.get("bottomY", 0.0))):
+                             ("u", (b.get("leftX", 0.0) + b.get("rightX", 0.0)) / 2), ("v", b.get("bottomY", 0.0)),
+                             ("top", b.get("topY", 0.0))):
                     cols[k].append(v)
     return {k: np.array(v) for k, v in cols.items()}
 
