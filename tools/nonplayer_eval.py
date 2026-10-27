@@ -6,11 +6,11 @@ output (confirmed tracks, as sent in the per-frame messages): output at all, out
 also where they are (distance to the nearest court line, negative = outside), whether their track ever moves, and the
 body height estimated from the box (FL/FR, tools/appearance), as candidate cues for dropping seated people.
 
-  mount runs   Python reference, deployable configuration (fixed bias from another run, online team model, no
-               spectator filter)
-  ct2 runs     the live DeepStream output, replayed from its recorded inputs (identical to the live output)
+  mount runs   Python reference, main causal configuration (world_tracker.track_default: stored bias, online team
+               model, no spectator filter)
+  ct3 runs     the live DeepStream output, replayed from its recorded inputs (identical to the live output)
 
-  python -m tools.nonplayer_eval mount_r1 mount_r2 mount_r3 ct2_r1 ct2_r2 ct2_r3 [--jobs 6] [--md out.md]
+  python -m tools.nonplayer_eval mount_r1 mount_r2 mount_r3 ct3_r1 ct3_r2 ct3_r3 [--jobs 6] [--md out.md]
   python -m tools.nonplayer_eval mount_r1 mount_r2 mount_r3 --no-seated   # without the seated-person rule (mount runs)
 Also reports identity IDF1 per labelled minute (identity output), so a rule's cost on players is visible.
 """
@@ -64,13 +64,8 @@ def job(args) -> dict:
         from tools.online_teams import replay_inputs
         tracks, det_ident = replay_inputs(run / "courttrack_inputs.bin")
     else:
-        from tools.calib_bias import stored  # noqa: F401  (fixed bias: measured on another run, as at installation)
-        from tools.courttrack_export import fixed_bias
-        from tools.online_teams import track_run_online
-        b = fixed_bias(ROOT / "experiments" / other)
-        wtm.estimate_bias = lambda bf, **k: b
         p = wtm.WTParams(online_relink=True) if seated_gap == "default" else wtm.WTParams(online_relink=True, seated_gap=seated_gap)
-        tracks = track_run_online(run, p, post=False)
+        tracks = wtm.track_default(run, p)
         det_ident = wtm.track_run.last_det_ident
     from tools.gt_eval import load_gt, score
     from tools.world_tracker import identity_tracks
@@ -113,7 +108,7 @@ def main() -> None:
     with ProcessPoolExecutor(a.jobs, max_tasks_per_child=1) as ex:
         res = list(ex.map(job, [(r, others.get(r), None if a.no_seated else "default") for r in a.runs]))
     lines = []
-    for group, names in (("Python reference, deployable (mount runs)", [r for r in a.runs if r in mount]),
+    for group, names in (("Python reference, main configuration (mount runs)", [r for r in a.runs if r in mount]),
                          ("Live in DeepStream", [r for r in a.runs if r not in mount])):
         rows = [x for r in res if r["run"] in names for x in r["rows"]]
         if not rows:

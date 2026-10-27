@@ -73,18 +73,19 @@ svg.chart .row:hover .hit { fill: var(--accent-soft); }
 <div class="meta">Four cameras, DeepStream 9.1 MV3DT, RTX 3060 Ti; target device Jetson Orin Nano Super.
 Cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
 <div class="board">
-<div class="hl"><b>79.2%</b><span>identity IDF1, recommended pipeline (players reported by team + number)</span></div>
+<div class="hl"><b>80.6%</b><span>identity IDF1, recommended pipeline (players reported by team + number)</span></div>
 <div><b>52.4%</b><span>identity IDF1, MV3DT global IDs as delivered</span></div>
 <div><b>56 fps</b><span>per camera on the 3060 Ti with jersey reading (30 needed)</span></div>
-<div><b>74-89%</b><span>range of identity IDF1 per run and labelled minute (identical DeepStream runs)</span></div>
+<div><b>71-90%</b><span>range of identity IDF1 per run and labelled minute (identical DeepStream runs)</span></div>
 </div>
 <nav class="toc" aria-label="Sections"><a href="#1-summary">1. Summary</a><a href="#2-setup">2. Setup</a><a href="#3-pipeline">3. Pipeline</a><a href="#4-results">4. Results</a><a href="#5-calibration">5. Calibration</a><a href="#6-deployment-options-measured-on-the-3060-ti-estimated-for-jetson">6. Deployment options: measured on the 3060 Ti, estimated for Jetson</a><a href="#7-camera-placement-and-quantity">7. Camera placement and quantity</a><a href="#8-limitations">8. Limitations</a><a href="#9-next-steps-prioritised">9. Next steps (prioritised)</a><a href="#10-how-to-reproduce">10. How to reproduce</a><a href="#appendix-what-was-tried-and-did-not-help">Appendix: what was tried and did not help</a></nav>
 </header><main class="doc"><p>Four-camera basketball court, NVIDIA DeepStream 9.1 Multi-View 3D Tracking (MV3DT), evaluated on a Dell XPS 8960
-(RTX 3060 Ti 8 GB) with deployment on a Jetson Orin Nano Super in mind. Date: 2026-10-25.</p>
+(RTX 3060 Ti 8 GB) with deployment on a Jetson Orin Nano Super in mind. Date: 2026-10-27.</p>
 <p>All results come from DeepStream runs on the final calibration, which places every camera on its physical mount
 (section 5): three runs (<code>mount_r1</code>-<code>mount_r3</code>) for the main results, three more with the court tracker running
-inside DeepStream (<code>ct3_r1</code>-<code>ct3_r3</code>, section 4.8). All court-tracker figures were regenerated with the final code
-(<code>scripts/phase8_reevaluate.sh</code>).</p>
+inside DeepStream (<code>ct3_r1</code>-<code>ct3_r3</code>, section 4.8). Every result uses the court tracker's main configuration, which
+is causal as deployed: every input is available live and needs no operator (section 3). All court-tracker figures were
+regenerated with the final code (<code>scripts/phase8_reevaluate.sh</code>).</p>
 <h2 id="1-summary">1. Summary</h2>
 <p><strong>Recommendation.</strong> Use DeepStream for detection, per-camera tracking and jersey reading. Then run the <em>court tracker</em>
 developed here on its output and report each player by identity (team + jersey number), not by track ID.</p>
@@ -102,19 +103,19 @@ developed here on its output and report each player by identity (team + jersey n
 </tr>
 <tr>
 <td>Court tracker, track IDs</td>
-<td>68.3 % (58-79 %)</td>
+<td>71.6 % (60-82 %)</td>
 </tr>
 <tr>
-<td><strong>Court tracker, player identities (recommended)</strong></td>
-<td><strong>79.2 % (74-89 %)</strong></td>
-</tr>
-<tr>
-<td>Court tracker, player identities, every input causal (deployable form, section 4.6)</td>
-<td>80.4 % (72-90 %)</td>
+<td><strong>Court tracker, player identities, every input causal (recommended)</strong></td>
+<td><strong>80.6 % (71-90 %)</strong></td>
 </tr>
 <tr>
 <td>The same, running inside DeepStream in C++ (3 further runs, section 4.8)</td>
 <td>80.0 % (71-87 %)</td>
+</tr>
+<tr>
+<td>For comparison: with inputs prepared offline from the whole recording (section 4.6)</td>
+<td>79.2 % (74-89 %)</td>
 </tr>
 </tbody>
 </table></div>
@@ -139,26 +140,33 @@ measured on hand-labelled ground truth (section 2.3).</p>
 </li>
 <li>
 <p><strong>Still not good enough for reliable per-player statistics.</strong> About 20 % of player time is credited to the wrong
-    player or no player. Most of that is a <em>wrong</em> identity (about 15 %), not a missing one (about 5 %; section 4.4).</p>
+    player or no player. Most of that is a <em>wrong</em> identity (about 15 %), not a missing one (about 4.5 %; section 4.4).</p>
 </li>
 <li>
-<p><strong>Two inputs were prepared offline.</strong> The court tracker's decisions are causal, but the results in sections 4
-    and 6 use a per-camera position correction and a team colour model, both derived from the whole recording; the
-    colour clusters were also named by hand. Replacing them with what a live system has (a correction measured once
-    at installation, and team colours found automatically as the game runs) scores 80.4 %. That is at least as good
-    as the offline version; the difference is within run-to-run noise (section 4.6).</p>
+<p><strong>Every input is causal, with no operator.</strong> The camera position correction is measured once at installation
+    (on separate runs) and stored with the calibration. The two teams are found automatically from torso colour as the
+    game runs (two teams and everyone else, named A and B). Inputs prepared offline from the whole recording, with
+    hand-named team colours, score no better (79.2 %, section 4.6).</p>
+</li>
+<li>
+<p><strong>The automatic team model failed once (section 4.6).</strong> In one of six runs, the two teams' names got mixed up during
+    the last minute of the game (6:10-7:00), after the labelled minutes. The scores don't show it; the cause is not yet
+    fixed (section 9).</p>
 </li>
 <li>
 <p><strong>Results vary from run to run.</strong> Repeated DeepStream runs of the same configuration give different MV3DT IDs and
-    jersey reads. Per-minute identity IDF1 ranges from 74 % to 89 %, so every number here is an average over three
+    jersey reads. Per-minute identity IDF1 ranges from 71 % to 90 %, so every number here is an average over three
     runs.</p>
 </li>
 <li>
 <p><strong>Measured deployment options (section 6):</strong></p>
 <ul>
-<li><strong>INT8 detector:</strong> 55 % faster than FP16 on the 3060 Ti, at 4-7 points lower end-to-end identity accuracy.</li>
 <li>
-<p><strong>Detector every 2nd or 3rd frame:</strong> costs 18-29 points with MV3DT and barely speeds anything up, so it's ruled
+<p><strong>INT8 detector:</strong> 55 % faster than FP16 on the 3060 Ti, at 6-7 points lower end-to-end identity accuracy
+(4-5 points with a lower detection threshold).</p>
+</li>
+<li>
+<p><strong>Detector every 2nd or 3rd frame:</strong> costs 14-28 points with MV3DT and barely speeds anything up, so it's ruled
 out.</p>
 </li>
 <li>
@@ -245,8 +253,13 @@ a full identity, across about 10 people per minute (players from both teams, inc
 <p><strong>Court tracker</strong> (<code>tools/world_tracker.py</code>, Python, causal, runs on the Kafka output). A court-plane Kalman tracker:</p>
 <ul>
 <li><strong>matching:</strong> direction-aware measurement noise and a likelihood cost</li>
-<li><strong>identity cues:</strong> team colour (torso histograms) and jersey numbers, where identity = team + number</li>
-<li><strong>identity output:</strong> an online roster and a per-player appearance model</li>
+<li>
+<p><strong>identity cues:</strong> team colour (torso histograms, automatic online team model) and jersey numbers, where
+ identity = team + number</p>
+</li>
+<li>
+<p><strong>identity output:</strong> an online roster and a per-player appearance model</p>
+</li>
 <li>
 <p><strong>identity freshness:</strong> identities come from recent reads (10 s), and a track splits when a majority of its
  recent reads show another number</p>
@@ -257,22 +270,24 @@ a full identity, across about 10 people per minute (players from both teams, inc
 </li>
 </ul>
 <p>The same tracker runs inside DeepStream as a C++ probe (<code>apps/courttrack</code>, section 4.8).</p>
-<p>All tracking decisions are causal; the output is final as soon as it's made. Three of its inputs and filters
-were, however, prepared offline from the whole recording for every result in sections 4 and 6:</p>
+<p>Everything is causal; the output is final as soon as it's made. Its inputs are all available live, with no
+operator:</p>
 <ul>
 <li>
-<p><strong>camera position bias:</strong> a constant offset per camera (mainly NL −0.18 m and NR +0.18 m along the court),
- estimated from detections of the same person in two cameras over the whole run and subtracted before tracking</p>
+<p><strong>camera position bias:</strong> a constant offset per camera (mainly NL −0.20 m and NR +0.18 m along the court),
+ measured once at installation from detections of the same person in two cameras and stored with the calibration
+ (here measured on the runs <code>ct2_r1</code>-<code>ct2_r3</code>, which are not used for any result)</p>
 </li>
 <li>
-<p><strong>team colour model:</strong> torso colours clustered over the game's frames, with the clusters named by hand
- (red, maroon, referee, other)</p>
+<p><strong>team colours:</strong> an online model that clusters the tracks' torso colours as the game runs and names the two
+ clusters with the most jersey reads as the teams (section 4.6)</p>
 </li>
 <li>
-<p><strong>spectator filter:</strong> tracks that never moved and sat near a line are removed after the run</p>
+<p><strong>no spectator filter</strong> after the run; seated spectators are dropped by a causal rule (section 4.9)</p>
 </li>
 </ul>
-<p>Section 4.6 measures causal replacements for all three.</p>
+<p>Section 4.6 compares these with versions prepared offline from the whole recording, which an earlier version of
+this report used for its main results.</p>
 </li>
 </ol>
 <h2 id="4-results">4. Results</h2>
@@ -315,7 +330,7 @@ needs. Without them the same pipeline runs at 61 fps per camera; with an INT8 de
     0.08-0.11 ms per frame on the same inputs (section 4.7).</li>
 </ul>
 <h3 id="42-accuracy-by-configuration">4.2 Accuracy by configuration</h3>
-<figure class="fig"><svg class="chart" viewBox="0 0 760 586" role="img" aria-label="Identity IDF1 by tracker configuration"><line class="grid" x1="330.0" y1="4" x2="330.0" y2="558"/><text class="tick" x="330.0" y="574" text-anchor="middle">0</text><line class="grid" x1="402.0" y1="4" x2="402.0" y2="558"/><text class="tick" x="402.0" y="574" text-anchor="middle">20</text><line class="grid" x1="474.0" y1="4" x2="474.0" y2="558"/><text class="tick" x="474.0" y="574" text-anchor="middle">40</text><line class="grid" x1="546.0" y1="4" x2="546.0" y2="558"/><text class="tick" x="546.0" y="574" text-anchor="middle">60</text><line class="grid" x1="618.0" y1="4" x2="618.0" y2="558"/><text class="tick" x="618.0" y="574" text-anchor="middle">80</text><line class="grid" x1="690.0" y1="4" x2="690.0" y2="558"/><text class="tick" x="690.0" y="574" text-anchor="middle">100</text><g class="row"><title>recent-read identity without majority split: 79.5% (range 73-83%)</title><rect class="hit" x="0" y="8" width="760" height="34"/><text class="lab" x="318" y="29.0" text-anchor="end">recent-read identity without majority split</text><rect class="bar" x="330" y="16" width="286.2" height="18" rx="3"/><line class="whisk" x1="592.8" y1="25.0" x2="628.8" y2="25.0"/><text class="val" x="636.8" y="29.0">79.5%</text></g><g class="row"><title>court edges: detections to 0.75 m + 5 s coasting: 79.5% (range 70-88%)</title><rect class="hit" x="0" y="42" width="760" height="34"/><text class="lab" x="318" y="63.0" text-anchor="end">court edges: detections to 0.75 m + 5 s coasting</text><rect class="bar" x="330" y="50" width="286.2" height="18" rx="3"/><line class="whisk" x1="582.0" y1="59.0" x2="646.8" y2="59.0"/><text class="val" x="654.8" y="63.0">79.5%</text></g><g class="row hl"><title>default (identity output): 79.2% (range 74-89%)</title><rect class="hit" x="0" y="76" width="760" height="34"/><text class="lab" x="318" y="97.0" text-anchor="end">default (identity output)</text><rect class="bar" x="330" y="84" width="285.1" height="18" rx="3"/><line class="whisk" x1="596.4" y1="93.0" x2="650.4" y2="93.0"/><text class="val" x="658.4" y="97.0">79.2%</text></g><g class="row"><title>majority swap split without recent-read identity: 77.0% (range 69-83%)</title><rect class="hit" x="0" y="110" width="760" height="34"/><text class="lab" x="318" y="131.0" text-anchor="end">majority swap split without recent-read identity</text><rect class="bar" x="330" y="118" width="277.2" height="18" rx="3"/><line class="whisk" x1="578.4" y1="127.0" x2="628.8" y2="127.0"/><text class="val" x="636.8" y="131.0">77.0%</text></g><g class="row"><title>previous default (no identity freshness): 76.4% (range 69-83%)</title><rect class="hit" x="0" y="144" width="760" height="34"/><text class="lab" x="318" y="165.0" text-anchor="end">previous default (no identity freshness)</text><rect class="bar" x="330" y="152" width="275.0" height="18" rx="3"/><line class="whisk" x1="578.4" y1="161.0" x2="628.8" y2="161.0"/><text class="val" x="636.8" y="165.0">76.4%</text></g><g class="row"><title>larger cross-camera noise (0.65 / 0.45 m): 74.9% (range 70-82%)</title><rect class="hit" x="0" y="178" width="760" height="34"/><text class="lab" x="318" y="199.0" text-anchor="end">larger cross-camera noise (0.65 / 0.45 m)</text><rect class="bar" x="330" y="186" width="269.6" height="18" rx="3"/><line class="whisk" x1="582.0" y1="195.0" x2="625.2" y2="195.0"/><text class="val" x="633.2" y="199.0">74.9%</text></g><g class="row"><title>close-encounter swap resolution: 74.3% (range 60-89%)</title><rect class="hit" x="0" y="212" width="760" height="34"/><text class="lab" x="318" y="233.0" text-anchor="end">close-encounter swap resolution</text><rect class="bar" x="330" y="220" width="267.5" height="18" rx="3"/><line class="whisk" x1="546.0" y1="229.0" x2="650.4" y2="229.0"/><text class="val" x="658.4" y="233.0">74.3%</text></g><g class="row"><title>stricter identity rule (3 reads, 70 %): 74.1% (range 64-83%)</title><rect class="hit" x="0" y="246" width="760" height="34"/><text class="lab" x="318" y="267.0" text-anchor="end">stricter identity rule (3 reads, 70 %)</text><rect class="bar" x="330" y="254" width="266.8" height="18" rx="3"/><line class="whisk" x1="560.4" y1="263.0" x2="628.8" y2="263.0"/><text class="val" x="636.8" y="267.0">74.1%</text></g><g class="row"><title>numbers: old rule (team optional, 60 s): 74.0% (range 69-82%)</title><rect class="hit" x="0" y="280" width="760" height="34"/><text class="lab" x="318" y="301.0" text-anchor="end">numbers: old rule (team optional, 60 s)</text><rect class="bar" x="330" y="288" width="266.4" height="18" rx="3"/><line class="whisk" x1="578.4" y1="297.0" x2="625.2" y2="297.0"/><text class="val" x="633.2" y="301.0">74.0%</text></g><g class="row"><title>no per-player look: 73.4% (range 66-85%)</title><rect class="hit" x="0" y="314" width="760" height="34"/><text class="lab" x="318" y="335.0" text-anchor="end">no per-player look</text><rect class="bar" x="330" y="322" width="264.2" height="18" rx="3"/><line class="whisk" x1="567.6" y1="331.0" x2="636.0" y2="331.0"/><text class="val" x="644.0" y="335.0">73.4%</text></g><g class="row"><title>track IDs instead of identities: 68.3% (range 58-79%)</title><rect class="hit" x="0" y="348" width="760" height="34"/><text class="lab" x="318" y="369.0" text-anchor="end">track IDs instead of identities</text><rect class="bar" x="330" y="356" width="245.9" height="18" rx="3"/><line class="whisk" x1="538.8" y1="365.0" x2="614.4" y2="365.0"/><text class="val" x="622.4" y="369.0">68.3%</text></g><g class="row"><title>old association (isotropic, plain Mahalanobis): 66.9% (range 63-72%)</title><rect class="hit" x="0" y="382" width="760" height="34"/><text class="lab" x="318" y="403.0" text-anchor="end">old association (isotropic, plain Mahalanobis)</text><rect class="bar" x="330" y="390" width="240.8" height="18" rx="3"/><line class="whisk" x1="556.8" y1="399.0" x2="589.2" y2="399.0"/><text class="val" x="597.2" y="403.0">66.9%</text></g><g class="row"><title>unknown identity after close encounters: 62.6% (range 55-71%)</title><rect class="hit" x="0" y="416" width="760" height="34"/><text class="lab" x="318" y="437.0" text-anchor="end">unknown identity after close encounters</text><rect class="bar" x="330" y="424" width="225.4" height="18" rx="3"/><line class="whisk" x1="528.0" y1="433.0" x2="585.6" y2="433.0"/><text class="val" x="593.6" y="437.0">62.6%</text></g><g class="row"><title>no jersey numbers (track IDs): 62.2% (range 55-70%)</title><rect class="hit" x="0" y="450" width="760" height="34"/><text class="lab" x="318" y="471.0" text-anchor="end">no jersey numbers (track IDs)</text><rect class="bar" x="330" y="458" width="223.9" height="18" rx="3"/><line class="whisk" x1="528.0" y1="467.0" x2="582.0" y2="467.0"/><text class="val" x="590.0" y="471.0">62.2%</text></g><g class="row"><title>no team colour: 60.1% (range 49-69%)</title><rect class="hit" x="0" y="484" width="760" height="34"/><text class="lab" x="318" y="505.0" text-anchor="end">no team colour</text><rect class="bar" x="330" y="492" width="216.4" height="18" rx="3"/><line class="whisk" x1="506.4" y1="501.0" x2="578.4" y2="501.0"/><text class="val" x="586.4" y="505.0">60.1%</text></g><g class="row"><title>MV3DT global IDs: 52.4% (range 38-61%)</title><rect class="hit" x="0" y="518" width="760" height="34"/><text class="lab" x="318" y="539.0" text-anchor="end">MV3DT global IDs</text><rect class="bar" x="330" y="526" width="188.6" height="18" rx="3"/><line class="whisk" x1="466.8" y1="535.0" x2="549.6" y2="535.0"/><text class="val" x="557.6" y="539.0">52.4%</text></g></svg><figcaption>Identity IDF1 (%). Bar: mean of 3 DeepStream runs × 2 labelled minutes. Line: lowest to highest single run and minute. Highlighted: the recommended default.</figcaption></figure>
+<figure class="fig"><svg class="chart" viewBox="0 0 760 586" role="img" aria-label="Identity IDF1 by tracker configuration"><line class="grid" x1="330.0" y1="4" x2="330.0" y2="558"/><text class="tick" x="330.0" y="574" text-anchor="middle">0</text><line class="grid" x1="402.0" y1="4" x2="402.0" y2="558"/><text class="tick" x="402.0" y="574" text-anchor="middle">20</text><line class="grid" x1="474.0" y1="4" x2="474.0" y2="558"/><text class="tick" x="474.0" y="574" text-anchor="middle">40</text><line class="grid" x1="546.0" y1="4" x2="546.0" y2="558"/><text class="tick" x="546.0" y="574" text-anchor="middle">60</text><line class="grid" x1="618.0" y1="4" x2="618.0" y2="558"/><text class="tick" x="618.0" y="574" text-anchor="middle">80</text><line class="grid" x1="690.0" y1="4" x2="690.0" y2="558"/><text class="tick" x="690.0" y="574" text-anchor="middle">100</text><g class="row"><title>previous default (no identity freshness): 80.7% (range 74-88%)</title><rect class="hit" x="0" y="8" width="760" height="34"/><text class="lab" x="318" y="29.0" text-anchor="end">previous default (no identity freshness)</text><rect class="bar" x="330" y="16" width="290.5" height="18" rx="3"/><line class="whisk" x1="596.4" y1="25.0" x2="646.8" y2="25.0"/><text class="val" x="654.8" y="29.0">80.7%</text></g><g class="row hl"><title>default (identity output): 80.6% (range 71-90%)</title><rect class="hit" x="0" y="42" width="760" height="34"/><text class="lab" x="318" y="63.0" text-anchor="end">default (identity output)</text><rect class="bar" x="330" y="50" width="290.2" height="18" rx="3"/><line class="whisk" x1="585.6" y1="59.0" x2="654.0" y2="59.0"/><text class="val" x="662.0" y="63.0">80.6%</text></g><g class="row"><title>recent-read identity without majority split: 80.5% (range 72-89%)</title><rect class="hit" x="0" y="76" width="760" height="34"/><text class="lab" x="318" y="97.0" text-anchor="end">recent-read identity without majority split</text><rect class="bar" x="330" y="84" width="289.8" height="18" rx="3"/><line class="whisk" x1="589.2" y1="93.0" x2="650.4" y2="93.0"/><text class="val" x="658.4" y="97.0">80.5%</text></g><g class="row"><title>larger cross-camera noise (0.65 / 0.45 m): 80.5% (range 74-89%)</title><rect class="hit" x="0" y="110" width="760" height="34"/><text class="lab" x="318" y="131.0" text-anchor="end">larger cross-camera noise (0.65 / 0.45 m)</text><rect class="bar" x="330" y="118" width="289.8" height="18" rx="3"/><line class="whisk" x1="596.4" y1="127.0" x2="650.4" y2="127.0"/><text class="val" x="658.4" y="131.0">80.5%</text></g><g class="row"><title>close-encounter swap resolution: 79.7% (range 72-90%)</title><rect class="hit" x="0" y="144" width="760" height="34"/><text class="lab" x="318" y="165.0" text-anchor="end">close-encounter swap resolution</text><rect class="bar" x="330" y="152" width="286.9" height="18" rx="3"/><line class="whisk" x1="589.2" y1="161.0" x2="654.0" y2="161.0"/><text class="val" x="662.0" y="165.0">79.7%</text></g><g class="row"><title>majority swap split without recent-read identity: 79.2% (range 68-88%)</title><rect class="hit" x="0" y="178" width="760" height="34"/><text class="lab" x="318" y="199.0" text-anchor="end">majority swap split without recent-read identity</text><rect class="bar" x="330" y="186" width="285.1" height="18" rx="3"/><line class="whisk" x1="574.8" y1="195.0" x2="646.8" y2="195.0"/><text class="val" x="654.8" y="199.0">79.2%</text></g><g class="row"><title>court edges: detections to 0.75 m + 5 s coasting: 78.8% (range 70-87%)</title><rect class="hit" x="0" y="212" width="760" height="34"/><text class="lab" x="318" y="233.0" text-anchor="end">court edges: detections to 0.75 m + 5 s coasting</text><rect class="bar" x="330" y="220" width="283.7" height="18" rx="3"/><line class="whisk" x1="582.0" y1="229.0" x2="643.2" y2="229.0"/><text class="val" x="651.2" y="233.0">78.8%</text></g><g class="row"><title>stricter identity rule (3 reads, 70 %): 78.5% (range 69-85%)</title><rect class="hit" x="0" y="246" width="760" height="34"/><text class="lab" x="318" y="267.0" text-anchor="end">stricter identity rule (3 reads, 70 %)</text><rect class="bar" x="330" y="254" width="282.6" height="18" rx="3"/><line class="whisk" x1="578.4" y1="263.0" x2="636.0" y2="263.0"/><text class="val" x="644.0" y="267.0">78.5%</text></g><g class="row"><title>no per-player look: 77.4% (range 65-90%)</title><rect class="hit" x="0" y="280" width="760" height="34"/><text class="lab" x="318" y="301.0" text-anchor="end">no per-player look</text><rect class="bar" x="330" y="288" width="278.6" height="18" rx="3"/><line class="whisk" x1="564.0" y1="297.0" x2="654.0" y2="297.0"/><text class="val" x="662.0" y="301.0">77.4%</text></g><g class="row"><title>numbers: old rule (team optional, 60 s): 75.4% (range 68-80%)</title><rect class="hit" x="0" y="314" width="760" height="34"/><text class="lab" x="318" y="335.0" text-anchor="end">numbers: old rule (team optional, 60 s)</text><rect class="bar" x="330" y="322" width="271.4" height="18" rx="3"/><line class="whisk" x1="574.8" y1="331.0" x2="618.0" y2="331.0"/><text class="val" x="626.0" y="335.0">75.4%</text></g><g class="row"><title>track IDs instead of identities: 71.6% (range 60-82%)</title><rect class="hit" x="0" y="348" width="760" height="34"/><text class="lab" x="318" y="369.0" text-anchor="end">track IDs instead of identities</text><rect class="bar" x="330" y="356" width="257.8" height="18" rx="3"/><line class="whisk" x1="546.0" y1="365.0" x2="625.2" y2="365.0"/><text class="val" x="633.2" y="369.0">71.6%</text></g><g class="row"><title>old association (isotropic, plain Mahalanobis): 68.8% (range 56-80%)</title><rect class="hit" x="0" y="382" width="760" height="34"/><text class="lab" x="318" y="403.0" text-anchor="end">old association (isotropic, plain Mahalanobis)</text><rect class="bar" x="330" y="390" width="247.7" height="18" rx="3"/><line class="whisk" x1="531.6" y1="399.0" x2="618.0" y2="399.0"/><text class="val" x="626.0" y="403.0">68.8%</text></g><g class="row"><title>unknown identity after close encounters: 64.8% (range 58-70%)</title><rect class="hit" x="0" y="416" width="760" height="34"/><text class="lab" x="318" y="437.0" text-anchor="end">unknown identity after close encounters</text><rect class="bar" x="330" y="424" width="233.3" height="18" rx="3"/><line class="whisk" x1="538.8" y1="433.0" x2="582.0" y2="433.0"/><text class="val" x="590.0" y="437.0">64.8%</text></g><g class="row"><title>no jersey numbers (track IDs): 64.2% (range 59-67%)</title><rect class="hit" x="0" y="450" width="760" height="34"/><text class="lab" x="318" y="471.0" text-anchor="end">no jersey numbers (track IDs)</text><rect class="bar" x="330" y="458" width="231.1" height="18" rx="3"/><line class="whisk" x1="542.4" y1="467.0" x2="571.2" y2="467.0"/><text class="val" x="579.2" y="471.0">64.2%</text></g><g class="row"><title>no team colour: 59.9% (range 49-66%)</title><rect class="hit" x="0" y="484" width="760" height="34"/><text class="lab" x="318" y="505.0" text-anchor="end">no team colour</text><rect class="bar" x="330" y="492" width="215.6" height="18" rx="3"/><line class="whisk" x1="506.4" y1="501.0" x2="567.6" y2="501.0"/><text class="val" x="575.6" y="505.0">59.9%</text></g><g class="row"><title>MV3DT global IDs: 52.4% (range 38-61%)</title><rect class="hit" x="0" y="518" width="760" height="34"/><text class="lab" x="318" y="539.0" text-anchor="end">MV3DT global IDs</text><rect class="bar" x="330" y="526" width="188.6" height="18" rx="3"/><line class="whisk" x1="466.8" y1="535.0" x2="549.6" y2="535.0"/><text class="val" x="557.6" y="539.0">52.4%</text></g></svg><figcaption>Identity IDF1 (%). Bar: mean of 3 DeepStream runs × 2 labelled minutes. Line: lowest to highest single run and minute. Highlighted: the recommended default.</figcaption></figure>
 <p>Paired against the default, by run and minute:</p>
 <div class="tbl"><table>
 <thead>
@@ -329,56 +344,56 @@ needs. Without them the same pipeline runs at 61 fps per camera; with an INT8 de
 <tbody>
 <tr>
 <td>(default)</td>
-<td>79.2 %</td>
+<td>80.6 %</td>
 <td>—</td>
 <td>—</td>
 </tr>
 <tr>
 <td>no team colour</td>
-<td>60.1 %</td>
-<td>−19.1</td>
+<td>59.9 %</td>
+<td>−20.7</td>
 <td>6 of 6</td>
 </tr>
 <tr>
 <td>no jersey numbers</td>
-<td>62.2 %</td>
-<td>−17.0</td>
+<td>64.2 %</td>
+<td>−16.4</td>
 <td>6 of 6</td>
 </tr>
 <tr>
 <td>old association (isotropic noise, plain Mahalanobis)</td>
-<td>66.9 %</td>
-<td>−12.3</td>
-<td>6 of 6 (and +15 switches)</td>
+<td>68.8 %</td>
+<td>−11.8</td>
+<td>6 of 6 (and +17 switches)</td>
 </tr>
 <tr>
 <td>track IDs instead of identities</td>
-<td>68.3 %</td>
-<td>−11.0</td>
+<td>71.6 %</td>
+<td>−9.0</td>
 <td>5 of 6</td>
 </tr>
 <tr>
-<td>no per-player look</td>
-<td>73.4 %</td>
-<td>−5.8</td>
-<td>6 of 6</td>
+<td>numbers rule: team optional, 60 s relink</td>
+<td>75.4 %</td>
+<td>−5.2</td>
+<td>4 of 4 (2 ties; and +8 switches)</td>
 </tr>
 <tr>
-<td>numbers rule: team optional, 60 s relink</td>
-<td>74.0 %</td>
-<td>−5.2</td>
-<td>5 of 5 (1 tie; and +15 switches)</td>
+<td>no per-player look</td>
+<td>77.4 %</td>
+<td>−3.2</td>
+<td>5 of 5 (1 tie)</td>
 </tr>
 <tr>
 <td>no identity freshness</td>
-<td>76.4 %</td>
-<td>−2.8</td>
+<td>80.7 %</td>
+<td>+0.1</td>
 <td>3 of 6</td>
 </tr>
 <tr>
 <td>MV3DT global IDs</td>
 <td>52.4 %</td>
-<td>−26.8</td>
+<td>−28.2</td>
 <td>6 of 6</td>
 </tr>
 </tbody>
@@ -390,15 +405,15 @@ needs. Without them the same pipeline runs at 61 fps per camera; with an INT8 de
     duplicate tracks to about 2-5 % of player time, section 4.5); the default wins every pair.</p>
 </li>
 <li>
-<p><strong>Reporting identities instead of track IDs:</strong> 11 points, winning 5 of 6 pairs.</p>
+<p><strong>Reporting identities instead of track IDs:</strong> 9 points, winning 5 of 6 pairs.</p>
 </li>
 <li>
-<p><strong>Smaller contributors (5-6 points):</strong> the per-player look and the team-required numbers rule, which win 6 of 6 and
-    5 of 5 pairs.</p>
+<p><strong>Smaller contributors (3-5 points):</strong> the team-required numbers rule and the per-player look, which win every pair
+    that isn't a tie.</p>
 </li>
 <li>
-<p><strong>Identity freshness</strong> (identities from recent reads, majority split) adds about 3 points on average but wins only
-    3 of the 6 pairs, so its benefit is not established.</p>
+<p><strong>Identity freshness</strong> (identities from recent reads, majority split) makes no difference on average in this
+    configuration (3 pairs better and 3 worse without it), so its benefit is not established. It stays in for now.</p>
 </li>
 </ul>
 <h3 id="43-run-to-run-variation">4.3 Run-to-run variation</h3>
@@ -409,29 +424,29 @@ needs. Without them the same pipeline runs at 61 fps per camera; with an INT8 de
     out differently, most likely because the order in which cameras exchange tracker messages varies.</p>
 </li>
 <li>
-<p><strong>Effect on scores:</strong> per-minute identity IDF1 of the default ranges from 72 % to 84 % across the three runs. All
+<p><strong>Effect on scores:</strong> per-minute identity IDF1 of the default ranges from 71 % to 90 % across the three runs. All
     comparisons here are therefore paired by run and minute and averaged over three runs. Differences under about
     2 points aren't reliable.</p>
 </li>
 </ul>
 <h3 id="44-where-accuracy-is-still-lost">4.4 Where accuracy is still lost</h3>
-<figure class="fig"><svg class="chart" viewBox="0 0 760 280" role="img" aria-label="Where identity IDF1 is still lost"><line class="grid" x1="330.0" y1="4" x2="330.0" y2="252"/><text class="tick" x="330.0" y="268" text-anchor="middle">0</text><line class="grid" x1="402.0" y1="4" x2="402.0" y2="252"/><text class="tick" x="402.0" y="268" text-anchor="middle">2</text><line class="grid" x1="474.0" y1="4" x2="474.0" y2="252"/><text class="tick" x="474.0" y="268" text-anchor="middle">4</text><line class="grid" x1="546.0" y1="4" x2="546.0" y2="252"/><text class="tick" x="546.0" y="268" text-anchor="middle">6</text><line class="grid" x1="618.0" y1="4" x2="618.0" y2="252"/><text class="tick" x="618.0" y="268" text-anchor="middle">8</text><line class="grid" x1="690.0" y1="4" x2="690.0" y2="252"/><text class="tick" x="690.0" y="268" text-anchor="middle">10</text><g class="row hl"><title>wrong number, carried from another player: 8.6%</title><rect class="hit" x="0" y="8" width="760" height="34"/><text class="lab" x="318" y="29.0" text-anchor="end">wrong number, carried from another player</text><rect class="bar" x="330" y="16" width="309.6" height="18" rx="3"/><text class="val" x="647.6" y="29.0">8.6%</text></g><g class="row hl"><title>wrong number, other: 4.9%</title><rect class="hit" x="0" y="42" width="760" height="34"/><text class="lab" x="318" y="63.0" text-anchor="end">wrong number, other</text><rect class="bar" x="330" y="50" width="176.4" height="18" rx="3"/><text class="val" x="514.4" y="63.0">4.9%</text></g><g class="row hl"><title>unidentified: readable crops and reads, identity not established: 4.3%</title><rect class="hit" x="0" y="76" width="760" height="34"/><text class="lab" x="318" y="97.0" text-anchor="end">unidentified: readable crops and reads, identity not established</text><rect class="bar" x="330" y="84" width="154.8" height="18" rx="3"/><text class="val" x="492.8" y="97.0">4.3%</text></g><g class="row hl"><title>wrong team (right number): 1.6%</title><rect class="hit" x="0" y="110" width="760" height="34"/><text class="lab" x="318" y="131.0" text-anchor="end">wrong team (right number)</text><rect class="bar" x="330" y="118" width="57.6" height="18" rx="3"/><text class="val" x="395.6" y="131.0">1.6%</text></g><g class="row hl"><title>missed: 0.7%</title><rect class="hit" x="0" y="144" width="760" height="34"/><text class="lab" x="318" y="165.0" text-anchor="end">missed</text><rect class="bar" x="330" y="152" width="25.2" height="18" rx="3"/><text class="val" x="363.2" y="165.0">0.7%</text></g><g class="row hl"><title>unidentified: readable crops, no usable reads: 0.2%</title><rect class="hit" x="0" y="178" width="760" height="34"/><text class="lab" x="318" y="199.0" text-anchor="end">unidentified: readable crops, no usable reads</text><rect class="bar" x="330" y="186" width="7.2" height="18" rx="3"/><text class="val" x="345.2" y="199.0">0.2%</text></g><g class="row hl"><title>unidentified: no readable crops: 0.0%</title><rect class="hit" x="0" y="212" width="760" height="34"/><text class="lab" x="318" y="233.0" text-anchor="end">unidentified: no readable crops</text><rect class="bar" x="330" y="220" width="2.0" height="18" rx="3"/><text class="val" x="338.0" y="233.0">0.0%</text></g></svg><figcaption>Share of labelled detections not credited to the right player (%), mean of 3 runs × 2 minutes. The remaining 79.6 % are correct.</figcaption></figure>
+<figure class="fig"><svg class="chart" viewBox="0 0 760 246" role="img" aria-label="Where identity IDF1 is still lost"><line class="grid" x1="330.0" y1="4" x2="330.0" y2="218"/><text class="tick" x="330.0" y="234" text-anchor="middle">0</text><line class="grid" x1="402.0" y1="4" x2="402.0" y2="218"/><text class="tick" x="402.0" y="234" text-anchor="middle">2</text><line class="grid" x1="474.0" y1="4" x2="474.0" y2="218"/><text class="tick" x="474.0" y="234" text-anchor="middle">4</text><line class="grid" x1="546.0" y1="4" x2="546.0" y2="218"/><text class="tick" x="546.0" y="234" text-anchor="middle">6</text><line class="grid" x1="618.0" y1="4" x2="618.0" y2="218"/><text class="tick" x="618.0" y="234" text-anchor="middle">8</text><line class="grid" x1="690.0" y1="4" x2="690.0" y2="218"/><text class="tick" x="690.0" y="234" text-anchor="middle">10</text><g class="row hl"><title>wrong number, carried from another player: 9.4%</title><rect class="hit" x="0" y="8" width="760" height="34"/><text class="lab" x="318" y="29.0" text-anchor="end">wrong number, carried from another player</text><rect class="bar" x="330" y="16" width="338.4" height="18" rx="3"/><text class="val" x="676.4" y="29.0">9.4%</text></g><g class="row hl"><title>wrong number, other: 4.8%</title><rect class="hit" x="0" y="42" width="760" height="34"/><text class="lab" x="318" y="63.0" text-anchor="end">wrong number, other</text><rect class="bar" x="330" y="50" width="172.8" height="18" rx="3"/><text class="val" x="510.8" y="63.0">4.8%</text></g><g class="row hl"><title>unidentified: readable crops and reads, identity not established: 3.5%</title><rect class="hit" x="0" y="76" width="760" height="34"/><text class="lab" x="318" y="97.0" text-anchor="end">unidentified: readable crops and reads, identity not established</text><rect class="bar" x="330" y="84" width="126.0" height="18" rx="3"/><text class="val" x="464.0" y="97.0">3.5%</text></g><g class="row hl"><title>wrong team (right number): 0.9%</title><rect class="hit" x="0" y="110" width="760" height="34"/><text class="lab" x="318" y="131.0" text-anchor="end">wrong team (right number)</text><rect class="bar" x="330" y="118" width="32.4" height="18" rx="3"/><text class="val" x="370.4" y="131.0">0.9%</text></g><g class="row hl"><title>missed: 0.6%</title><rect class="hit" x="0" y="144" width="760" height="34"/><text class="lab" x="318" y="165.0" text-anchor="end">missed</text><rect class="bar" x="330" y="152" width="21.6" height="18" rx="3"/><text class="val" x="359.6" y="165.0">0.6%</text></g><g class="row hl"><title>unidentified: readable crops, no usable reads: 0.4%</title><rect class="hit" x="0" y="178" width="760" height="34"/><text class="lab" x="318" y="199.0" text-anchor="end">unidentified: readable crops, no usable reads</text><rect class="bar" x="330" y="186" width="14.4" height="18" rx="3"/><text class="val" x="352.4" y="199.0">0.4%</text></g></svg><figcaption>Share of labelled detections not credited to the right player (%), mean of 3 runs × 2 minutes. The remaining 80.5 % are correct.</figcaption></figure>
 <ul>
 <li>
-<p><strong>Wrong number carried over from another player (8.6 %):</strong> a track swaps players and keeps the old identity until
+<p><strong>Wrong number carried over from another player (9.4 %):</strong> a track swaps players and keeps the old identity until
     enough new reads arrive. Reads are sparse: a given player is read only every several seconds.</p>
 </li>
 <li>
-<p><strong>Wrong number, other (4.9 %):</strong> misreads, and identities established from too few reads.</p>
+<p><strong>Wrong number, other (4.8 %):</strong> misreads, and identities established from too few reads.</p>
 </li>
 <li>
-<p><strong>Unidentified (4.5 %):</strong> almost all of it (4.3 %) on tracks with readable crops and reads that never reached an
+<p><strong>Unidentified (3.9 %):</strong> almost all of it (3.5 %) on tracks with readable crops and reads that never reached an
     identity.</p>
 </li>
 <li>
-<p><strong>Wrong team with the right number (1.6 %):</strong> on the numbers both teams wear (1 and 3).</p>
+<p><strong>Wrong team with the right number (0.9 %):</strong> on the numbers both teams wear (1 and 3).</p>
 </li>
-<li><strong>Missed by the tracker (0.7 %):</strong> small; part of it is the seated-spectator rule (section 4.9). Detection and court
+<li><strong>Missed by the tracker (0.6 %):</strong> small; part of it is the seated-spectator rule (section 4.9). Detection and court
     filtering aren't the bottleneck.</li>
 </ul>
 <h3 id="45-where-on-the-court">4.5 Where on the court</h3>
@@ -449,33 +464,33 @@ needs. Without them the same pipeline runs at 61 fps per camera; with an INT8 de
 <tbody>
 <tr>
 <td>Interior</td>
-<td>1.2</td>
+<td>1.4</td>
 <td>1.8</td>
-<td>3.4 %</td>
+<td>3.5 %</td>
 </tr>
 <tr>
 <td>Within 1.5 m of a sideline</td>
-<td>3.4</td>
+<td>3.6</td>
 <td>6.9</td>
 <td>0.6 %</td>
 </tr>
 <tr>
 <td>Within 1.5 m of a baseline</td>
 <td>6.2</td>
-<td>8.1</td>
-<td>0.5 %</td>
+<td>7.9</td>
+<td>0.4 %</td>
 </tr>
 <tr>
 <td>Left-end third</td>
-<td>1.8</td>
+<td>2.1</td>
 <td>2.9</td>
-<td>4.5 %</td>
+<td>4.9 %</td>
 </tr>
 <tr>
 <td>Right-end third</td>
-<td>1.7</td>
-<td>2.4</td>
-<td>1.7 %</td>
+<td>1.8</td>
+<td>2.3</td>
+<td>1.5 %</td>
 </tr>
 </tbody>
 </table></div>
@@ -488,15 +503,16 @@ needs. Without them the same pipeline runs at 61 fps per camera; with an INT8 de
 <p><strong>Ends:</strong> the left end is somewhat worse than the right end.</p>
 </li>
 </ul>
-<h3 id="46-offline-inputs-and-their-causal-replacements">4.6 Offline inputs and their causal replacements</h3>
-<p>A live system can't use information from later in the game. Each offline input of section 3 was replaced with a
-causal version and re-scored (Python court tracker, 3 runs x 2 labelled minutes, paired against the 79.2 % default;
-<code>tools/causal_eval.py</code>, <code>reports/causal_inputs.md</code>).</p>
+<h3 id="46-causal-inputs-and-their-offline-counterparts">4.6 Causal inputs and their offline counterparts</h3>
+<p>The main configuration uses only inputs a live system has (section 3). Each was replaced with an alternative,
+including the versions prepared offline from the whole recording that an earlier version of this report used (an
+upper reference a live system can't have), and re-scored (Python court tracker, 3 runs x 2 labelled minutes, paired
+against the main configuration; <code>tools/causal_eval.py</code>, <code>reports/causal_inputs.md</code>).</p>
 <div class="tbl"><table>
 <thead>
 <tr>
-<th>Input</th>
-<th>Replacement</th>
+<th>Input of the main configuration</th>
+<th>Replaced with</th>
 <th>Identity IDF1</th>
 <th>Paired difference</th>
 <th>Pairs better / worse</th>
@@ -504,79 +520,85 @@ causal version and re-scored (Python court tracker, 3 runs x 2 labelled minutes,
 </thead>
 <tbody>
 <tr>
-<td>Camera bias (whole run)</td>
-<td>fixed: measured on another run, as it would be at installation</td>
-<td>80.3 %</td>
-<td>+1.0</td>
-<td>2 / 1</td>
+<td><strong>All causal</strong> (main configuration)</td>
+<td>—</td>
+<td><strong>80.6 %</strong> (71-90 %) ¹</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Camera bias, fixed at installation</td>
+<td>estimated over the whole run (offline)</td>
+<td>79.8 %</td>
+<td>−0.8</td>
+<td>0 / 4</td>
 </tr>
 <tr>
 <td></td>
 <td>estimated live from the first 2 minutes</td>
-<td>79.3 %</td>
-<td>+0.1</td>
-<td>2 / 4</td>
+<td>80.5 %</td>
+<td>−0.1</td>
+<td>2 / 2</td>
 </tr>
 <tr>
 <td></td>
 <td>none</td>
-<td>76.5 %</td>
-<td>−2.8</td>
-<td>1 / 5</td>
-</tr>
-<tr>
-<td>Team colours (clustered over the game, named by hand)</td>
-<td>clustered from the first 2 minutes only ¹</td>
-<td>79.2 %</td>
-<td>−0.1</td>
-<td>2 / 3</td>
-</tr>
-<tr>
-<td></td>
-<td><strong>automatic online model, 3 clusters</strong> (two teams, everyone else)</td>
-<td>79.7 %</td>
-<td>+0.4</td>
-<td>3 / 2</td>
-</tr>
-<tr>
-<td></td>
-<td>automatic online model, 4 clusters (two teams, referees, other)</td>
-<td>69.9 %</td>
-<td>−9.4</td>
+<td>78.3 %</td>
+<td>−2.3</td>
 <td>0 / 6</td>
 </tr>
 <tr>
-<td>Spectator filter (whole track)</td>
-<td>none</td>
-<td>79.3 %</td>
-<td>+0.1</td>
-<td>1 / 0</td>
+<td>Online team model, 3 clusters (two teams, everyone else)</td>
+<td>online model, 4 clusters (two teams, referees, other)</td>
+<td>72.6 %</td>
+<td>−8.0</td>
+<td>0 / 6</td>
 </tr>
 <tr>
-<td><strong>All three</strong></td>
-<td><strong>fixed bias + online 3-cluster model + no spectator filter</strong> ²</td>
-<td><strong>80.4 %</strong> (72-90 %)</td>
-<td>+1.2</td>
-<td>3 / 2</td>
+<td></td>
+<td>offline model: clustered over the game, clusters named by hand</td>
+<td>81.0 %</td>
+<td>+0.4</td>
+<td>2 / 2</td>
+</tr>
+<tr>
+<td></td>
+<td>offline model from the first 2 minutes only ²</td>
+<td>79.3 %</td>
+<td>−1.3</td>
+<td>0 / 2</td>
+</tr>
+<tr>
+<td>No spectator filter</td>
+<td>offline spectator filter and post-stitching (whole tracks)</td>
+<td>80.5 %</td>
+<td>−0.1</td>
+<td>0 / 1</td>
+</tr>
+<tr>
+<td><strong>All three offline</strong></td>
+<td>whole-run bias, hand-named team model, spectator filter</td>
+<td>79.2 % (74-89 %)</td>
+<td>−1.4</td>
+<td>2 / 3</td>
 </tr>
 </tbody>
 </table></div>
-<p>¹ Clusters named after the nearest hand-named cluster, standing in for an operator.
-² Mean over 5 random seeds of the online model's first clustering (all five give 80.4 %). Other rows: seed 0.</p>
+<p>¹ Seed 0 of the online model's first clustering (all rows); seeds 0-4 all give 80.6 %.
+² Clusters named after the nearest hand-named cluster, standing in for an operator.</p>
 <ul>
 <li>
-<p><strong>Camera bias:</strong> very stable across runs (NL −0.17 to −0.20 m, NR +0.17 to +0.19 m), so a value measured at
+<p><strong>Camera bias:</strong> very stable across runs (NL −0.18 to −0.21 m, NR +0.17 to +0.20 m), so a value measured at
     installation and stored with the calibration works (<code>tools/calib_bias.py</code> writes it into each camera's file as
-    <code>courtTrackerBias_m</code>). It must be re-measured whenever the calibration changes. Without any correction the score
-    drops 2.8 points (5 of 6 pairs worse); an estimate from the first 2 minutes did about as well as the whole-run one
-    here.</p>
+    <code>courtTrackerBias_m</code>). It was measured on three runs not used here (<code>ct2_r1</code>-<code>ct2_r3</code>) and must be re-measured
+    whenever the calibration changes. Without any correction the score drops 2.3 points (all 6 pairs worse).</p>
 </li>
 <li>
 <p><strong>Automatic team colours</strong> (<code>tools/online_teams.py</code>), with no operator:</p>
 <ul>
 <li>
 <p>each court track keeps a colour summary of its torso crops; every 5 s, the summaries of the last 3 minutes
-are clustered</p>
+are clustered into three groups</p>
 </li>
 <li>
 <p>the two clusters whose tracks get the most jersey reads per detection are the teams (players' numbers are read,
@@ -590,27 +612,41 @@ referees' and spectators' hardly ever); everything else, referees included, gets
 detection has a team label</p>
 </li>
 <li>
-<p>each re-clustering starts from the previous centres, which keeps the result nearly independent of the random
-start of the first model</p>
+<p>each re-clustering starts from the previous centres, which keeps the result independent of the random start of
+the first model here (all five seeds give the same score)</p>
 </li>
 </ul>
 </li>
 <li>
-<p><strong>Four clusters</strong> (a separate referee cluster) do much worse, −9.4 points; the reason hasn't been investigated.</p>
+<p><strong>The offline versions don't do better:</strong> the hand-named team model scores +0.4 points (2 pairs each way) and all
+    offline inputs together −1.4, both within the run-to-run noise. Four clusters (a separate referee cluster) do much
+    worse, −8.0 points; the reason hasn't been investigated.</p>
 </li>
 <li>
-<p><strong>Checked crop by crop</strong> against the hand-named model, all three runs (3 clusters, seed 0):</p>
+<p><strong>Checked crop by crop</strong> against the hand-named model, over the whole game (<code>tools/team_label_check.py</code>,
+    <code>reports/team_label_check.txt</code>; the three mount runs with the main configuration, and the Python reference on the
+    three <code>ct3</code> runs):</p>
 <ul>
 <li>
-<p><strong>Teams:</strong> maroon was always A. Red was B, except in the first minute: between 0:30 (first model) and 1:00,
-26-37 % of red crops were labelled A, and between 1:00 and 2:00 only 1-14 crops per run. From 2:00 to the end of
-the game, no crop got the other team's name.</p>
+<p><strong>First two minutes:</strong> maroon was always A and red B, but between 0:30 (first model) and 1:00, 12-23 % of red
+crops were labelled A, and between 1:00 and 2:00 up to 29 crops per run.</p>
 </li>
 <li>
-<p><strong>Referees:</strong> one referee crop per run got a team label.</p>
+<p><strong>2:00 to the end of the game:</strong> in five of the six runs, no crop got the other team's name and at most 7 referee
+crops per run a team label.</p>
 </li>
-<li><strong>Unchecked:</strong> team A also labels about 6,000-6,400 crops per run that the hand-named model left unlabelled. It
-hasn't been checked whether those are players or people beside the court.</li>
+<li>
+<p><strong>One failure:</strong> in mount_r2, a re-clustering at 6:10 reorganised the clusters: the jersey-read rate of the
+"everyone else" cluster had risen to that of the teams, and most maroon crops moved into a cluster with red's name
+or no name. From 6:00 to 7:00, 1,153 of 1,314 maroon crops got red's name and 706 of 759 referee crops a team
+label. It falls after the labelled minutes, so the scores don't show it. With the bias measured on another mount
+run (the previous version of this report) the same run didn't fail, so the model is sensitive to small input
+changes here. Not yet fixed (section 9).</p>
+</li>
+<li>
+<p><strong>Unchecked:</strong> the online model also gives team names to about 6,600-7,700 crops per run that the hand-named
+model left unlabelled, mostly A. It hasn't been checked whether those are players or people beside the court.</p>
+</li>
 </ul>
 </li>
 <li>
@@ -618,18 +654,16 @@ hasn't been checked whether those are players or people beside the court.</li>
 <ul>
 <li>
 <p><strong>Selection bias:</strong> the online model's settings (3 clusters, the read-rate rule) were chosen on these same runs
-and minutes, and the gains are within the run-to-run noise. So the fair reading is "at least as good as the
-offline version", not better.</p>
+and minutes, and the differences to the offline versions are within the run-to-run noise. So the fair reading is
+"as good as the offline version", not better.</p>
 </li>
 <li>
 <p><strong>One game:</strong> it's tested on one game only.</p>
 </li>
 <li><strong>The read-rate rule</strong> assumes players' numbers are read clearly more often than anyone else's shirt. Here
-team clusters got reads on 2-4 % of detections, the rest on 0.1-0.3 %.</li>
+the team clusters got reads on 2.5-4.6 % of detections from 2:00 to the end of the game (mount runs), the rest on
+at most 1.6 % in mount_r1 and mount_r3. In mount_r2 the rest reached 2.7 %, which is where the failure happened.</li>
 </ul>
-</li>
-<li>
-<p><strong>Deployment uses</strong> the fixed bias and the online 3-cluster model, without the spectator filter.</p>
 </li>
 </ul>
 <h3 id="47-c-port-of-the-court-tracker">4.7 C++ port of the court tracker</h3>
@@ -640,8 +674,8 @@ per-frame inputs of the Python version (recorded with <code>tools/courttrack_exp
 <ul>
 <li>
 <p><strong>Same output:</strong> on mount_r1-r3, all of about 516,000 detection identities per run are identical to the Python
-    version's, in both the offline configuration and the deployable one (section 4.6), as are identity IDF1 and switch
-    counts on both labelled minutes.</p>
+    version's in the main configuration (and, before this version, with the offline inputs), as are identity IDF1 and
+    switch counts on both labelled minutes.</p>
 </li>
 <li>
 <p><strong>Speed:</strong> 0.08-0.11 ms per frame on one core of the i7, against 1.9 ms for the Python version. The team model's
@@ -727,9 +761,9 @@ per-frame inputs of the Python version (recorded with <code>tools/courttrack_exp
 <li>
 <p><strong>Duplicate ids:</strong> MV3DT occasionally gives two different people the same object id in one camera and frame
 (70-200 times per game, several metres apart). Everything downstream is keyed by (frame, camera, id), so now only
-the first is kept. Because tracking decisions amplify small input changes, this alone moved the main default from
-78.3 % to 77.8 % (the seated-spectator rule then moved it to 79.2 %); all court-tracker figures in this report
-were regenerated with both.</p>
+the first is kept. Because tracking decisions amplify small input changes, this alone moved the then main
+configuration (offline inputs) from 78.3 % to 77.8 %; all court-tracker figures in this report were regenerated
+with it.</p>
 </li>
 <li>
 <p><strong>Track identity:</strong> the roster counted tracks by memory address, which a new track can reuse after a merge;
@@ -767,7 +801,7 @@ court at them (<code>tools/nonplayer_eval.py</code>, <code>reports/nonplayer_out
 <li>
 <p><strong>What it cost:</strong> they took real players' identities (A:1, B:0, A:3, ...), so the output carried the same identity
     twice, and players passing by got merged into their tracks. The identity score didn't show it, because it is scored
-    on players only; the spectator filter of section 4.6 didn't catch them either, since these tracks aren't static.</p>
+    on players only; the offline spectator filter of section 4.6 didn't catch them either, since these tracks aren't static.</p>
 </li>
 <li>
 <p><strong>The rule:</strong> for a seated person, the box bottom projected onto the floor lands at their seat, at or just outside
@@ -791,18 +825,18 @@ court at them (<code>tools/nonplayer_eval.py</code>, <code>reports/nonplayer_out
 </thead>
 <tbody>
 <tr>
-<td>Python reference, deployable, without the rule (mount runs)</td>
+<td>Python reference, main configuration, without the rule (mount runs)</td>
 <td>61 %</td>
-<td>15 %</td>
+<td>21 %</td>
 <td>100 %</td>
-<td>78.9 %</td>
+<td>79.8 %</td>
 </tr>
 <tr>
-<td><strong>Python reference, deployable, with the rule</strong> (mount runs)</td>
+<td><strong>Python reference, main configuration, with the rule</strong> (mount runs)</td>
 <td><strong>4 %</strong></td>
 <td><strong>0 %</strong></td>
 <td>99 %</td>
-<td>80.4 %</td>
+<td>80.6 %</td>
 </tr>
 <tr>
 <td>Live in DeepStream, without the rule (<code>ct2</code> runs)</td>
@@ -916,49 +950,49 @@ count as errors.</p>
 <td>56.7</td>
 <td>88 %</td>
 <td>98.8 %</td>
-<td>78.3 % (73-88 %)</td>
+<td>79.7 % (70-89 %)</td>
 </tr>
 <tr>
 <td>FP16, detector every frame (1 run)</td>
 <td>61.0</td>
 <td>87 %</td>
 <td>99.0 %</td>
-<td>74.8 % (69-80 %)</td>
+<td>78.5 % (71-86 %)</td>
 </tr>
 <tr>
 <td><strong>INT8, detector every frame</strong></td>
 <td><strong>94.6</strong></td>
 <td>88 %</td>
 <td>94.7 %</td>
-<td><strong>71.2 %</strong> (64-76 %)</td>
+<td><strong>72.3 %</strong> (63-83 %)</td>
 </tr>
 <tr>
 <td>INT8, detector every frame, detection threshold 0.1 instead of 0.2</td>
 <td>93.2 ¹</td>
 <td>90 %</td>
 <td>97.9 %</td>
-<td>72.7 % (59-82 %)</td>
+<td>74.9 % (63-83 %)</td>
 </tr>
 <tr>
 <td>FP16, detector every 2nd frame</td>
 <td>75.1</td>
 <td>76 %</td>
 <td>82.9 %</td>
-<td>60.7 % (56-67 %)</td>
+<td>65.2 % (60-69 %)</td>
 </tr>
 <tr>
 <td>FP16, detector every 3rd frame</td>
 <td>45.7</td>
 <td>68 %</td>
 <td>66.6 %</td>
-<td>49.5 % (41-58 %)</td>
+<td>51.6 % (40-63 %)</td>
 </tr>
 <tr>
 <td>INT8, detector every 2nd frame</td>
 <td>92.4</td>
 <td>76 %</td>
 <td>75.4 %</td>
-<td>55.5 % (52-59 %)</td>
+<td>59.7 % (57-61 %)</td>
 </tr>
 </tbody>
 </table></div>
@@ -975,16 +1009,16 @@ not comparable; its accuracy is included.</p>
 <ul>
 <li><strong>Speed:</strong> 55 % faster than FP16 (95 vs 61 fps per camera).</li>
 <li>
-<p><strong>Accuracy:</strong> 4-7 points lower end-to-end (71.2 % vs 74.8-78.3 %). INT8 detects about 4 % fewer labelled
+<p><strong>Accuracy:</strong> 6-7 points lower end-to-end (72.3 % vs 78.5-79.7 %). INT8 detects about 4 % fewer labelled
 people (players 93.4 % vs 98.7 %, non-players 70.8 % vs 94.4 %; <code>reports/deploy_int8_by_category.md</code>).</p>
 </li>
 <li>
 <p><strong>Lower detection threshold:</strong> lowering it from 0.2 to 0.1 recovers most of the missed people (97.9 % detected,
-players 96.9 %), but hardly the accuracy: end-to-end 72.7 % against 71.2 %, because the people it adds are
-identified less well (identity IDF1 on detected labels 74.2 % vs 75.2 %). So missed detections don't explain
-INT8's loss.
+players 96.9 %), and part of the accuracy: end-to-end 74.9 % against 72.3 %, with identity IDF1 on detected
+labels about the same (76.5 % vs 76.3 %). So missed detections explain part of INT8's loss, not all of it.
 INT8 boxes also sit differently: only 88-89 % of them match an FP16 box (IoU ≥ 0.5), against 98.6 % between two
-FP16 runs. That suggests box placement, which feeds the floor positions, as the likelier cause. Not adopted.</p>
+FP16 runs. That suggests box placement, which feeds the floor positions, as a further cause. Not adopted yet; both
+are being investigated (GitHub issue #1).</p>
 </li>
 <li>
 <p><strong>Calibration:</strong> NVIDIA's published calibration file was made with an older TensorRT (10.3), which names the
@@ -997,7 +1031,7 @@ video (<code>tools/int8_calibrate.py</code>). A Jetson needs a calibration made 
 <li>
 <p><strong>Detector every 2nd or 3rd frame (DeepStream <code>interval</code>): not usable with MV3DT.</strong></p>
 <ul>
-<li><strong>Accuracy:</strong> it costs 18-29 points end-to-end against the three FP16 runs.</li>
+<li><strong>Accuracy:</strong> it costs 14-28 points end-to-end against the three FP16 runs.</li>
 <li>
 <p><strong>Speed:</strong> it barely helps (every 3rd frame is even slower than every frame). GPU use falls while speed doesn't
 rise, so the bottleneck moves to MV3DT's own tracking work.</p>
@@ -1465,19 +1499,19 @@ on newly labelled ground truth.</p>
     give an unbiased final number.</p>
 </li>
 <li>
-<p><strong>Run-to-run variation:</strong> per-minute identity IDF1 ranges from 74 % to 89 % across DeepStream runs. Three runs per
+<p><strong>Run-to-run variation:</strong> per-minute identity IDF1 ranges from 71 % to 90 % across DeepStream runs. Three runs per
     configuration narrow it, but differences under about 2 points aren't reliable.</p>
 </li>
 <li>
-<p><strong>Court-specific settings:</strong> the main results use a team colour model clustered per game with hand-named
-    clusters. The automatic online model that replaces it (sections 4.6 and 4.8) is tested on this one game only. The
-    roster is inferred online. The seated-spectator rule's thresholds were set on this venue. Other courts, lighting and
-    kits are untested.</p>
+<p><strong>Court-specific settings:</strong> the automatic online team model (section 4.6) is tested on this one game only, and
+    mixed up the teams' names in the last minute of one of six runs. The roster is inferred online. The seated-spectator
+    rule's thresholds were set on this venue. Other courts, lighting and kits are untested.</p>
 </li>
 <li>
 <p><strong>Sensitivity:</strong> tracking decisions amplify tiny input changes. Removing 130-200 duplicate detections per game
-    (out of about 550,000) moved the main result by half a point, and individual run-minutes by up to 3 points. Only
-    differences well above the run-to-run spread should be trusted.</p>
+    (out of about 550,000) moved the main result by half a point, and individual run-minutes by up to 3 points. A
+    camera bias measured on different runs (a change of a few centimetres) was enough to make the online team model
+    fail in one run. Only differences well above the run-to-run spread should be trusted.</p>
 </li>
 <li>
 <p><strong>Court size and venue:</strong> the court's length and width are fitted, not measured. The camera-placement study assumes
@@ -1486,8 +1520,13 @@ on newly labelled ground truth.</p>
 </ul>
 <h2 id="9-next-steps-prioritised">9. Next steps (prioritised)</h2>
 <p><strong>Done:</strong> the court tracker runs inside DeepStream with automatic team colours, a stored camera bias, per-frame Kafka
-output (section 4.8) and seated spectators dropped (section 4.9).</p>
+output (section 4.8) and seated spectators dropped (section 4.9). Every reported result uses only causal inputs.</p>
 <ol>
+<li>
+<p><strong>Make the online team model robust</strong> against the failure in section 4.6 (team names mixed up when the
+    "everyone else" cluster gets as many jersey reads as a team), in Python and C++ together, and re-check with
+    <code>tools/team_label_check.py</code> over the whole game of every run, not only the labelled minutes.</p>
+</li>
 <li>
 <p><strong>Measure on the target Jetson (AGX Orin recommended for four cameras).</strong></p>
 <ul>
@@ -1533,18 +1572,19 @@ frame is detected, so MV3DT works as designed; it needs the same three-run evalu
 for r in mount_r1 mount_r2 mount_r3; do
   DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all ./scripts/run_mv3dt.sh gym_full $r
   ~/.venvs/mv3dt/bin/python -m tools.jersey from-ds $r
-  cp experiments/full_pn263_cf_jersey/{team_model.npz,teams.yml} experiments/$r/
+  cp experiments/full_pn263_cf_jersey/{team_model.npz,teams.yml} experiments/$r/   # offline team model: comparison rows only
   ~/.venvs/mv3dt/bin/python -m tools.appearance extract $r
 done
 ./scripts/phase7_deploy_variants.sh   # deployment variants (no display, INT8, detector interval), section 6.1
 ~/.venvs/mv3dt/bin/python -m tools.variant_eval --ref nodisp_r1 --runs int8_r1 int1_r1 --md reports/deploy_variants_detection.md
-~/.venvs/mv3dt/bin/python -m tools.calib_bias mount_r1 mount_r2 mount_r3 --write   # fixed camera bias into camInfo
+~/.venvs/mv3dt/bin/python -m tools.calib_bias ct2_r1 ct2_r2 ct2_r3 --write   # fixed camera bias into camInfo (runs not evaluated)
 ./scripts/build_court_app.sh &amp;&amp; ./scripts/phase8_courttrack_live.sh ct3_r1 ct3_r2 ct3_r3   # section 4.8
 JOBS=8 ./scripts/phase8_reevaluate.sh   # every court-tracker table and figure in this report (sections 4-6)
+~/.venvs/mv3dt/bin/python -m tools.team_label_check mount_r1 mount_r2 mount_r3 ct3_r1 ct3_r2 ct3_r3 &gt; reports/team_label_check.txt
 ~/.venvs/mv3dt/bin/python -m tools.camera_layout --validate mount_r1 --md reports/camera_layouts.md
 python3 reports/build_page.py   # web page version
 make -C apps/courttrack &amp;&amp; ~/.venvs/mv3dt/bin/python -m tools.courttrack_export export-online mount_r1 /tmp/ct \
-  --bias-from mount_r2 &amp;&amp; apps/courttrack/ct_replay /tmp/ct/inputs.bin /tmp/ct/cpp_out.txt \
+  &amp;&amp; apps/courttrack/ct_replay /tmp/ct/inputs.bin /tmp/ct/cpp_out.txt \
   &amp;&amp; ~/.venvs/mv3dt/bin/python -m tools.courttrack_export compare mount_r1 /tmp/ct   # C++ vs Python, section 4.7
 </code></pre>
 <ul>
@@ -1571,55 +1611,55 @@ make -C apps/courttrack &amp;&amp; ~/.venvs/mv3dt/bin/python -m tools.courttrack
 <tbody>
 <tr>
 <td>(default)</td>
-<td>79.2 %</td>
+<td>80.6 %</td>
 <td>—</td>
 <td>—</td>
-</tr>
-<tr>
-<td>Keeping tracks alive at the court edges (detections to 0.75 m, 5 s coasting)</td>
-<td>79.5 %</td>
-<td>+0.3</td>
-<td>2 / 4 (no reliable gain)</td>
 </tr>
 <tr>
 <td>Recent-read identity without the majority split</td>
-<td>79.5 %</td>
-<td>+0.2</td>
-<td>2 / 3 (no reliable gain)</td>
-</tr>
-<tr>
-<td>Majority swap split without recent-read identity</td>
-<td>77.0 %</td>
-<td>−2.3</td>
-<td>1 / 5</td>
+<td>80.5 %</td>
+<td>−0.1</td>
+<td>3 / 2 (no reliable difference)</td>
 </tr>
 <tr>
 <td>Larger cross-camera noise levels (0.65 / 0.45 m)</td>
-<td>74.9 %</td>
-<td>−4.3</td>
-<td>2 / 4</td>
+<td>80.5 %</td>
+<td>−0.1</td>
+<td>4 / 2 (no reliable difference)</td>
 </tr>
 <tr>
 <td>Close-encounter swap resolution from colour and reads</td>
-<td>74.3 %</td>
-<td>−4.9</td>
+<td>79.7 %</td>
+<td>−0.9</td>
+<td>2 / 2</td>
+</tr>
+<tr>
+<td>Majority swap split without recent-read identity</td>
+<td>79.2 %</td>
+<td>−1.5</td>
 <td>1 / 4</td>
 </tr>
 <tr>
+<td>Keeping tracks alive at the court edges (detections to 0.75 m, 5 s coasting)</td>
+<td>78.8 %</td>
+<td>−1.8</td>
+<td>0 / 6</td>
+</tr>
+<tr>
 <td>Stricter identity rule (3 reads, 70 %)</td>
-<td>74.1 %</td>
-<td>−5.1</td>
+<td>78.5 %</td>
+<td>−2.1</td>
 <td>2 / 4</td>
 </tr>
 <tr>
 <td>"Unknown" identity after close encounters</td>
-<td>62.6 %</td>
-<td>−16.7</td>
+<td>64.8 %</td>
+<td>−15.9</td>
 <td>0 / 6 (switches double)</td>
 </tr>
 </tbody>
 </table></div>
-<p><strong>Detector every 2nd or 3rd frame</strong> (section 6.1): 60.7 % and 49.5 % end-to-end identity accuracy against 78.3 %,
+<p><strong>Detector every 2nd or 3rd frame</strong> (section 6.1): 65.2 % and 51.6 % end-to-end identity accuracy against 79.7 %,
 with little or no speed gain. Ruled out with MV3DT.</p>
 <p><strong>Jersey reader tests</strong> (on DeepStream's own text boxes and torso crops; independent of the camera calibration):</p>
 <ul>

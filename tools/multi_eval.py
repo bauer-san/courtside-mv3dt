@@ -3,7 +3,8 @@
 DeepStream runs are not repeatable (MV3DT ids, tracklets and jersey reads differ from run to run while the
 detections are ~99 % the same), and identity IDF1 moves by several points between runs of the same configuration.
 So every configuration is scored on each run x labelled minute; reported: mean, spread, and the difference to the
-default paired by run and minute (with how many of the pairs favour the configuration).
+default paired by run and minute (with how many of the pairs favour the configuration). Every configuration is the
+main, causal one (world_tracker.track_default: online team model, stored camera bias) with one change.
 
   python -m tools.multi_eval base_r1 base_r2 base_r3 [--md out.md]
 """
@@ -16,7 +17,7 @@ import numpy as np
 from tools import ROOT
 from tools.final_eval import mv3dt_tracks
 from tools.gt_eval import load_gt, score
-from tools.world_tracker import WTParams, identity_tracks, track_run
+from tools.world_tracker import WTParams, identity_tracks, track_default, track_run
 
 GT = ("game_2to3", "game_4to5")
 
@@ -29,7 +30,7 @@ CONFIGS = {
     "no per-player look": (dict(player_appearance=False), {}, True),
     "old association (isotropic, plain Mahalanobis)": (dict(aniso=False, cost_logdet=False), {}, True),
     "numbers: old rule (team optional, 60 s)": (dict(num_needs_team=False, id_gap=1800), {}, True),
-    "no team colour": ({}, dict(appearance=False), True),
+    "no team colour": ({}, dict(team_labels=False), True),
     "no jersey numbers (track IDs)": (dict(use_numbers=False), {}, False),
     # tried and not adopted (appendix)
     "close-encounter swap resolution": (dict(encounters=True), {}, True),
@@ -44,7 +45,7 @@ CONFIGS = {
 
 def evaluate(run: Path, cfg: tuple, gts: dict) -> dict:
     wp, tk, ident = cfg
-    T = track_run(run, WTParams(online_relink=True, **wp), **tk)
+    T = track_default(run, WTParams(online_relink=True, **wp), **tk)
     G = identity_tracks(T, track_run.last_det_ident) if ident else T
     return {n: score(G, gt) for n, gt in gts.items()}
 

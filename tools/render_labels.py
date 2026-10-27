@@ -33,7 +33,7 @@ from tools.appearance import load_boxes, run_dataset
 from tools.court import court_lines
 from tools.evaluate import X_MAX, X_MIN, Y_HALF
 from tools.gt_eval import load_gt
-from tools.world_tracker import WTParams, track_run
+from tools.world_tracker import WTParams, track_default, track_run
 
 W, H = 1280, 720
 CW, CH = 480, 270                       # one camera tile
@@ -213,7 +213,7 @@ def main() -> None:
         label, pos, out_keys = live_output(run, args.start, args.end)
     else:
         print("tracking ...", flush=True)
-        T = track_run(run, WTParams(online_relink=True))
+        T = track_default(run)
         di = track_run.last_det_ident
         label, pos = {}, collections.defaultdict(list)          # det key -> label; frame -> [(x, y, label)]
         for t in T:

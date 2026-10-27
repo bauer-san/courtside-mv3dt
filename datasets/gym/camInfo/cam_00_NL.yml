@@ -31,6 +31,6 @@ modelInfo:
     radius: 0.3
 
 # Court tracker position bias (m): constant offset of this camera's foot points, subtracted before
-# court tracking. Measured with tools/calib_bias.py on mount_r1, mount_r2, mount_r3.
+# court tracking. Measured with tools/calib_bias.py on ct2_r1, ct2_r2, ct2_r3.
 # Re-measure whenever the calibration above changes.
-courtTrackerBias_m: [-0.1889, 0.0288]
+courtTrackerBias_m: [-0.1972, 0.0297]

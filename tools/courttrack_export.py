@@ -2,7 +2,8 @@
 outputs to compare against, and compare a C++ replay with them.
 
   python -m tools.courttrack_export export mount_r1 OUT_DIR             # offline team model (as in the report)
-  python -m tools.courttrack_export export-online mount_r1 OUT_DIR --bias-from mount_r2   # deployable configuration
+  python -m tools.courttrack_export export-online mount_r1 OUT_DIR    # main configuration (stored camera bias)
+  python -m tools.courttrack_export export-online mount_r1 OUT_DIR --bias-from mount_r2   # bias from another run
   apps/courttrack/ct_replay OUT_DIR/inputs.bin OUT_DIR/cpp_out.txt
   python -m tools.courttrack_export compare mount_r1 OUT_DIR
   python -m tools.courttrack_export live ct_r1 [ct_r2 ...]          # runs with the court tracker in DeepStream
@@ -10,8 +11,8 @@ outputs to compare against, and compare a C++ replay with them.
 export         inputs as WorldTracker.step receives them inside track_run (online re-linking): ground-filtered,
                camera-bias-corrected floor positions, team labels from the offline team model, heights, jersey
                reads, colour features
-export-online  the deployable configuration (tools/online_teams.track_run_online): camera bias fixed from another
-               run, no spectator filter, and instead of labels and features the raw torso histograms of good crops;
+export-online  the main configuration (world_tracker.track_default): fixed camera bias (stored in camInfo, or
+               estimated on the --bias-from run), no spectator filter, and instead of labels and features the raw torso histograms of good crops;
                the C++ side runs the online team model itself
 live           for runs made with COURTTRACK=1 (scripts/run_mv3dt.sh): checks that the C++ replay and the Python
                replay of the probe's recorded inputs both reproduce the live identities, scores the live identities
@@ -120,8 +121,7 @@ def fixed_bias(other: Path) -> dict:
     return wtm.estimate_bias(wtm._by_frame(d, keep)[0])
 
 
-def export_online(run: Path, out: Path, bias_from: Path) -> None:
-    from tools.online_teams import track_run_online
+def export_online(run: Path, out: Path, bias_from: Path | None = None) -> None:
     out.mkdir(parents=True, exist_ok=True)
     w = _Writer(out / "inputs.bin", b"CTIN2")
 
@@ -132,17 +132,20 @@ def export_online(run: Path, out: Path, bias_from: Path) -> None:
         w.frame(frame, dets, stripped, tracker.reads,
                 lambda k: None if hist(k) is None else hist(k).astype(np.float32))
 
-    bias = fixed_bias(bias_from)
-    orig = wtm.estimate_bias
-    wtm.estimate_bias = lambda bf, **kw: bias
-    try:
-        tracks = track_run_online(run, recorder=record, post=False)
-    finally:
-        wtm.estimate_bias = orig
+    if bias_from is None:
+        tracks = wtm.track_default(run, recorder=record)
+    else:
+        bias = fixed_bias(bias_from)
+        orig = wtm.estimate_bias
+        wtm.estimate_bias = lambda bf, **kw: bias
+        try:
+            tracks = wtm.track_default(run, recorder=record, correct_bias=True)
+        finally:
+            wtm.estimate_bias = orig
     w.close()
     _save_python(out, w.cams, track_run.last_det_ident, tracks)
     print(f"{run.name}: {len(tracks)} tracks, {len(track_run.last_det_ident)} detection identities, "
-          f"bias from {bias_from.name} -> {out}")
+          f"bias from {bias_from.name if bias_from else 'camInfo'} -> {out}")
 
 
 def load_cpp(path: Path):
@@ -243,7 +246,7 @@ def main() -> None:
     ap.add_argument("cmd", choices=("export", "export-online", "compare", "live"))
     ap.add_argument("run")
     ap.add_argument("out", nargs="*", help="output directory (export, compare); more runs (live)")
-    ap.add_argument("--bias-from", help="export-online: run whose camera bias is used (fixed bias)")
+    ap.add_argument("--bias-from", help="export-online: run whose camera bias is used instead of the stored one")
     a = ap.parse_args()
     exp = lambda r: Path(r) if Path(r).is_dir() else ROOT / "experiments" / r
     run = exp(a.run)
@@ -256,9 +259,7 @@ def main() -> None:
     if a.cmd == "export":
         export(run, out)
     elif a.cmd == "export-online":
-        if not a.bias_from:
-            ap.error("export-online needs --bias-from")
-        export_online(run, out, exp(a.bias_from))
+        export_online(run, out, exp(a.bias_from) if a.bias_from else None)
     else:
         compare(run, out)
 

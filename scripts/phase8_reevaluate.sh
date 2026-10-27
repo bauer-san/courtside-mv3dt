@@ -20,6 +20,8 @@ step "court heat map (section 4.5)"
 "$PY" -m tools.court_heatmap mount_r1 --out reports/figures/court_heatmap.png > reports/court_heatmap_zones.txt
 step "offline inputs and causal replacements (section 4.6)"
 "$PY" -m tools.causal_eval "${MOUNT[@]}" --jobs "$J" --md reports/causal_inputs.md > /dev/null
+step "online team labels crop by crop (section 4.6)"
+"$PY" -m tools.team_label_check "${MOUNT[@]}" ${LIVE:-ct3_r1 ct3_r2 ct3_r3} 2>/dev/null > reports/team_label_check.txt
 step "deployment variants (section 6.1)"
 declare -A VAR=([nodisp]="nodisp_r1" [int8]="int8_r1 int8_r2 int8_r3" [int8t10]="int8t10_r1 int8t10_r2 int8t10_r3"
                 [int1]="int1_r1 int1_r2 int1_r3" [int2]="int2_r1 int2_r2 int2_r3"

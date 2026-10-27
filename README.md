@@ -82,8 +82,10 @@ Don't edit `scripts/*.sh` while a run is using them (bash reads scripts as it go
 
 ## Court tracker
 
-- **Python reference:** `tools/world_tracker.py` (`track_run(run, WTParams(online_relink=True))` is the causal mode),
-  with automatic team colours in `tools/online_teams.py` and identity output via `identity_tracks`.
+- **Python reference:** `tools/world_tracker.py`. `track_default(run)` is the main configuration, causal as deployed:
+  automatic team colours (`tools/online_teams.py`), the camera bias stored in camInfo, no offline filters. Identity
+  output via `identity_tracks`. `track_run(run, WTParams(online_relink=True))` alone uses inputs prepared offline from
+  the whole recording (comparison only).
 - **C++ port, used in DeepStream:** `apps/courttrack/` (`courttrack.cpp`, `online_teams.cpp`, probe
   `courttrack_probe.cpp`). `make -C apps/courttrack` builds `ct_replay`, which replays recorded inputs; the C++ and
   Python versions give identical output on the same inputs (`tools/courttrack_export.py`).
@@ -96,7 +98,8 @@ averaged over several runs:
 
 - `python -m tools.multi_eval mount_r1 mount_r2 mount_r3 [--jobs 8]`: tracker configurations, paired by run and minute
 - `python -m tools.loss_breakdown ...`: where identity accuracy is lost
-- `python -m tools.causal_eval ...`: offline inputs vs their causal replacements
+- `python -m tools.causal_eval ...`: the main configuration's causal inputs vs offline counterparts
+- `python -m tools.team_label_check <runs>`: the online team labels crop by crop over the whole game
 - `python -m tools.nonplayer_eval ...`: spectators and other non-players in the output
 - `python -m tools.courttrack_export live <runs>`: runs made with `COURTTRACK=1` (replay checks and scores)
 - `python -m tools.render_labels <run> [--live] [--scale 1.5]`: labelled game video (720p, or 1080p with `--scale 1.5`)

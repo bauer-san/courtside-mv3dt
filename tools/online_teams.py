@@ -233,7 +233,7 @@ class OnlineTeams:
                                               for j in range(p.k)]))
 
 
-def online_tracker_class(base, ot: OnlineTeams, hist_get, recorder=None):
+def online_tracker_class(base, ot: OnlineTeams, hist_get, recorder=None, team_labels: bool = True):
     """WorldTracker subclass whose team labels and colour features come from `ot`: before each step the colour crops
     (hist_get(key) -> torso histogram or None) are labelled and learned from; after it, `ot` learns which court track
     each detection went to."""
@@ -250,7 +250,8 @@ def online_tracker_class(base, ot: OnlineTeams, hist_get, recorder=None):
                     lab, lab_p = None, 0.0
                     if hh is not None:
                         s = np.sqrt(hh.astype(np.float32))
-                        lab, lab_p = ot.label(cam, s)
+                        if team_labels:
+                            lab, lab_p = ot.label(cam, s)
                         ot.given[key] = lab
                         f = ot.feature(cam, s)
                         if f is not None:
@@ -271,7 +272,7 @@ def online_tracker_class(base, ot: OnlineTeams, hist_get, recorder=None):
 
 
 def track_run_online(run, p=None, op: OTParams | None = None, stats: dict | None = None, recorder=None,
-                     **track_kw):
+                     team_labels: bool = True, **track_kw):
     """track_run with team labels and colour features from OnlineTeams instead of the offline team model.
     recorder(tracker, frame, dets, info, hist_get): called with each frame's raw inputs (before labelling)."""
     from tools import appearance as ap
@@ -284,9 +285,10 @@ def track_run_online(run, p=None, op: OTParams | None = None, stats: dict | None
     ot = OnlineTeams(op)
     p = p or WTParams(online_relink=True)
     orig_cf, orig = wtm.colour_features, wtm.WorldTracker
-    wtm.WorldTracker = online_tracker_class(orig, ot, hist.get, recorder)
+    wtm.WorldTracker = online_tracker_class(orig, ot, hist.get, recorder, team_labels)
     wtm.colour_features = lambda r: {}
     try:
+        track_kw.setdefault("appearance", "heights")
         T = wtm.track_run(run, p, **track_kw)
     finally:
         wtm.WorldTracker, wtm.colour_features = orig, orig_cf

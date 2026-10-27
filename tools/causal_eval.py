@@ -1,20 +1,20 @@
-"""Offline inputs of the court tracker and their causal replacements (report section 4.6).
+"""The court tracker's causal inputs and their offline counterparts (report section 4.6).
 
-The reported default uses three inputs prepared offline from the whole recording: the per-camera position bias
-(estimated over the whole run), the team colour model (clustered over the game, clusters named by hand) and the
-spectator filter (whole tracks). Each is replaced with what a live system has, and all three together (the
-deployable form, run with several seeds of the online team model's clustering), and scored paired against the
-default on every run x labelled minute.
+The main configuration (world_tracker.track_default) is causal, as deployed: camera bias fixed at installation (stored
+in camInfo, measured on other runs), team colours from the automatic online model (3 clusters), no spectator filter.
+Each input is replaced with an alternative, including the offline inputs prepared from the whole recording (an upper
+reference a live system can't have), and scored paired against the main configuration on every run x labelled minute.
 
-  bias_other    fixed bias measured on another run (as at installation)
-  bias_2min     bias estimated from the first 2 minutes only
-  bias_none     no bias correction
-  team_2min     team colours clustered from the first 2 minutes only, clusters named after the nearest hand-named
+  bias_whole    camera bias estimated over the whole run (offline)
+  bias_2min     camera bias estimated live from the first 2 minutes
+  bias_none     no camera bias correction
+  online4       online team model with 4 clusters (two teams, referees, other)
+  team_offline  offline team model: clustered over the game, clusters named by hand
+  team_2min     offline team model from the first 2 minutes only, clusters named after the nearest hand-named
                 cluster (standing in for an operator)
-  online3       automatic online team model, 3 clusters (two teams, everyone else)
-  online4       automatic online team model, 4 clusters (two teams, referees, other)
-  no_spectator  no spectator filter
-  deployable    bias_other + online3 + no_spectator, seeds 0-4
+  spectator     offline spectator filter (whole tracks) and post-stitching
+  offline_all   all offline inputs: whole-run bias, hand-named team model, spectator filter (the former default)
+The main configuration also runs with seeds 0-4 of the online model's first clustering; all rows use seed 0.
 
   python -m tools.causal_eval mount_r1 mount_r2 mount_r3 [--jobs 8] [--md out.md]
 """
@@ -30,15 +30,16 @@ from tools import ROOT
 
 MINUTES = ("game_2to3", "game_4to5")
 SEEDS = range(5)
-ROWS = [("default", "default: whole-run bias, hand-named team model, spectator filter"),
-        ("bias_other", "camera bias: fixed, measured on another run (as at installation)"),
+ROWS = [("main", "main (causal): fixed bias from installation, online 3-cluster team model, no spectator filter ¹"),
+        ("bias_whole", "camera bias: estimated over the whole run (offline)"),
         ("bias_2min", "camera bias: estimated live from the first 2 minutes"),
         ("bias_none", "camera bias: none"),
-        ("team_2min", "team colours: clustered from the first 2 minutes only ¹"),
-        ("online3", "team colours: automatic online model, 3 clusters (two teams, everyone else)"),
-        ("online4", "team colours: automatic online model, 4 clusters (two teams, referees, other)"),
-        ("no_spectator", "spectator filter: none"),
-        ("deployable", "all three: fixed bias + online 3-cluster model + no spectator filter ²")]
+        ("online4", "team colours: online model, 4 clusters (two teams, referees, other)"),
+        ("team_offline", "team colours: offline model, clustered over the game, clusters named by hand"),
+        ("team_2min", "team colours: offline model from the first 2 minutes only ²"),
+        ("spectator", "spectator filter and post-stitching (offline, whole tracks)"),
+        ("offline_all", "all offline: whole-run bias, hand-named team model, spectator filter (upper reference)")]
+OFFLINE_TEAMS = ("team_offline", "team_2min", "offline_all")
 
 
 def _bias_of(run: Path, max_frame: int | None = None) -> dict:
@@ -81,28 +82,27 @@ def _team_2min(run: Path, out: Path, upto: int = 3600) -> None:
 
 
 def job(args) -> tuple:
-    run_name, other_name, variant, seed = args
+    run_name, variant, seed = args
     from tools import appearance as ap
     from tools import world_tracker as wtm
     from tools.gt_eval import load_gt, score
-    from tools.online_teams import OTParams, track_run_online
-    from tools.world_tracker import WTParams, identity_tracks, track_run
-    run, other = ROOT / "experiments" / run_name, ROOT / "experiments" / other_name
-    kw, online = {}, None
-    if variant in ("bias_other", "deployable"):
-        b = _bias_of(other)
-        wtm.estimate_bias = lambda bf, **k: b
+    from tools.online_teams import OTParams
+    from tools.world_tracker import WTParams, identity_tracks, track_default, track_run
+    run = ROOT / "experiments" / run_name
+    kw = {"correct_bias": "stored", "post": False}
+    if variant == "bias_whole":
+        kw["correct_bias"] = True
     elif variant == "bias_2min":
         b = _bias_of(run, 3600)
         wtm.estimate_bias = lambda bf, **k: b
+        kw["correct_bias"] = True
     elif variant == "bias_none":
         kw["correct_bias"] = False
-    if variant in ("no_spectator", "deployable"):
-        kw["post"] = False
-    if variant in ("online3", "deployable"):
-        online = OTParams(k=3, ref_label="other", seed=seed)
-    elif variant == "online4":
-        online = OTParams(k=4, ref_label="ref", seed=seed)
+    elif variant == "spectator":
+        kw["post"] = True
+    elif variant == "offline_all":
+        kw = {"correct_bias": True, "post": True}
+    op = OTParams(k=4, ref_label="ref", seed=seed) if variant == "online4" else OTParams(seed=seed)
     tmp = None
     if variant == "team_2min":
         tmp = tempfile.TemporaryDirectory()
@@ -115,14 +115,21 @@ def job(args) -> tuple:
         o_tp, o_cf = ap.team_probs, wtm.colour_features
         ap.team_probs = lambda r, **k: o_tp(Redirect(r), **k)
         wtm.colour_features = lambda r: o_cf(Redirect(r))
-    if online is not None:
-        T = track_run_online(run, op=online, **kw)
-    else:
+    if variant in OFFLINE_TEAMS:
         T = track_run(run, WTParams(online_relink=True), **kw)
+    else:
+        T = track_default(run, op=op, **kw)
     G = identity_tracks(T, track_run.last_det_ident)
     if tmp is not None:
         tmp.cleanup()
     return run_name, variant, seed, [score(G, load_gt(n, run))["idf1"] for n in MINUTES]
+
+
+def _bias_source() -> str:
+    import re
+    from tools.calib_bias import CAMINFO
+    m = re.search(r"Measured with tools/calib_bias.py on (.*?)\.\n", next(CAMINFO.glob("*.yml")).read_text())
+    return m.group(1) if m else "?"
 
 
 def main() -> None:
@@ -131,37 +138,28 @@ def main() -> None:
     ap_.add_argument("--jobs", type=int, default=1)
     ap_.add_argument("--md", type=Path)
     a = ap_.parse_args()
-    others = {r: a.runs[(i + 1) % len(a.runs)] for i, r in enumerate(a.runs)}
-    jobs = [(r, others[r], v, s) for r in a.runs for v, _ in ROWS for s in (SEEDS if v == "deployable" else [0])]
+    jobs = [(r, v, sd) for r in a.runs for v, _ in ROWS for sd in (SEEDS if v == "main" else [0])]
     with ProcessPoolExecutor(a.jobs, max_tasks_per_child=1) as ex:   # jobs patch module functions: fresh process each
         res = list(ex.map(job, jobs))
     by = {}
-    for r, v, s, xs in res:
-        by.setdefault((v, s), {})[r] = xs
-    base = by[("default", 0)]
-    lines = ["| Input replaced | Identity IDF1 | Paired difference | Pairs better / worse |", "|---|---|---|---|"]
+    for r, v, sd, xs in res:
+        by.setdefault((v, sd), {})[r] = xs
+    base = by[("main", 0)]
+    lines = ["| Configuration | Identity IDF1 | Paired difference | Pairs better / worse |", "|---|---|---|---|"]
     for v, label in ROWS:
-        seeds = SEEDS if v == "deployable" else [0]
-        per_seed = []
-        diffs = []
-        for s in seeds:
-            xs = [x for r in a.runs for x in by[(v, s)][r]]
-            per_seed.append(np.mean(xs))
-            diffs.append([x - b for r in a.runs for x, b in zip(by[(v, s)][r], base[r])])
-        xs = [x for s in seeds for r in a.runs for x in by[(v, s)][r]]
-        d = np.mean(diffs, axis=0)       # per run-minute, averaged over seeds
-        if v == "default":
-            lines.append(f"| {label} | {np.mean(xs):.1%} ({min(xs):.0%}-{max(xs):.0%}) | — | — |")
+        xs = [x for r in a.runs for x in by[(v, 0)][r]]
+        d = np.array([x - b for r in a.runs for x, b in zip(by[(v, 0)][r], base[r])])
+        if v == "main":
+            lines.append(f"| **{label}** | **{np.mean(xs):.1%}** ({min(xs):.0%}-{max(xs):.0%}) | — | — |")
+            seed_means = [np.mean([x for r in a.runs for x in by[("main", sd)][r]]) for sd in SEEDS]
         else:
             lines.append(f"| {label} | {np.mean(xs):.1%} ({min(xs):.0%}-{max(xs):.0%}) | {100 * d.mean():+.1f} | "
                          f"{int((d > 0.005).sum())} / {int((d < -0.005).sum())} |")
-        if v == "deployable":
-            seed_means = ", ".join(f"{m:.1%}" for m in per_seed)
-    foot = [f"", f"¹ Clusters named after the nearest hand-named cluster, standing in for an operator.",
-            f"² Mean over {len(SEEDS)} seeds of the online model's first clustering (per-seed means {seed_means}); "
-            f"paired differences averaged over the seeds. Other rows: seed 0.",
-            f"Runs: {', '.join(a.runs)}; fixed bias of each run measured on: "
-            + ", ".join(f"{r} <- {others[r]}" for r in a.runs) + "."]
+    foot = ["",
+            f"¹ Seed 0 of the online model's first clustering (all rows); seeds 0-{len(SEEDS) - 1}: "
+            + ", ".join(f"{m:.1%}" for m in seed_means) + f" (mean {np.mean(seed_means):.1%}).",
+            "² Clusters named after the nearest hand-named cluster, standing in for an operator.",
+            f"Runs: {', '.join(a.runs)}; fixed camera bias measured on {_bias_source()} (not evaluated here)."]
     md = "\n".join(lines + foot) + "\n"
     print(md)
     if a.md:

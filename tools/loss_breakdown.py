@@ -24,7 +24,7 @@ from scipy.optimize import linear_sum_assignment
 from tools import ROOT
 from tools.appearance import load_appearance
 from tools.gt_eval import load_gt
-from tools.world_tracker import WTParams, track_run
+from tools.world_tracker import WTParams, track_default, track_run
 
 GT = ("game_2to3", "game_4to5")
 
@@ -37,7 +37,7 @@ def readable_keys(run: Path) -> set:
 
 
 def breakdown(run: Path, gts: dict) -> dict:
-    T = track_run(run, WTParams(online_relink=True))
+    T = track_default(run)
     di = track_run.last_det_ident
     readable = readable_keys(run)
     owner, label = {}, {}

@@ -1,12 +1,13 @@
 # Multi-camera basketball player tracking: Phase 7 report
 
 Four-camera basketball court, NVIDIA DeepStream 9.1 Multi-View 3D Tracking (MV3DT), evaluated on a Dell XPS 8960
-(RTX 3060 Ti 8 GB) with deployment on a Jetson Orin Nano Super in mind. Date: 2026-10-25.
+(RTX 3060 Ti 8 GB) with deployment on a Jetson Orin Nano Super in mind. Date: 2026-10-27.
 
 All results come from DeepStream runs on the final calibration, which places every camera on its physical mount
 (section 5): three runs (`mount_r1`-`mount_r3`) for the main results, three more with the court tracker running
-inside DeepStream (`ct3_r1`-`ct3_r3`, section 4.8). All court-tracker figures were regenerated with the final code
-(`scripts/phase8_reevaluate.sh`).
+inside DeepStream (`ct3_r1`-`ct3_r3`, section 4.8). Every result uses the court tracker's main configuration, which
+is causal as deployed: every input is available live and needs no operator (section 3). All court-tracker figures were
+regenerated with the final code (`scripts/phase8_reevaluate.sh`).
 
 ## 1. Summary
 
@@ -16,10 +17,10 @@ developed here on its output and report each player by identity (team + jersey n
 | What is reported | Identity IDF1 (3 DeepStream runs x 2 labelled minutes) |
 |---|---|
 | MV3DT global IDs as delivered | 52.4 % (38-61 %) |
-| Court tracker, track IDs | 68.3 % (58-79 %) |
-| **Court tracker, player identities (recommended)** | **79.2 % (74-89 %)** |
-| Court tracker, player identities, every input causal (deployable form, section 4.6) | 80.4 % (72-90 %) |
+| Court tracker, track IDs | 71.6 % (60-82 %) |
+| **Court tracker, player identities, every input causal (recommended)** | **80.6 % (71-90 %)** |
 | The same, running inside DeepStream in C++ (3 further runs, section 4.8) | 80.0 % (71-87 %) |
+| For comparison: with inputs prepared offline from the whole recording (section 4.6) | 79.2 % (74-89 %) |
 
 IDF1 here is the share of labelled detections that end up on the output unit matched to the right player. It's
 measured on hand-labelled ground truth (section 2.3).
@@ -35,18 +36,21 @@ measured on hand-labelled ground truth (section 2.3).
   identities. A geometric rule now removes them (from 61 % of their detections in the output to 4 %, with no
   identities), at no cost to the player score.
 - **Still not good enough for reliable per-player statistics.** About 20 % of player time is credited to the wrong
-  player or no player. Most of that is a *wrong* identity (about 15 %), not a missing one (about 5 %; section 4.4).
-- **Two inputs were prepared offline.** The court tracker's decisions are causal, but the results in sections 4
-  and 6 use a per-camera position correction and a team colour model, both derived from the whole recording; the
-  colour clusters were also named by hand. Replacing them with what a live system has (a correction measured once
-  at installation, and team colours found automatically as the game runs) scores 80.4 %. That is at least as good
-  as the offline version; the difference is within run-to-run noise (section 4.6).
+  player or no player. Most of that is a *wrong* identity (about 15 %), not a missing one (about 4.5 %; section 4.4).
+- **Every input is causal, with no operator.** The camera position correction is measured once at installation
+  (on separate runs) and stored with the calibration. The two teams are found automatically from torso colour as the
+  game runs (two teams and everyone else, named A and B). Inputs prepared offline from the whole recording, with
+  hand-named team colours, score no better (79.2 %, section 4.6).
+- **The automatic team model failed once (section 4.6).** In one of six runs, the two teams' names got mixed up during
+  the last minute of the game (6:10-7:00), after the labelled minutes. The scores don't show it; the cause is not yet
+  fixed (section 9).
 - **Results vary from run to run.** Repeated DeepStream runs of the same configuration give different MV3DT IDs and
-  jersey reads. Per-minute identity IDF1 ranges from 74 % to 89 %, so every number here is an average over three
+  jersey reads. Per-minute identity IDF1 ranges from 71 % to 90 %, so every number here is an average over three
   runs.
 - **Measured deployment options (section 6):**
-  - **INT8 detector:** 55 % faster than FP16 on the 3060 Ti, at 4-7 points lower end-to-end identity accuracy.
-  - **Detector every 2nd or 3rd frame:** costs 18-29 points with MV3DT and barely speeds anything up, so it's ruled
+  - **INT8 detector:** 55 % faster than FP16 on the 3060 Ti, at 6-7 points lower end-to-end identity accuracy
+    (4-5 points with a lower detection threshold).
+  - **Detector every 2nd or 3rd frame:** costs 14-28 points with MV3DT and barely speeds anything up, so it's ruled
     out.
   - **Jetson (estimated from these measurements):** four cameras at 30 fps look borderline to feasible on an AGX
     Orin with INT8, and not feasible on an Orin Nano Super.
@@ -100,7 +104,8 @@ a full identity, across about 10 people per minute (players from both teams, inc
    About 14.5 reads per second over the game; 94.5-94.9 % of reads checked against the ground truth are correct.
 5. **Court tracker** (`tools/world_tracker.py`, Python, causal, runs on the Kafka output). A court-plane Kalman tracker:
    - **matching:** direction-aware measurement noise and a likelihood cost
-   - **identity cues:** team colour (torso histograms) and jersey numbers, where identity = team + number
+   - **identity cues:** team colour (torso histograms, automatic online team model) and jersey numbers, where
+     identity = team + number
    - **identity output:** an online roster and a per-player appearance model
    - **identity freshness:** identities come from recent reads (10 s), and a track splits when a majority of its
      recent reads show another number
@@ -110,15 +115,17 @@ a full identity, across about 10 people per minute (players from both teams, inc
 
    The same tracker runs inside DeepStream as a C++ probe (`apps/courttrack`, section 4.8).
 
-   All tracking decisions are causal; the output is final as soon as it's made. Three of its inputs and filters
-   were, however, prepared offline from the whole recording for every result in sections 4 and 6:
-   - **camera position bias:** a constant offset per camera (mainly NL −0.18 m and NR +0.18 m along the court),
-     estimated from detections of the same person in two cameras over the whole run and subtracted before tracking
-   - **team colour model:** torso colours clustered over the game's frames, with the clusters named by hand
-     (red, maroon, referee, other)
-   - **spectator filter:** tracks that never moved and sat near a line are removed after the run
+   Everything is causal; the output is final as soon as it's made. Its inputs are all available live, with no
+   operator:
+   - **camera position bias:** a constant offset per camera (mainly NL −0.20 m and NR +0.18 m along the court),
+     measured once at installation from detections of the same person in two cameras and stored with the calibration
+     (here measured on the runs `ct2_r1`-`ct2_r3`, which are not used for any result)
+   - **team colours:** an online model that clusters the tracks' torso colours as the game runs and names the two
+     clusters with the most jersey reads as the teams (section 4.6)
+   - **no spectator filter** after the run; seated spectators are dropped by a causal rule (section 4.9)
 
-   Section 4.6 measures causal replacements for all three.
+   Section 4.6 compares these with versions prepared offline from the whole recording, which an earlier version of
+   this report used for its main results.
 
 ## 4. Results
 
@@ -144,31 +151,31 @@ Paired against the default, by run and minute:
 
 | Change from the default | Identity IDF1 | Paired difference | Pairs where the default wins |
 |---|---|---|---|
-| (default) | 79.2 % | — | — |
-| no team colour | 60.1 % | −19.1 | 6 of 6 |
-| no jersey numbers | 62.2 % | −17.0 | 6 of 6 |
-| old association (isotropic noise, plain Mahalanobis) | 66.9 % | −12.3 | 6 of 6 (and +15 switches) |
-| track IDs instead of identities | 68.3 % | −11.0 | 5 of 6 |
-| no per-player look | 73.4 % | −5.8 | 6 of 6 |
-| numbers rule: team optional, 60 s relink | 74.0 % | −5.2 | 5 of 5 (1 tie; and +15 switches) |
-| no identity freshness | 76.4 % | −2.8 | 3 of 6 |
-| MV3DT global IDs | 52.4 % | −26.8 | 6 of 6 |
+| (default) | 80.6 % | — | — |
+| no team colour | 59.9 % | −20.7 | 6 of 6 |
+| no jersey numbers | 64.2 % | −16.4 | 6 of 6 |
+| old association (isotropic noise, plain Mahalanobis) | 68.8 % | −11.8 | 6 of 6 (and +17 switches) |
+| track IDs instead of identities | 71.6 % | −9.0 | 5 of 6 |
+| numbers rule: team optional, 60 s relink | 75.4 % | −5.2 | 4 of 4 (2 ties; and +8 switches) |
+| no per-player look | 77.4 % | −3.2 | 5 of 5 (1 tie) |
+| no identity freshness | 80.7 % | +0.1 | 3 of 6 |
+| MV3DT global IDs | 52.4 % | −28.2 | 6 of 6 |
 
 Pairs whose difference was under half a point count as ties.
 
 - **Biggest contributors:** team colour, jersey numbers and the direction-aware association (which also keeps
   duplicate tracks to about 2-5 % of player time, section 4.5); the default wins every pair.
-- **Reporting identities instead of track IDs:** 11 points, winning 5 of 6 pairs.
-- **Smaller contributors (5-6 points):** the per-player look and the team-required numbers rule, which win 6 of 6 and
-  5 of 5 pairs.
-- **Identity freshness** (identities from recent reads, majority split) adds about 3 points on average but wins only
-  3 of the 6 pairs, so its benefit is not established.
+- **Reporting identities instead of track IDs:** 9 points, winning 5 of 6 pairs.
+- **Smaller contributors (3-5 points):** the team-required numbers rule and the per-player look, which win every pair
+  that isn't a tie.
+- **Identity freshness** (identities from recent reads, majority split) makes no difference on average in this
+  configuration (3 pairs better and 3 worse without it), so its benefit is not established. It stays in for now.
 
 ### 4.3 Run-to-run variation
 - **Detections are almost the same:** two DeepStream runs of the same configuration share 98.7 % of their boxes.
 - **Everything built on them differs:** the MV3DT IDs, per-camera tracklets and the jersey reads attached to them come
   out differently, most likely because the order in which cameras exchange tracker messages varies.
-- **Effect on scores:** per-minute identity IDF1 of the default ranges from 72 % to 84 % across the three runs. All
+- **Effect on scores:** per-minute identity IDF1 of the default ranges from 71 % to 90 % across the three runs. All
   comparisons here are therefore paired by run and minute and averaged over three runs. Differences under about
   2 points aren't reliable.
 
@@ -176,13 +183,13 @@ Pairs whose difference was under half a point count as ties.
 
 ![Where identity IDF1 is lost](figures/loss_breakdown.png)
 
-- **Wrong number carried over from another player (8.6 %):** a track swaps players and keeps the old identity until
+- **Wrong number carried over from another player (9.4 %):** a track swaps players and keeps the old identity until
   enough new reads arrive. Reads are sparse: a given player is read only every several seconds.
-- **Wrong number, other (4.9 %):** misreads, and identities established from too few reads.
-- **Unidentified (4.5 %):** almost all of it (4.3 %) on tracks with readable crops and reads that never reached an
+- **Wrong number, other (4.8 %):** misreads, and identities established from too few reads.
+- **Unidentified (3.9 %):** almost all of it (3.5 %) on tracks with readable crops and reads that never reached an
   identity.
-- **Wrong team with the right number (1.6 %):** on the numbers both teams wear (1 and 3).
-- **Missed by the tracker (0.7 %):** small; part of it is the seated-spectator rule (section 4.9). Detection and court
+- **Wrong team with the right number (0.9 %):** on the numbers both teams wear (1 and 3).
+- **Missed by the tracker (0.6 %):** small; part of it is the seated-spectator rule (section 4.9). Detection and court
   filtering aren't the bottleneck.
 
 ### 4.5 Where on the court
@@ -193,67 +200,78 @@ Over the whole game (mount_r1, default tracker):
 
 | Zone | New identities per player-minute | Tracks lost per player-minute | Time with a duplicate track |
 |---|---|---|---|
-| Interior | 1.2 | 1.8 | 3.4 % |
-| Within 1.5 m of a sideline | 3.4 | 6.9 | 0.6 % |
-| Within 1.5 m of a baseline | 6.2 | 8.1 | 0.5 % |
-| Left-end third | 1.8 | 2.9 | 4.5 % |
-| Right-end third | 1.7 | 2.4 | 1.7 % |
+| Interior | 1.4 | 1.8 | 3.5 % |
+| Within 1.5 m of a sideline | 3.6 | 6.9 | 0.6 % |
+| Within 1.5 m of a baseline | 6.2 | 7.9 | 0.4 % |
+| Left-end third | 2.1 | 2.9 | 4.9 % |
+| Right-end third | 1.8 | 2.3 | 1.5 % |
 
 - **Lines:** tracks are lost about four times as often near the lines as in the interior. Players leave the court
   there, and often only one camera sees them.
 - **Ends:** the left end is somewhat worse than the right end.
 
-### 4.6 Offline inputs and their causal replacements
+### 4.6 Causal inputs and their offline counterparts
 
-A live system can't use information from later in the game. Each offline input of section 3 was replaced with a
-causal version and re-scored (Python court tracker, 3 runs x 2 labelled minutes, paired against the 79.2 % default;
-`tools/causal_eval.py`, `reports/causal_inputs.md`).
+The main configuration uses only inputs a live system has (section 3). Each was replaced with an alternative,
+including the versions prepared offline from the whole recording that an earlier version of this report used (an
+upper reference a live system can't have), and re-scored (Python court tracker, 3 runs x 2 labelled minutes, paired
+against the main configuration; `tools/causal_eval.py`, `reports/causal_inputs.md`).
 
-| Input | Replacement | Identity IDF1 | Paired difference | Pairs better / worse |
+| Input of the main configuration | Replaced with | Identity IDF1 | Paired difference | Pairs better / worse |
 |---|---|---|---|---|
-| Camera bias (whole run) | fixed: measured on another run, as it would be at installation | 80.3 % | +1.0 | 2 / 1 |
-| | estimated live from the first 2 minutes | 79.3 % | +0.1 | 2 / 4 |
-| | none | 76.5 % | −2.8 | 1 / 5 |
-| Team colours (clustered over the game, named by hand) | clustered from the first 2 minutes only ¹ | 79.2 % | −0.1 | 2 / 3 |
-| | **automatic online model, 3 clusters** (two teams, everyone else) | 79.7 % | +0.4 | 3 / 2 |
-| | automatic online model, 4 clusters (two teams, referees, other) | 69.9 % | −9.4 | 0 / 6 |
-| Spectator filter (whole track) | none | 79.3 % | +0.1 | 1 / 0 |
-| **All three** | **fixed bias + online 3-cluster model + no spectator filter** ² | **80.4 %** (72-90 %) | +1.2 | 3 / 2 |
+| **All causal** (main configuration) | — | **80.6 %** (71-90 %) ¹ | — | — |
+| Camera bias, fixed at installation | estimated over the whole run (offline) | 79.8 % | −0.8 | 0 / 4 |
+| | estimated live from the first 2 minutes | 80.5 % | −0.1 | 2 / 2 |
+| | none | 78.3 % | −2.3 | 0 / 6 |
+| Online team model, 3 clusters (two teams, everyone else) | online model, 4 clusters (two teams, referees, other) | 72.6 % | −8.0 | 0 / 6 |
+| | offline model: clustered over the game, clusters named by hand | 81.0 % | +0.4 | 2 / 2 |
+| | offline model from the first 2 minutes only ² | 79.3 % | −1.3 | 0 / 2 |
+| No spectator filter | offline spectator filter and post-stitching (whole tracks) | 80.5 % | −0.1 | 0 / 1 |
+| **All three offline** | whole-run bias, hand-named team model, spectator filter | 79.2 % (74-89 %) | −1.4 | 2 / 3 |
 
-¹ Clusters named after the nearest hand-named cluster, standing in for an operator.
-² Mean over 5 random seeds of the online model's first clustering (all five give 80.4 %). Other rows: seed 0.
+¹ Seed 0 of the online model's first clustering (all rows); seeds 0-4 all give 80.6 %.
+² Clusters named after the nearest hand-named cluster, standing in for an operator.
 
-- **Camera bias:** very stable across runs (NL −0.17 to −0.20 m, NR +0.17 to +0.19 m), so a value measured at
+- **Camera bias:** very stable across runs (NL −0.18 to −0.21 m, NR +0.17 to +0.20 m), so a value measured at
   installation and stored with the calibration works (`tools/calib_bias.py` writes it into each camera's file as
-  `courtTrackerBias_m`). It must be re-measured whenever the calibration changes. Without any correction the score
-  drops 2.8 points (5 of 6 pairs worse); an estimate from the first 2 minutes did about as well as the whole-run one
-  here.
+  `courtTrackerBias_m`). It was measured on three runs not used here (`ct2_r1`-`ct2_r3`) and must be re-measured
+  whenever the calibration changes. Without any correction the score drops 2.3 points (all 6 pairs worse).
 - **Automatic team colours** (`tools/online_teams.py`), with no operator:
   - each court track keeps a colour summary of its torso crops; every 5 s, the summaries of the last 3 minutes
-    are clustered
+    are clustered into three groups
   - the two clusters whose tracks get the most jersey reads per detection are the teams (players' numbers are read,
     referees' and spectators' hardly ever); everything else, referees included, gets no team label
   - team names A/B follow their cluster from one clustering to the next, so identities (A:23) stay stable
   - per-camera colour correction is learned as the game runs; the first model forms after 30 s, and before it no
     detection has a team label
-  - each re-clustering starts from the previous centres, which keeps the result nearly independent of the random
-    start of the first model
-- **Four clusters** (a separate referee cluster) do much worse, −9.4 points; the reason hasn't been investigated.
-- **Checked crop by crop** against the hand-named model, all three runs (3 clusters, seed 0):
-  - **Teams:** maroon was always A. Red was B, except in the first minute: between 0:30 (first model) and 1:00,
-    26-37 % of red crops were labelled A, and between 1:00 and 2:00 only 1-14 crops per run. From 2:00 to the end of
-    the game, no crop got the other team's name.
-  - **Referees:** one referee crop per run got a team label.
-  - **Unchecked:** team A also labels about 6,000-6,400 crops per run that the hand-named model left unlabelled. It
-    hasn't been checked whether those are players or people beside the court.
+  - each re-clustering starts from the previous centres, which keeps the result independent of the random start of
+    the first model here (all five seeds give the same score)
+- **The offline versions don't do better:** the hand-named team model scores +0.4 points (2 pairs each way) and all
+  offline inputs together −1.4, both within the run-to-run noise. Four clusters (a separate referee cluster) do much
+  worse, −8.0 points; the reason hasn't been investigated.
+- **Checked crop by crop** against the hand-named model, over the whole game (`tools/team_label_check.py`,
+  `reports/team_label_check.txt`; the three mount runs with the main configuration, and the Python reference on the
+  three `ct3` runs):
+  - **First two minutes:** maroon was always A and red B, but between 0:30 (first model) and 1:00, 12-23 % of red
+    crops were labelled A, and between 1:00 and 2:00 up to 29 crops per run.
+  - **2:00 to the end of the game:** in five of the six runs, no crop got the other team's name and at most 7 referee
+    crops per run a team label.
+  - **One failure:** in mount_r2, a re-clustering at 6:10 reorganised the clusters: the jersey-read rate of the
+    "everyone else" cluster had risen to that of the teams, and most maroon crops moved into a cluster with red's name
+    or no name. From 6:00 to 7:00, 1,153 of 1,314 maroon crops got red's name and 706 of 759 referee crops a team
+    label. It falls after the labelled minutes, so the scores don't show it. With the bias measured on another mount
+    run (the previous version of this report) the same run didn't fail, so the model is sensitive to small input
+    changes here. Not yet fixed (section 9).
+  - **Unchecked:** the online model also gives team names to about 6,600-7,700 crops per run that the hand-named
+    model left unlabelled, mostly A. It hasn't been checked whether those are players or people beside the court.
 - **Caution:**
   - **Selection bias:** the online model's settings (3 clusters, the read-rate rule) were chosen on these same runs
-    and minutes, and the gains are within the run-to-run noise. So the fair reading is "at least as good as the
-    offline version", not better.
+    and minutes, and the differences to the offline versions are within the run-to-run noise. So the fair reading is
+    "as good as the offline version", not better.
   - **One game:** it's tested on one game only.
   - **The read-rate rule** assumes players' numbers are read clearly more often than anyone else's shirt. Here
-    team clusters got reads on 2-4 % of detections, the rest on 0.1-0.3 %.
-- **Deployment uses** the fixed bias and the online 3-cluster model, without the spectator filter.
+    the team clusters got reads on 2.5-4.6 % of detections from 2:00 to the end of the game (mount runs), the rest on
+    at most 1.6 % in mount_r1 and mount_r3. In mount_r2 the rest reached 2.7 %, which is where the failure happened.
 
 ### 4.7 C++ port of the court tracker
 
@@ -263,8 +281,8 @@ per-frame inputs of the Python version (recorded with `tools/courttrack_export.p
 `apps/courttrack/ct_replay`):
 
 - **Same output:** on mount_r1-r3, all of about 516,000 detection identities per run are identical to the Python
-  version's, in both the offline configuration and the deployable one (section 4.6), as are identity IDF1 and switch
-  counts on both labelled minutes.
+  version's in the main configuration (and, before this version, with the offline inputs), as are identity IDF1 and
+  switch counts on both labelled minutes.
 - **Speed:** 0.08-0.11 ms per frame on one core of the i7, against 1.9 ms for the Python version. The team model's
   re-clustering every 5 s takes up to about 6 ms.
 
@@ -307,9 +325,9 @@ The court tracker now runs live in the pipeline (`scripts/run_mv3dt.sh` with `CO
 - **Exact reproduction needed three fixes, which apply to the Python reference too:**
   - **Duplicate ids:** MV3DT occasionally gives two different people the same object id in one camera and frame
     (70-200 times per game, several metres apart). Everything downstream is keyed by (frame, camera, id), so now only
-    the first is kept. Because tracking decisions amplify small input changes, this alone moved the main default from
-    78.3 % to 77.8 % (the seated-spectator rule then moved it to 79.2 %); all court-tracker figures in this report
-    were regenerated with both.
+    the first is kept. Because tracking decisions amplify small input changes, this alone moved the then main
+    configuration (offline inputs) from 78.3 % to 77.8 %; all court-tracker figures in this report were regenerated
+    with it.
   - **Track identity:** the roster counted tracks by memory address, which a new track can reuse after a merge;
     tracks now carry a permanent serial number.
   - **Arithmetic:** the colour statistics are summed in a fixed order (not NumPy's pairwise or BLAS summation),
@@ -334,7 +352,7 @@ court at them (`tools/nonplayer_eval.py`, `reports/nonplayer_output*.md`).
   standing person, so it places their feet about 2 m inside the court (median), among the players.
 - **What it cost:** they took real players' identities (A:1, B:0, A:3, ...), so the output carried the same identity
   twice, and players passing by got merged into their tracks. The identity score didn't show it, because it is scored
-  on players only; the spectator filter of section 4.6 didn't catch them either, since these tracks aren't static.
+  on players only; the offline spectator filter of section 4.6 didn't catch them either, since these tracks aren't static.
 - **The rule:** for a seated person, the box bottom projected onto the floor lands at their seat, at or just outside
   the line, while MV3DT puts the feet 2 m further in. For players the two agree to about 0.3 m. A detection is now
   dropped before tracking when its two foot points are more than 1 m apart *and* its box-bottom point is less than
@@ -345,8 +363,8 @@ court at them (`tools/nonplayer_eval.py`, `reports/nonplayer_output*.md`).
 
 | Labelled detections | Spectators in the output | Spectators with an identity | Players in the output | Identity IDF1 (players) |
 |---|---|---|---|---|
-| Python reference, deployable, without the rule (mount runs) | 61 % | 15 % | 100 % | 78.9 % |
-| **Python reference, deployable, with the rule** (mount runs) | **4 %** | **0 %** | 99 % | 80.4 % |
+| Python reference, main configuration, without the rule (mount runs) | 61 % | 21 % | 100 % | 79.8 % |
+| **Python reference, main configuration, with the rule** (mount runs) | **4 %** | **0 %** | 99 % | 80.6 % |
 | Live in DeepStream, without the rule (`ct2` runs) | 61 % | 24 % | 100 % | 75.6 % |
 | **Live in DeepStream, with the rule** (`ct3` runs) | **4 %** | **0.2 %** (1 detection) | 99 % | 80.0 % |
 
@@ -397,13 +415,13 @@ count as errors.
 
 | Variant | fps per camera | GPU use | Labelled people detected | End-to-end identity |
 |---|---|---|---|---|
-| FP16, detector every frame, with display (mount_r1-r3) | 56.7 | 88 % | 98.8 % | 78.3 % (73-88 %) |
-| FP16, detector every frame (1 run) | 61.0 | 87 % | 99.0 % | 74.8 % (69-80 %) |
-| **INT8, detector every frame** | **94.6** | 88 % | 94.7 % | **71.2 %** (64-76 %) |
-| INT8, detector every frame, detection threshold 0.1 instead of 0.2 | 93.2 ¹ | 90 % | 97.9 % | 72.7 % (59-82 %) |
-| FP16, detector every 2nd frame | 75.1 | 76 % | 82.9 % | 60.7 % (56-67 %) |
-| FP16, detector every 3rd frame | 45.7 | 68 % | 66.6 % | 49.5 % (41-58 %) |
-| INT8, detector every 2nd frame | 92.4 | 76 % | 75.4 % | 55.5 % (52-59 %) |
+| FP16, detector every frame, with display (mount_r1-r3) | 56.7 | 88 % | 98.8 % | 79.7 % (70-89 %) |
+| FP16, detector every frame (1 run) | 61.0 | 87 % | 99.0 % | 78.5 % (71-86 %) |
+| **INT8, detector every frame** | **94.6** | 88 % | 94.7 % | **72.3 %** (63-83 %) |
+| INT8, detector every frame, detection threshold 0.1 instead of 0.2 | 93.2 ¹ | 90 % | 97.9 % | 74.9 % (63-83 %) |
+| FP16, detector every 2nd frame | 75.1 | 76 % | 82.9 % | 65.2 % (60-69 %) |
+| FP16, detector every 3rd frame | 45.7 | 68 % | 66.6 % | 51.6 % (40-63 %) |
+| INT8, detector every 2nd frame | 92.4 | 76 % | 75.4 % | 59.7 % (57-61 %) |
 
 ¹ Mean of two runs. The third ran at 65 fps while other CPU-heavy jobs ran on the same PC, so its speed is
 not comparable; its accuracy is included.
@@ -414,20 +432,20 @@ Full tables: `reports/deploy_end_to_end.md`, `reports/deploy_variants_detection.
   configuration below.
 - **INT8 detector:**
   - **Speed:** 55 % faster than FP16 (95 vs 61 fps per camera).
-  - **Accuracy:** 4-7 points lower end-to-end (71.2 % vs 74.8-78.3 %). INT8 detects about 4 % fewer labelled
+  - **Accuracy:** 6-7 points lower end-to-end (72.3 % vs 78.5-79.7 %). INT8 detects about 4 % fewer labelled
     people (players 93.4 % vs 98.7 %, non-players 70.8 % vs 94.4 %; `reports/deploy_int8_by_category.md`).
   - **Lower detection threshold:** lowering it from 0.2 to 0.1 recovers most of the missed people (97.9 % detected,
-    players 96.9 %), but hardly the accuracy: end-to-end 72.7 % against 71.2 %, because the people it adds are
-    identified less well (identity IDF1 on detected labels 74.2 % vs 75.2 %). So missed detections don't explain
-    INT8's loss.
+    players 96.9 %), and part of the accuracy: end-to-end 74.9 % against 72.3 %, with identity IDF1 on detected
+    labels about the same (76.5 % vs 76.3 %). So missed detections explain part of INT8's loss, not all of it.
     INT8 boxes also sit differently: only 88-89 % of them match an FP16 box (IoU ≥ 0.5), against 98.6 % between two
-    FP16 runs. That suggests box placement, which feeds the floor positions, as the likelier cause. Not adopted.
+    FP16 runs. That suggests box placement, which feeds the floor positions, as a further cause. Not adopted yet; both
+    are being investigated (GitHub issue #1).
   - **Calibration:** NVIDIA's published calibration file was made with an older TensorRT (10.3), which names the
     activation layers differently. With it, most layers fell back to full precision and the detector was slower than
     FP16. The runs above use a calibration made with the deployment TensorRT version (10.16) on 400 frames from the
     video (`tools/int8_calibrate.py`). A Jetson needs a calibration made with its own TensorRT version.
 - **Detector every 2nd or 3rd frame (DeepStream `interval`): not usable with MV3DT.**
-  - **Accuracy:** it costs 18-29 points end-to-end against the three FP16 runs.
+  - **Accuracy:** it costs 14-28 points end-to-end against the three FP16 runs.
   - **Speed:** it barely helps (every 3rd frame is even slower than every frame). GPU use falls while speed doesn't
     rise, so the bottleneck moves to MV3DT's own tracking work.
   - **Output rate:** with MV3DT's visual tracker off, positions come out only on detector frames.
@@ -612,23 +630,26 @@ on newly labelled ground truth.
 - **Small ground truth:** two minutes of one game on one court, with 10 players and refs not scored.
 - **No clean held-out data:** both labelled minutes informed development decisions. A third labelled minute would
   give an unbiased final number.
-- **Run-to-run variation:** per-minute identity IDF1 ranges from 74 % to 89 % across DeepStream runs. Three runs per
+- **Run-to-run variation:** per-minute identity IDF1 ranges from 71 % to 90 % across DeepStream runs. Three runs per
   configuration narrow it, but differences under about 2 points aren't reliable.
-- **Court-specific settings:** the main results use a team colour model clustered per game with hand-named
-  clusters. The automatic online model that replaces it (sections 4.6 and 4.8) is tested on this one game only. The
-  roster is inferred online. The seated-spectator rule's thresholds were set on this venue. Other courts, lighting and
-  kits are untested.
+- **Court-specific settings:** the automatic online team model (section 4.6) is tested on this one game only, and
+  mixed up the teams' names in the last minute of one of six runs. The roster is inferred online. The seated-spectator
+  rule's thresholds were set on this venue. Other courts, lighting and kits are untested.
 - **Sensitivity:** tracking decisions amplify tiny input changes. Removing 130-200 duplicate detections per game
-  (out of about 550,000) moved the main result by half a point, and individual run-minutes by up to 3 points. Only
-  differences well above the run-to-run spread should be trusted.
+  (out of about 550,000) moved the main result by half a point, and individual run-minutes by up to 3 points. A
+  camera bias measured on different runs (a change of a few centimetres) was enough to make the online team model
+  fail in one run. Only differences well above the run-to-run spread should be trusted.
 - **Court size and venue:** the court's length and width are fitted, not measured. The camera-placement study assumes
   wall distances and mounting heights.
 
 ## 9. Next steps (prioritised)
 
 **Done:** the court tracker runs inside DeepStream with automatic team colours, a stored camera bias, per-frame Kafka
-output (section 4.8) and seated spectators dropped (section 4.9).
+output (section 4.8) and seated spectators dropped (section 4.9). Every reported result uses only causal inputs.
 
+0. **Make the online team model robust** against the failure in section 4.6 (team names mixed up when the
+   "everyone else" cluster gets as many jersey reads as a team), in Python and C++ together, and re-check with
+   `tools/team_label_check.py` over the whole game of every run, not only the labelled minutes.
 1. **Measure on the target Jetson (AGX Orin recommended for four cameras).**
    - Re-calibrate INT8 for its TensorRT version (`tools/int8_calibrate.py`).
    - Measure fps per camera without display, and DLA throughput.
@@ -658,18 +679,19 @@ output (section 4.8) and seated spectators dropped (section 4.9).
 for r in mount_r1 mount_r2 mount_r3; do
   DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all ./scripts/run_mv3dt.sh gym_full $r
   ~/.venvs/mv3dt/bin/python -m tools.jersey from-ds $r
-  cp experiments/full_pn263_cf_jersey/{team_model.npz,teams.yml} experiments/$r/
+  cp experiments/full_pn263_cf_jersey/{team_model.npz,teams.yml} experiments/$r/   # offline team model: comparison rows only
   ~/.venvs/mv3dt/bin/python -m tools.appearance extract $r
 done
 ./scripts/phase7_deploy_variants.sh   # deployment variants (no display, INT8, detector interval), section 6.1
 ~/.venvs/mv3dt/bin/python -m tools.variant_eval --ref nodisp_r1 --runs int8_r1 int1_r1 --md reports/deploy_variants_detection.md
-~/.venvs/mv3dt/bin/python -m tools.calib_bias mount_r1 mount_r2 mount_r3 --write   # fixed camera bias into camInfo
+~/.venvs/mv3dt/bin/python -m tools.calib_bias ct2_r1 ct2_r2 ct2_r3 --write   # fixed camera bias into camInfo (runs not evaluated)
 ./scripts/build_court_app.sh && ./scripts/phase8_courttrack_live.sh ct3_r1 ct3_r2 ct3_r3   # section 4.8
 JOBS=8 ./scripts/phase8_reevaluate.sh   # every court-tracker table and figure in this report (sections 4-6)
+~/.venvs/mv3dt/bin/python -m tools.team_label_check mount_r1 mount_r2 mount_r3 ct3_r1 ct3_r2 ct3_r3 > reports/team_label_check.txt
 ~/.venvs/mv3dt/bin/python -m tools.camera_layout --validate mount_r1 --md reports/camera_layouts.md
 python3 reports/build_page.py   # web page version
 make -C apps/courttrack && ~/.venvs/mv3dt/bin/python -m tools.courttrack_export export-online mount_r1 /tmp/ct \
-  --bias-from mount_r2 && apps/courttrack/ct_replay /tmp/ct/inputs.bin /tmp/ct/cpp_out.txt \
+  && apps/courttrack/ct_replay /tmp/ct/inputs.bin /tmp/ct/cpp_out.txt \
   && ~/.venvs/mv3dt/bin/python -m tools.courttrack_export compare mount_r1 /tmp/ct   # C++ vs Python, section 4.7
 ```
 
@@ -684,16 +706,16 @@ Tracker options, scored on the same three runs and two minutes (`reports/multi_e
 
 | Idea | Identity IDF1 | vs default | Pairs better / worse |
 |---|---|---|---|
-| (default) | 79.2 % | — | — |
-| Keeping tracks alive at the court edges (detections to 0.75 m, 5 s coasting) | 79.5 % | +0.3 | 2 / 4 (no reliable gain) |
-| Recent-read identity without the majority split | 79.5 % | +0.2 | 2 / 3 (no reliable gain) |
-| Majority swap split without recent-read identity | 77.0 % | −2.3 | 1 / 5 |
-| Larger cross-camera noise levels (0.65 / 0.45 m) | 74.9 % | −4.3 | 2 / 4 |
-| Close-encounter swap resolution from colour and reads | 74.3 % | −4.9 | 1 / 4 |
-| Stricter identity rule (3 reads, 70 %) | 74.1 % | −5.1 | 2 / 4 |
-| "Unknown" identity after close encounters | 62.6 % | −16.7 | 0 / 6 (switches double) |
+| (default) | 80.6 % | — | — |
+| Recent-read identity without the majority split | 80.5 % | −0.1 | 3 / 2 (no reliable difference) |
+| Larger cross-camera noise levels (0.65 / 0.45 m) | 80.5 % | −0.1 | 4 / 2 (no reliable difference) |
+| Close-encounter swap resolution from colour and reads | 79.7 % | −0.9 | 2 / 2 |
+| Majority swap split without recent-read identity | 79.2 % | −1.5 | 1 / 4 |
+| Keeping tracks alive at the court edges (detections to 0.75 m, 5 s coasting) | 78.8 % | −1.8 | 0 / 6 |
+| Stricter identity rule (3 reads, 70 %) | 78.5 % | −2.1 | 2 / 4 |
+| "Unknown" identity after close encounters | 64.8 % | −15.9 | 0 / 6 (switches double) |
 
-**Detector every 2nd or 3rd frame** (section 6.1): 60.7 % and 49.5 % end-to-end identity accuracy against 78.3 %,
+**Detector every 2nd or 3rd frame** (section 6.1): 65.2 % and 51.6 % end-to-end identity accuracy against 79.7 %,
 with little or no speed gain. Ruled out with MV3DT.
 
 **Jersey reader tests** (on DeepStream's own text boxes and torso crops; independent of the camera calibration):

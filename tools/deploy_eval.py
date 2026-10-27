@@ -2,7 +2,7 @@
 
 End-to-end = correctly identified labelled detections / all labelled detections, so people a variant fails to detect
 count as errors (identity IDF1 alone is computed on the labels the variant detected, carried over by box overlap).
-Court tracker in its default configuration, as in the report's main results.
+Court tracker in its main (causal) configuration, as in the report's main results (world_tracker.track_default).
 
   python -m tools.deploy_eval [--jobs 8] [--md reports/deploy_end_to_end.md]
 """
@@ -28,9 +28,9 @@ MINUTES = ("game_2to3", "game_4to5")
 def score_run(r: str) -> list[tuple[float, float]]:
     """(identity IDF1 on detected labels, share of labels detected) per labelled minute."""
     from tools.gt_eval import load_gt, score
-    from tools.world_tracker import WTParams, identity_tracks, track_run
+    from tools.world_tracker import identity_tracks, track_default, track_run
     run = ROOT / "experiments" / r
-    G = identity_tracks(track_run(run, WTParams(online_relink=True)), track_run.last_det_ident)
+    G = identity_tracks(track_default(run), track_run.last_det_ident)
     out = []
     for n in MINUTES:
         gt = load_gt(n, run)

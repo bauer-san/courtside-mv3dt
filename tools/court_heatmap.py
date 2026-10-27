@@ -1,6 +1,6 @@
 """Where on the court identities break: heat maps of court-tracker events, per player-minute of occupancy.
 
-Over the game (frames <= --max-frame) with the court tracker (online relink, team colour, no numbers by default):
+Over the game (frames <= --max-frame) with the court tracker (main causal configuration, world_tracker.track_default):
   occupancy     player-minutes per cell (confirmed tracks' positions on frames with detections)
   new tracks    confirmations that were not re-linked to a lost track (a new identity)
   relinks       confirmations re-linked to a lost track (a fragment repaired)
@@ -28,7 +28,7 @@ from tools.evaluate import X_MAX, X_MIN, Y_HALF
 from tools.gt_causes import analyse
 from tools.gt_eval import load_gt
 from tools.stitch import load_cameras
-from tools.world_tracker import WTParams, track_run
+from tools.world_tracker import WTParams, track_default, track_run
 from tools.xcam import camera_centre
 
 FPS = 30
@@ -96,7 +96,7 @@ def main() -> None:
     cams = load_cameras(run / "camInfo_used")
     centres = {c: camera_centre(P) for c, P in cams.items()}
     p = WTParams(online_relink=True, use_numbers=not args.no_numbers)
-    tracks = track_run(run, p)
+    tracks = track_default(run, p)
     events = [e for e in track_run.last_events if e[1] <= args.max_frame]
     xe, ye = grid(args.cell)
 
@@ -147,7 +147,7 @@ def main() -> None:
 
     # ground-truth switches and cross-camera disagreement (2:00-3:00)
     gt = load_gt(args.gt, run)
-    tg = track_run(run, p)
+    tg = track_default(run, p)
     tid = {t.tid: t for t in tg}
     r = analyse(tg, gt)
     ax = axes[6]

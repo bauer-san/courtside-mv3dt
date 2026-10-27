@@ -31,6 +31,9 @@ players. This tracker ignores MV3DT's IDs and tracks people directly in court co
               position-based re-linking/merging never joins conflicting established numbers
   relink      ONLINE (causal, deployable): when a track is confirmed, link it to the best recently lost
               confirmed track (same rules as post-stitching, using only the past); the lost track resumes
+  main        track_default(): the causal configuration used in DeepStream (online team model, stored bias, no
+              post); track_run() alone uses the offline inputs (whole-run bias, hand-named team model), kept as an
+              upper reference
   post        OFFLINE (looks ahead; analysis only): drop static tracks near a court edge (seated spectators),
               then stitch track ends to later starts: jump <= d0 + vmax * gap; gap <= stitch_gap (3 s), or
               stitch_gap_team (8 s) when both tracks are confidently the same team; never across teams or
@@ -1129,7 +1132,7 @@ def for_stride(p: WTParams, stride: int) -> WTParams:
 
 
 def track_run(run: Path, p: WTParams | None = None, sp: StitchParams | None = None, inside_fn=None,
-              correct_bias: bool | str = True, post: bool = True, appearance: bool = True,
+              correct_bias: bool | str = True, post: bool = True, appearance: bool | str = True,
               numbers: bool = True, reads_file: str = "jersey.npz") -> list[WTrack]:
     from tools.evaluate import inside
     p = p or WTParams()
@@ -1141,7 +1144,14 @@ def track_run(run: Path, p: WTParams | None = None, sp: StitchParams | None = No
     if p.seated_gap is not None:
         keep &= ~seated(d, cams, p.seated_gap, p.seated_edge, sp.frame_h)
     app = None
-    if appearance and (run / "appearance.npz").exists() and (run / "teams.yml").exists():
+    if appearance == "heights" and (run / "appearance.npz").exists():
+        # body heights of good crops only, no offline team model (track_run_online labels the crops itself)
+        from tools.appearance import good_crops, load_appearance
+        a = load_appearance(run)
+        sel = good_crops(a)
+        app = {(int(f), str(c), str(g)): ({UNKNOWN: 1.0}, float(h))
+               for f, c, g, h in zip(a["frame"][sel], a["cam"][sel], a["gid"][sel], a["height"][sel])}
+    elif appearance and (run / "appearance.npz").exists() and (run / "teams.yml").exists():
         from tools.appearance import team_probs
         app = team_probs(run)
     raw, _ = _by_frame(d, keep)
@@ -1193,6 +1203,17 @@ def track_run(run: Path, p: WTParams | None = None, sp: StitchParams | None = No
         if not p.online_relink:
             tracks = post_stitch(tracks, p)
     return tracks
+
+
+def track_default(run: Path, p: WTParams | None = None, op=None, team_labels: bool = True, **kw) -> list[WTrack]:
+    """The main configuration, causal as deployed (the C++ port in DeepStream): online relinking, team labels and
+    colour features from the online team model (tools/online_teams.py, 3 clusters), the fixed camera bias stored in
+    camInfo at installation (tools/calib_bias.py), no offline spectator filter or post-stitching.
+    team_labels=False keeps the online colour features but gives no team labels (ablation)."""
+    from tools.online_teams import track_run_online
+    kw.setdefault("correct_bias", "stored")
+    kw.setdefault("post", False)
+    return track_run_online(run, p or WTParams(online_relink=True), op, team_labels=team_labels, **kw)
 
 
 @dataclass
