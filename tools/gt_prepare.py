@@ -20,7 +20,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from tools import CAMERAS, ROOT
+from tools import CAMERAS, GAME_END, ROOT
 from tools.appearance import load_boxes, run_dataset
 from tools.court import court_lines
 from tools.evaluate import inside
@@ -165,7 +165,7 @@ def main() -> None:
                                          xy=[round(v, 2) for v in g["xy"]] if g["xy"] else None,
                                          crops=g["crops"]) for g in gs]))
 
-    tasks = dict(run=run.name, name=args.name, frames=frames, roster=roster(tracks, p, 12600),
+    tasks = dict(run=run.name, name=args.name, frames=frames, roster=roster(tracks, p, GAME_END),
                  tracker="court tracker, online relink, team colour + DeepStream numbers", moments=moments,
                  court=[np.round(pts, 2).tolist() for _, pts in court_lines(40)])
     (out / "tasks.json").write_text(json.dumps(tasks, separators=(",", ":")))

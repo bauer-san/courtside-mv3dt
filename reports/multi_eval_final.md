@@ -7,10 +7,10 @@
 | previous default (no identity freshness) | 80.7% | 74%-88% | +0.1% | 3 / 3 | 26 |
 | track IDs instead of identities | 71.6% | 60%-82% | -9.0% | 1 / 5 | 22 |
 | no per-player look | 77.4% | 65%-90% | -3.2% | 0 / 5 | 28 |
-| old association (isotropic, plain Mahalanobis) | 68.8% | 56%-80% | -11.8% | 0 / 6 | 43 |
+| old association (isotropic, plain Mahalanobis) | 69.2% | 56%-80% | -11.4% | 0 / 6 | 43 |
 | numbers: old rule (team optional, 60 s) | 75.4% | 68%-80% | -5.2% | 0 / 4 | 34 |
 | no team colour | 59.9% | 49%-66% | -20.7% | 0 / 6 | 28 |
-| no jersey numbers (track IDs) | 64.2% | 59%-67% | -16.4% | 0 / 6 | 28 |
+| no jersey numbers (track IDs) | 64.4% | 59%-67% | -16.2% | 0 / 6 | 28 |
 | close-encounter swap resolution | 79.7% | 72%-90% | -0.9% | 2 / 2 | 27 |
 | unknown identity after close encounters | 64.8% | 58%-70% | -15.9% | 0 / 6 | 56 |
 | majority swap split without recent-read identity | 79.2% | 68%-88% | -1.5% | 1 / 4 | 26 |

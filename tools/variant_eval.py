@@ -18,13 +18,13 @@ from pathlib import Path
 
 import numpy as np
 
-from tools import ROOT
+from tools import GAME_END, ROOT
 from tools.appearance import load_boxes
 from tools.evaluate import inside, perf
 from tools.gt_eval import load_gt
 from tools.stitch import Params as StitchParams, ground_filter, load_cameras, load_detections
 
-MAX_FRAME = 12600
+MAX_FRAME = GAME_END
 
 
 def court_boxes(run: Path) -> dict:

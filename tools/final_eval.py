@@ -5,7 +5,7 @@ so variants are comparable. For a DeepStream run with in-pipeline reads (jersey.
 an independent Python extraction (jersey_py.npz) is the reference; otherwise jersey.npz itself (self-referenced:
 optimistic for variants that use those same reads).
 
-  python -m tools.final_eval <run> [--frames 1:12600] [--md out.md]
+  python -m tools.final_eval <run> [--frames 1:GAME_END] [--md out.md]
 """
 
 import argparse
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
-from tools import ROOT
+from tools import GAME_END, ROOT
 from tools.evaluate import inside, perf, world_metrics
 from tools.jersey import load as load_reads
 from tools.stitch import Params as StitchParams, ground_filter, load_cameras, load_detections
@@ -68,7 +68,7 @@ HEAD = ["variant", "IDs/min", "visible", "median life s", "number purity", "swit
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run")
-    ap.add_argument("--frames", default="1:12600")
+    ap.add_argument("--frames", default=f"1:{GAME_END}")
     ap.add_argument("--md", type=Path)
     args = ap.parse_args()
     run = Path(args.run) if Path(args.run).is_dir() else ROOT / "experiments" / args.run

@@ -6,6 +6,9 @@ ROOT = Path(__file__).resolve().parent.parent
 INPUTS = ROOT / "inputs"
 DATASETS = ROOT / "datasets"
 
+# The game: 0:00-6:29 of the videos (frames up to 6:29 at 30 fps); a warm-up follows, which is out of scope.
+GAME_END = 6 * 1800 + 29 * 30
+
 # Fixed stream order. Index = DeepStream source id.
 CAMERAS = [
     ("cam_00", "NL", "00_NL"),

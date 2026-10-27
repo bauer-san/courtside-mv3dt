@@ -31,6 +31,7 @@ struct OTParams {                      // defaults = tools/online_teams.py OTPar
   double label_p = 0.8;
   double radius_q = 80;
   double min_team_share = 0.1;
+  double team_match = 2.0;             // later models: team names follow the nearest clusters (see .py)
   uint64_t seed = 0;
   bool warm_only = true;               // after the first model, re-cluster only from the previous centres
   std::string ref_label = "other";     // label of the third cluster ("other" = no label)

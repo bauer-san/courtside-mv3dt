@@ -200,12 +200,12 @@ def main() -> None:
     d, mv = me["default (identity output)"], me["MV3DT global IDs"]
     lo, hi = re.findall(r"(\d+)%", d[2])
     header = f"""<header class="top">
-<div class="eyebrow">Phase 7 report · 2026-10-24</div>
+<div class="eyebrow">Phase 7 report · 2026-10-27</div>
 <h1>Multi-camera basketball player tracking</h1>
-<div class="meta">Four cameras, DeepStream 9.1 MV3DT, RTX 3060 Ti; target device Jetson Orin Nano Super.
+<div class="meta">Four cameras, DeepStream 9.1 MV3DT, RTX 3060 Ti; target device Jetson AGX Orin 64 GB or Orin Nano Super.
 Cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
 <div class="board">
-<div class="hl"><b>{d[1]}</b><span>identity IDF1, recommended pipeline (players reported by team + number)</span></div>
+<div class="hl"><b>{d[1]}</b><span>identity IDF1, default pipeline (players reported by team + number)</span></div>
 <div><b>{mv[1]}</b><span>identity IDF1, MV3DT global IDs as delivered</span></div>
 <div><b>56 fps</b><span>per camera on the 3060 Ti with jersey reading (30 needed)</span></div>
 <div><b>{lo}-{hi}%</b><span>range of identity IDF1 per run and labelled minute (identical DeepStream runs)</span></div>

@@ -6,7 +6,7 @@ extract   for the good crops in appearance.npz (not cut by the frame, >= MIN_BOX
           -> experiments/<run>/reid.npz  (frame, cam, gid, emb float16 [N, 256])
 Needs onnxruntime-gpu; its CUDA/cuDNN pip wheels are loaded with onnxruntime.preload_dlls().
 
-  python -m tools.reid extract <run> [--max-frame 12600]
+  python -m tools.reid extract <run> [--max-frame GAME_END]
 """
 
 import argparse
@@ -16,7 +16,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from tools import CAMERAS, ROOT
+from tools import CAMERAS, GAME_END, ROOT
 from tools.appearance import good_crops, load_appearance, run_dataset
 
 MODEL = ROOT / "external/DeepStream/src/apps/reference_apps/deepstream-tracker-3d-multi-view/models/ReID" \

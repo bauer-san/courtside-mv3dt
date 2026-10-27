@@ -20,7 +20,7 @@ Kafka frame ids are DeepStream frame_num (0-based): frame f is video frame index
 jersey_reads.csv probe, 2026-10-22; earlier extractions used f - 1, i.e. one frame early).
 
   python -m tools.appearance extract <run> [--step 3]
-  python -m tools.appearance teams <run> [--k 4] [--max-frame 12600]   # colour cues only from game frames
+  python -m tools.appearance teams <run> [--k 4] [--max-frame GAME_END]   # colour cues only from game frames
   python -m tools.appearance set-teams <run> 0=red 1=other 2=maroon ...
 """
 
@@ -35,7 +35,7 @@ import cv2
 import numpy as np
 import yaml
 
-from tools import CALIB_HEIGHT, CALIB_WIDTH, CAMERAS, DATASETS, ROOT
+from tools import CALIB_HEIGHT, CALIB_WIDTH, CAMERAS, DATASETS, GAME_END, ROOT
 from tools.stitch import SENSORS, floor_point, load_cameras
 
 HEIGHT_CAMS = {"FL", "FR"}

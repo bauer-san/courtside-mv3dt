@@ -5,7 +5,7 @@ dataset videos and runs the PP-OCRv4 recogniser (ONNX, onnxruntime) with several
 apps/jersey/nvdsinfer_jersey_parsers.cpp does (greedy CTC, 1-2 digits, mean max probability >= MIN_CONF).
 Reference label per tracklet (camera + tracker id): the majority of the independent Python reads (jersey_py.npz).
 
-  python -m tools.jersey_rec_bench <run> [--n 600] [--max-frame 12600]
+  python -m tools.jersey_rec_bench <run> [--n 600] [--max-frame GAME_END]
 """
 
 import argparse
@@ -16,7 +16,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from tools import CAMERAS, ROOT
+from tools import CAMERAS, GAME_END, ROOT
 from tools.appearance import run_dataset
 from tools.jersey import load as load_reads
 
@@ -86,7 +86,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run")
     ap.add_argument("--n", type=int, default=600, help="text boxes per camera")
-    ap.add_argument("--max-frame", type=int, default=12600)
+    ap.add_argument("--max-frame", type=int, default=GAME_END)
     args = ap.parse_args()
     run = Path(args.run) if Path(args.run).is_dir() else ROOT / "experiments" / args.run
     cams = [pos for _, pos, _ in CAMERAS]

@@ -4,7 +4,7 @@ Labels are the identity output of the default court tracker (tools/world_tracker
 team; refs grey; tracks without an identity white with their track number. At the labelled ground-truth moments
 (gt/*) a strip shows how many labelled detections carry the right label, and wrong boxes are outlined in yellow.
 
-  python -m tools.render_labels mount_r1 [--start 0] [--end 12600] [--out experiments/mount_r1/labelled_game.mp4]
+  python -m tools.render_labels mount_r1 [--start 0] [--end GAME_END] [--out experiments/mount_r1/labelled_game.mp4]
   python -m tools.render_labels ct3_r1 --live     # what a COURTTRACK=1 run sent: per-frame Kafka messages
 
 --sanitize pixelates what could identify people or the venue: everything whose floor projection (calibration) lies
@@ -28,7 +28,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from tools import CAMERAS, ROOT
+from tools import CAMERAS, GAME_END, ROOT
 from tools.appearance import load_boxes, run_dataset
 from tools.court import court_lines
 from tools.evaluate import X_MAX, X_MIN, Y_HALF
@@ -192,7 +192,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run")
     ap.add_argument("--start", type=int, default=0)
-    ap.add_argument("--end", type=int, default=12600)
+    ap.add_argument("--end", type=int, default=GAME_END)
     ap.add_argument("--out", type=Path)
     ap.add_argument("--live", action="store_true", help="draw the run's live DeepStream output (COURTTRACK=1 runs)")
     ap.add_argument("--scale", type=float, default=1.0, help="layout scale: 1 = 1280x720, 1.5 = 1920x1080")

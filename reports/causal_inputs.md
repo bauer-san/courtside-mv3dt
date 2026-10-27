@@ -4,7 +4,7 @@
 | camera bias: estimated over the whole run (offline) | 79.8% (71%-90%) | -0.8 | 0 / 4 |
 | camera bias: estimated live from the first 2 minutes | 80.5% (71%-91%) | -0.1 | 2 / 2 |
 | camera bias: none | 78.3% (69%-88%) | -2.3 | 0 / 6 |
-| team colours: online model, 4 clusters (two teams, referees, other) | 72.6% (69%-80%) | -8.0 | 0 / 6 |
+| team colours: online model, 4 clusters (two teams, referees, other) | 71.6% (65%-78%) | -9.0 | 0 / 6 |
 | team colours: offline model, clustered over the game, clusters named by hand | 81.0% (74%-90%) | +0.4 | 2 / 2 |
 | team colours: offline model from the first 2 minutes only ² | 79.3% (71%-89%) | -1.3 | 0 / 2 |
 | spectator filter and post-stitching (offline, whole tracks) | 80.5% (71%-90%) | -0.1 | 0 / 1 |

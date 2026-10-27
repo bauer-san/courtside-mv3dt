@@ -7,7 +7,7 @@ extract   for big crops in appearance.npz (not cut, box >= MIN_H px, all cameras
           -> experiments/<run>/jersey.npz  (frame, cam, gid, number ('' = no read), score)
 Feasibility on 59 hand-labelled crops: 20/26 legible numbers read, 0 wrong, 1 doubtful read on 33 illegible crops.
 
-  python -m tools.jersey extract <run> [--max-frame 12600] [--every 2] [--out jersey.npz]
+  python -m tools.jersey extract <run> [--max-frame GAME_END] [--every 2] [--out jersey.npz]
   python -m tools.jersey from-ds <run>      # convert DeepStream's jersey_reads.csv (JERSEY=1 runs)
 
 from-ds   the deployable path: reads produced inside DeepStream (torso objects -> text-detector SGIE ->
@@ -23,7 +23,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from tools import CAMERAS, ROOT
+from tools import CAMERAS, GAME_END, ROOT
 from tools.appearance import load_appearance, run_dataset
 
 MIN_H = 150

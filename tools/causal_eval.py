@@ -26,7 +26,7 @@ from pathlib import Path, PosixPath
 
 import numpy as np
 
-from tools import ROOT
+from tools import GAME_END, ROOT
 
 MINUTES = ("game_2to3", "game_4to5")
 SEEDS = range(5)
@@ -78,7 +78,7 @@ def _team_2min(run: Path, out: Path, upto: int = 3600) -> None:
     mapping = {i: ref_map[int(np.argmin(((ref["centres"] - c) ** 2).sum(1)))] for i, c in enumerate(cent)}
     np.savez(out / "team_model.npz", centres=cent, radius=radius, cams=np.array([c for c in cam_mean if c != "_global"]),
              cam_means=np.array([cam_mean[c] for c in cam_mean if c != "_global"]), global_mean=cam_mean["_global"])
-    (out / "teams.yml").write_text(yaml.dump({"max_frame": 12600, "mapping": mapping}))
+    (out / "teams.yml").write_text(yaml.dump({"max_frame": GAME_END, "mapping": mapping}))
 
 
 def job(args) -> tuple:

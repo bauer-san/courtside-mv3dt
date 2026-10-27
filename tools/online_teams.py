@@ -8,10 +8,11 @@ Causal: the labels given to detections of frame f come from a model built from f
   clustering  every `every` frames, weighted k-means (weight = samples) on the prototypes of tracks seen in the last
               `window` frames; the first model from 10 weighted k-means++ starts, later ones from the previous
               centres
-  roles       teams: the two clusters whose tracks get the most jersey reads per detection (players' numbers are
-              read, referees' and spectators' hardly ever); referees: the remaining cluster selected by
-              `ref_rule`; the rest: other. Team names A/B follow their cluster from one clustering to the next
-              (centre matching), so identities (team:number) stay stable.
+  roles       first model: the teams are the two clusters whose tracks get the most jersey reads per detection
+              (players' numbers are read, referees' and spectators' hardly ever). Later models: team names A/B follow
+              their cluster, matched to the previous team centres, so identities (team:number) stay stable; the
+              read-rate rule decides again only when that match is ambiguous (`team_match`). The remaining cluster
+              (fewest reads) gets `ref_label`; the rest: other.
   labels      soft assignment of a crop to the centres (as appearance.team_probs); a label needs p >= LABEL_P and
               the crop within its cluster's 80th-percentile radius
 Before `warmup` frames and `min_tracks` usable tracks there is no model and no labels.
@@ -56,6 +57,9 @@ class OTParams:
     seed: int = 0
     warm_only: bool = True     # after the first model, re-cluster only from the previous centres (no restarts):
                                # 79.2-80.2 % over 5 seeds, vs 78.5-80.7 % with 10 restarts every time
+    team_match: float = 2.0    # later models: team names follow the clusters nearest the previous team centres when
+                               # every other cluster is at least this many times further (squared distance);
+                               # otherwise (and for the first model) the read-rate rule. 0: read-rate rule every time
     ref_rule: str = "low_reads"   # low_reads: fewest reads per detection among the non-team clusters
     ref_label: str = "other"      # label of that cluster ("other": no label; "ref" was tested with k = 4)
 
@@ -198,22 +202,26 @@ class OnlineTeams:
         reads = np.array([sum(rates[i][0] for i in np.where(lab == j)[0]) for j in range(p.k)], float)
         dets = np.array([sum(rates[i][1] for i in np.where(lab == j)[0]) for j in range(p.k)], float)
         rate = reads / np.maximum(dets, 1)
-        cand = [j for j in np.argsort(-rate, kind="stable") if share[j] >= p.min_team_share]
-        if len(cand) < 2:
-            return
-        teams = cand[:2]
+        teams = self._match_teams(C) if len(self.prev_team) == 2 and p.team_match > 0 else None
+        how = "match"
+        if teams is None:              # first model, or the match is ambiguous: the read-rate rule
+            how = "reads"
+            cand = [j for j in np.argsort(-rate, kind="stable") if share[j] >= p.min_team_share]
+            if len(cand) < 2:
+                return
+            teams = cand[:2]
+            # team names follow the previous clustering's team centres
+            if len(self.prev_team) == 2:
+                a, b = self.prev_team["A"], self.prev_team["B"]
+                d0 = _ssum((C[teams[0]] - a) ** 2) + _ssum((C[teams[1]] - b) ** 2)
+                d1 = _ssum((C[teams[0]] - b) ** 2) + _ssum((C[teams[1]] - a) ** 2)
+                if d1 < d0:
+                    teams = teams[::-1]
         rest = [j for j in range(p.k) if j not in teams]
         ref = min(rest, key=lambda j: rate[j]) if rest else None
         roles = [UNKNOWN] * p.k
         if ref is not None:
             roles[ref] = self.p.ref_label
-        # team names follow the previous clustering's team centres
-        if len(self.prev_team) == 2:
-            a, b = self.prev_team["A"], self.prev_team["B"]
-            d0 = _ssum((C[teams[0]] - a) ** 2) + _ssum((C[teams[1]] - b) ** 2)
-            d1 = _ssum((C[teams[0]] - b) ** 2) + _ssum((C[teams[1]] - a) ** 2)
-            if d1 < d0:
-                teams = teams[::-1]
         roles[teams[0]], roles[teams[1]] = "A", "B"
         self.prev_team = {"A": C[teams[0]], "B": C[teams[1]]}
         # crop radius per cluster from the recent crops
@@ -230,7 +238,24 @@ class OnlineTeams:
                                 for j in range(p.k)])
         self.centres, self.roles = C, roles
         self.log.append((frame, len(protos), [(roles[j], round(float(share[j]), 2), round(float(rate[j]), 4))
-                                              for j in range(p.k)]))
+                                              for j in range(p.k)], how))
+
+    def _match_teams(self, C: np.ndarray) -> list[int] | None:
+        """Clusters [A, B] nearest the previous team centres (distinct clusters, least total squared distance), or
+        None when ambiguous: another cluster is within `team_match` times the matched squared distance of either."""
+        k = len(C)
+        da = [_ssum((C[j] - self.prev_team["A"]) ** 2) for j in range(k)]
+        db = [_ssum((C[j] - self.prev_team["B"]) ** 2) for j in range(k)]
+        best = None
+        for i in range(k):
+            for j in range(k):
+                if i != j and (best is None or da[i] + db[j] < best[0]):
+                    best = (da[i] + db[j], i, j)
+        _, i, j = best
+        for d, m in ((da, i), (db, j)):
+            if any(d[x] < self.p.team_match * d[m] for x in range(k) if x != m):
+                return None
+        return [i, j]
 
 
 def online_tracker_class(base, ot: OnlineTeams, hist_get, recorder=None, team_labels: bool = True):

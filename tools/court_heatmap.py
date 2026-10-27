@@ -10,7 +10,7 @@ Over the game (frames <= --max-frame) with the court tracker (main causal config
 plus the ground-truth switches (tools/gt_causes.py) and cross-camera disagreement of the labelled pairs
 (tools/xcam.py, MV3DT foot points). Rates are per player-minute; cells with < --min-occ player-minutes are blank.
 
-  python -m tools.court_heatmap <run> [--max-frame 12600] [--cell 2.0] [--out gt/game_2to3/court_heatmap.png]
+  python -m tools.court_heatmap <run> [--max-frame GAME_END] [--cell 2.0] [--out gt/game_2to3/court_heatmap.png]
 """
 
 import argparse
@@ -22,7 +22,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from tools import ROOT
+from tools import GAME_END, ROOT
 from tools.court import court_lines
 from tools.evaluate import X_MAX, X_MIN, Y_HALF
 from tools.gt_causes import analyse
@@ -85,7 +85,7 @@ def coverage(cams: dict, xe, ye, zs=(0.0, 1.8)) -> np.ndarray:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run")
-    ap.add_argument("--max-frame", type=int, default=12600)
+    ap.add_argument("--max-frame", type=int, default=GAME_END)
     ap.add_argument("--cell", type=float, default=2.0)
     ap.add_argument("--min-occ", type=float, default=0.5)
     ap.add_argument("--no-numbers", action="store_true", help="court tracker without jersey numbers")

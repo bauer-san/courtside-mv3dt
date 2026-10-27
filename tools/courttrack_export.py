@@ -37,7 +37,7 @@ from pathlib import Path
 
 import numpy as np
 
-from tools import ROOT
+from tools import GAME_END, ROOT
 from tools import world_tracker as wtm
 from tools.world_tracker import WTParams, identity_tracks, is_static_edge, track_run
 
@@ -220,10 +220,13 @@ def live(runs: list[Path]) -> None:
         names = {i: n for i, (n, _) in next(read_inputs(run / "courttrack_inputs.bin")).items()}
         cpp = {(k[0], names[k[1]], str(k[2])): v for k, v in cpp.items()}
         T, py = replay_inputs(run / "courttrack_inputs.bin")
-        same_c = sum(lv.get(k, "?") == cpp.get(k, "?") for k in set(lv) | set(cpp))
-        same_p = sum(lv.get(k, "?") == py.get(k, "?") for k in set(lv) | set(py))
-        print(f"{run.name}: live identities {len(lv)}; C++ replay identical {same_c}/{len(set(lv) | set(cpp))}, "
-              f"Python replay identical {same_p}/{len(set(lv) | set(py))}")
+        for scope, last in (("game", GAME_END), ("whole recording", 10 ** 9)):
+            kc = [k for k in set(lv) | set(cpp) if k[0] <= last]
+            kp = [k for k in set(lv) | set(py) if k[0] <= last]
+            same_c = sum(lv.get(k, "?") == cpp.get(k, "?") for k in kc)
+            same_p = sum(lv.get(k, "?") == py.get(k, "?") for k in kp)
+            print(f"{run.name} ({scope}): live identities {sum(k[0] <= last for k in lv)}; C++ replay identical "
+                  f"{same_c}/{len(kc)}, Python replay identical {same_p}/{len(kp)}")
         G_live = identity_tracks(T, lv)
         T_ref = track_run_online(run, correct_bias="stored", post=False)
         G_ref = identity_tracks(T_ref, track_run.last_det_ident)

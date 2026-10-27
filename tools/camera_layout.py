@@ -19,7 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
-from tools import ROOT
+from tools import GAME_END, ROOT
 from tools.court import court_lines
 from tools.evaluate import X_MAX, X_MIN, Y_HALF
 from tools.stitch import load_cameras
@@ -173,7 +173,7 @@ def validate(run: Path) -> list:
     out = []
     for cam, P in cams.items():
         ratios = []
-        sel = np.where((d["cam"] == cam) & (d["frame"] % 30 == 0) & (d["frame"] <= 12600))[0]
+        sel = np.where((d["cam"] == cam) & (d["frame"] % 30 == 0) & (d["frame"] <= GAME_END))[0]
         for i in sel:
             b = box.get((int(d["frame"][i]), cam, str(d["gid"][i])))
             if b is None or b[3] >= H - 2 or b[1] <= 2:

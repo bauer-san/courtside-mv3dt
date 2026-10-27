@@ -6,7 +6,7 @@ configurations with DB post-processing as in apps/jersey (thresh 0.3, box 0.5, u
 and each box is read by the recogniser as DeepStream does now (48 x 64, black padding; tools/jersey_rec_bench.py).
 Reference: the full RapidOCR pipeline (tools/jersey.py). Label per tracklet: majority of the Python reads.
 
-  python -m tools.jersey_det_bench <run> [--n 500] [--max-frame 12600]
+  python -m tools.jersey_det_bench <run> [--n 500] [--max-frame GAME_END]
   python -m tools.jersey_det_bench <run> --emit "letterbox 512x640" --out jersey_emu512.npz
       emulated DeepStream reads (that detector input + the current recogniser) on the same crops as
       tools.jersey extract (big crops, every 2nd appearance sample), for scoring with the tracker
@@ -20,7 +20,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from tools import CAMERAS, ROOT
+from tools import CAMERAS, GAME_END, ROOT
 from tools.appearance import load_appearance, run_dataset
 from tools.jersey import load as load_reads, make_reader
 from tools.jersey_rec_bench import REC, decode, prep
@@ -157,7 +157,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run")
     ap.add_argument("--n", type=int, default=500, help="torso crops per camera")
-    ap.add_argument("--max-frame", type=int, default=12600)
+    ap.add_argument("--max-frame", type=int, default=GAME_END)
     ap.add_argument("--emit", choices=list(CONFIGS), help="write emulated reads for the whole run instead")
     ap.add_argument("--out", default="jersey_emu.npz")
     args = ap.parse_args()

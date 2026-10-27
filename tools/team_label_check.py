@@ -2,7 +2,7 @@
 
 For each run, the court tracker runs in its main configuration (world_tracker.track_default) and every good crop's
 online label (A, B or none) is compared with the offline model's label (red, maroon, ref, other; a label needs
-p >= WTParams.team_min_p, as in the tracker), over the game (frames <= the offline model's max_frame). Online team
+p >= WTParams.team_min_p, as in the tracker), over the game (frames <= tools.GAME_END, 6:29). Online team
 names are matched to colours by majority. Reported per period: crops of each colour given the other team's name,
 referee crops given a team name, and team names given to crops the offline model left unlabelled.
 
@@ -12,11 +12,10 @@ referee crops given a team name, and team names given to crops the offline model
 import argparse
 import collections
 
-import yaml
+from tools import GAME_END, ROOT
 
-from tools import ROOT
-
-PERIODS = [(0, 900, "0:00-0:30"), (900, 1800, "0:30-1:00")] + [(1800 * m, 1800 * (m + 1), f"{m}:00-{m + 1}:00") for m in range(1, 7)]
+PERIODS = ([(0, 900, "0:00-0:30"), (900, 1800, "0:30-1:00")]
+           + [(1800 * m, 1800 * (m + 1), f"{m}:00-{m + 1}:00") for m in range(1, 6)] + [(10800, GAME_END + 1, "6:00-6:29")])
 
 
 def check(run_name: str) -> list[str]:
@@ -26,20 +25,19 @@ def check(run_name: str) -> list[str]:
     st = {}
     track_default(run, stats=st)
     given = st["given"]
-    max_frame = yaml.safe_load((run / "teams.yml").read_text()).get("max_frame") or 10 ** 9
     p_min = WTParams().team_min_p
     offline = {}
     for k, (probs, _) in team_probs(run).items():
         best = max(probs, key=probs.get)
         offline[k] = best if best != "other" and probs[best] >= p_min else None
-    keys = [k for k in given if k[0] <= max_frame and k in offline]
+    keys = [k for k in given if k[0] <= GAME_END and k in offline]
     votes = collections.Counter((given[k], offline[k]) for k in keys if given[k] and offline[k] in ("red", "maroon"))
     colour = {}
     for name in ("A", "B"):
         colour[name] = max(("red", "maroon"), key=lambda c: votes[(name, c)])
     out = [f"{run_name}: online names A = {colour['A']}, B = {colour['B']}; {len(keys)} good crops over the game"]
     for f0, f1, label in PERIODS:
-        ks = [k for k in keys if k[0] >= f0 and (f1 is None or k[0] < f1)]
+        ks = [k for k in keys if f0 <= k[0] < f1]
         parts = []
         for c in ("red", "maroon"):
             n = [k for k in ks if offline[k] == c]

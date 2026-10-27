@@ -1,4 +1,4 @@
-mount_r1: online names A = maroon, B = red; 45557 good crops over the game
+mount_r1: online names A = maroon, B = red; 41143 good crops over the game
   0:00-0:30: red 0/1099 other team; maroon 0/895 other team; ref 0/289 team-labelled; offline-unlabelled given A 0, B 0 (of 1469)
   0:30-1:00: red 272/1198 other team; maroon 0/749 other team; ref 0/572 team-labelled; offline-unlabelled given A 401, B 10 (of 1239)
   1:00-2:00: red 14/2076 other team; maroon 0/1538 other team; ref 0/674 team-labelled; offline-unlabelled given A 604, B 118 (of 2285)
@@ -6,8 +6,8 @@ mount_r1: online names A = maroon, B = red; 45557 good crops over the game
   3:00-4:00: red 0/1743 other team; maroon 0/1077 other team; ref 0/742 team-labelled; offline-unlabelled given A 767, B 75 (of 2077)
   4:00-5:00: red 0/1041 other team; maroon 0/960 other team; ref 0/496 team-labelled; offline-unlabelled given A 683, B 267 (of 2348)
   5:00-6:00: red 0/1956 other team; maroon 0/1331 other team; ref 0/724 team-labelled; offline-unlabelled given A 579, B 286 (of 2417)
-  6:00-7:00: red 0/1346 other team; maroon 0/1343 other team; ref 0/759 team-labelled; offline-unlabelled given A 1653, B 218 (of 3677)
-mount_r2: online names A = maroon, B = red; 45586 good crops over the game
+  6:00-6:29: red 0/643 other team; maroon 0/570 other team; ref 0/326 team-labelled; offline-unlabelled given A 574, B 139 (of 1187)
+mount_r2: online names A = maroon, B = red; 41257 good crops over the game
   0:00-0:30: red 0/1103 other team; maroon 0/897 other team; ref 0/289 team-labelled; offline-unlabelled given A 0, B 0 (of 1477)
   0:30-1:00: red 192/1203 other team; maroon 0/753 other team; ref 0/572 team-labelled; offline-unlabelled given A 363, B 11 (of 1247)
   1:00-2:00: red 1/2091 other team; maroon 0/1566 other team; ref 0/690 team-labelled; offline-unlabelled given A 612, B 137 (of 2429)
@@ -15,8 +15,8 @@ mount_r2: online names A = maroon, B = red; 45586 good crops over the game
   3:00-4:00: red 0/1758 other team; maroon 0/1076 other team; ref 0/739 team-labelled; offline-unlabelled given A 931, B 37 (of 2035)
   4:00-5:00: red 0/1059 other team; maroon 0/956 other team; ref 1/497 team-labelled; offline-unlabelled given A 971, B 82 (of 2359)
   5:00-6:00: red 0/1958 other team; maroon 0/1336 other team; ref 1/724 team-labelled; offline-unlabelled given A 930, B 179 (of 2362)
-  6:00-7:00: red 0/1337 other team; maroon 1153/1314 other team; ref 706/759 team-labelled; offline-unlabelled given A 513, B 1057 (of 3634)
-mount_r3: online names A = maroon, B = red; 45467 good crops over the game
+  6:00-6:29: red 0/646 other team; maroon 0/564 other team; ref 0/326 team-labelled; offline-unlabelled given A 417, B 90 (of 1193)
+mount_r3: online names A = maroon, B = red; 41106 good crops over the game
   0:00-0:30: red 0/1092 other team; maroon 0/902 other team; ref 0/305 team-labelled; offline-unlabelled given A 0, B 0 (of 1487)
   0:30-1:00: red 149/1201 other team; maroon 0/749 other team; ref 0/573 team-labelled; offline-unlabelled given A 319, B 30 (of 1238)
   1:00-2:00: red 1/2106 other team; maroon 0/1563 other team; ref 0/686 team-labelled; offline-unlabelled given A 585, B 62 (of 2301)
@@ -24,8 +24,8 @@ mount_r3: online names A = maroon, B = red; 45467 good crops over the game
   3:00-4:00: red 0/1762 other team; maroon 0/1076 other team; ref 0/739 team-labelled; offline-unlabelled given A 820, B 24 (of 2035)
   4:00-5:00: red 0/1058 other team; maroon 0/952 other team; ref 1/493 team-labelled; offline-unlabelled given A 917, B 109 (of 2361)
   5:00-6:00: red 0/1954 other team; maroon 0/1333 other team; ref 0/722 team-labelled; offline-unlabelled given A 902, B 230 (of 2388)
-  6:00-7:00: red 0/1330 other team; maroon 0/1325 other team; ref 0/759 team-labelled; offline-unlabelled given A 1812, B 112 (of 3640)
-ct3_r1: online names A = maroon, B = red; 45071 good crops over the game
+  6:00-6:29: red 0/635 other team; maroon 0/572 other team; ref 0/326 team-labelled; offline-unlabelled given A 674, B 77 (of 1175)
+ct3_r1: online names A = maroon, B = red; 40729 good crops over the game
   0:00-0:30: red 0/1101 other team; maroon 0/898 other team; ref 0/289 team-labelled; offline-unlabelled given A 0, B 0 (of 1478)
   0:30-1:00: red 194/1192 other team; maroon 0/752 other team; ref 0/572 team-labelled; offline-unlabelled given A 358, B 12 (of 1229)
   1:00-2:00: red 1/2081 other team; maroon 0/1550 other team; ref 0/676 team-labelled; offline-unlabelled given A 620, B 82 (of 2326)
@@ -33,8 +33,8 @@ ct3_r1: online names A = maroon, B = red; 45071 good crops over the game
   3:00-4:00: red 0/1781 other team; maroon 0/1076 other team; ref 0/740 team-labelled; offline-unlabelled given A 721, B 16 (of 2000)
   4:00-5:00: red 0/1027 other team; maroon 0/953 other team; ref 0/496 team-labelled; offline-unlabelled given A 789, B 204 (of 2344)
   5:00-6:00: red 0/1956 other team; maroon 0/1326 other team; ref 0/721 team-labelled; offline-unlabelled given A 772, B 234 (of 2375)
-  6:00-7:00: red 0/1335 other team; maroon 0/1313 other team; ref 0/763 team-labelled; offline-unlabelled given A 1694, B 163 (of 3611)
-ct3_r2: online names A = maroon, B = red; 45374 good crops over the game
+  6:00-6:29: red 0/632 other team; maroon 0/562 other team; ref 0/330 team-labelled; offline-unlabelled given A 555, B 119 (of 1171)
+ct3_r2: online names A = maroon, B = red; 41008 good crops over the game
   0:00-0:30: red 0/1100 other team; maroon 0/897 other team; ref 0/303 team-labelled; offline-unlabelled given A 0, B 0 (of 1488)
   0:30-1:00: red 159/1188 other team; maroon 0/747 other team; ref 0/571 team-labelled; offline-unlabelled given A 456, B 32 (of 1230)
   1:00-2:00: red 0/2101 other team; maroon 0/1526 other team; ref 0/686 team-labelled; offline-unlabelled given A 743, B 123 (of 2313)
@@ -42,8 +42,8 @@ ct3_r2: online names A = maroon, B = red; 45374 good crops over the game
   3:00-4:00: red 0/1752 other team; maroon 0/1077 other team; ref 0/744 team-labelled; offline-unlabelled given A 867, B 82 (of 2063)
   4:00-5:00: red 0/1052 other team; maroon 0/949 other team; ref 3/512 team-labelled; offline-unlabelled given A 820, B 296 (of 2314)
   5:00-6:00: red 0/1958 other team; maroon 0/1329 other team; ref 1/709 team-labelled; offline-unlabelled given A 773, B 308 (of 2367)
-  6:00-7:00: red 0/1341 other team; maroon 0/1332 other team; ref 1/758 team-labelled; offline-unlabelled given A 1685, B 248 (of 3637)
-ct3_r3: online names A = maroon, B = red; 45453 good crops over the game
+  6:00-6:29: red 0/640 other team; maroon 0/571 other team; ref 1/325 team-labelled; offline-unlabelled given A 623, B 163 (of 1181)
+ct3_r3: online names A = maroon, B = red; 41086 good crops over the game
   0:00-0:30: red 0/1094 other team; maroon 0/864 other team; ref 0/289 team-labelled; offline-unlabelled given A 0, B 0 (of 1452)
   0:30-1:00: red 268/1205 other team; maroon 0/727 other team; ref 0/573 team-labelled; offline-unlabelled given A 393, B 28 (of 1209)
   1:00-2:00: red 29/2090 other team; maroon 0/1534 other team; ref 0/687 team-labelled; offline-unlabelled given A 737, B 70 (of 2392)
@@ -51,4 +51,4 @@ ct3_r3: online names A = maroon, B = red; 45453 good crops over the game
   3:00-4:00: red 0/1763 other team; maroon 0/1080 other team; ref 0/738 team-labelled; offline-unlabelled given A 762, B 47 (of 2039)
   4:00-5:00: red 0/1055 other team; maroon 0/956 other team; ref 1/493 team-labelled; offline-unlabelled given A 893, B 219 (of 2366)
   5:00-6:00: red 0/1960 other team; maroon 0/1332 other team; ref 1/727 team-labelled; offline-unlabelled given A 906, B 303 (of 2410)
-  6:00-7:00: red 0/1353 other team; maroon 0/1332 other team; ref 0/757 team-labelled; offline-unlabelled given A 1725, B 160 (of 3639)
+  6:00-6:29: red 0/647 other team; maroon 0/569 other team; ref 0/324 team-labelled; offline-unlabelled given A 655, B 114 (of 1189)

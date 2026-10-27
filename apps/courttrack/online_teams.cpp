@@ -275,29 +275,52 @@ void OnlineTeams::update(int frame) {
     share[j] /= wt;
     rate[j] = reads[j] / std::max(dets[j], 1.0);
   }
-  std::vector<int> order(k);
-  std::iota(order.begin(), order.end(), 0);
-  std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return -rate[a] < -rate[b]; });
-  std::vector<int> cand;
-  for (int j : order)
-    if (share[j] >= p_.min_team_share) cand.push_back(j);
-  if (cand.size() < 2) return;
-  int ta = cand[0], tb = cand[1];
+  auto sd = [](const VecD &a, const VecD &b) {
+    double s = 0;
+    for (size_t i = 0; i < a.size(); ++i) s += (a[i] - b[i]) * (a[i] - b[i]);
+    return s;
+  };
+  int ta = -1, tb = -1;
+  const char *how = "match";
+  if (!prev_a_.empty() && p_.team_match > 0) {   // team names follow the clusters nearest the previous team centres
+    VecD da(k), db(k);
+    for (int j = 0; j < k; ++j) {
+      da[j] = sd(km.c[j], prev_a_[0]);
+      db[j] = sd(km.c[j], prev_b_[0]);
+    }
+    double best = 0;
+    for (int i = 0; i < k; ++i)
+      for (int j = 0; j < k; ++j)
+        if (i != j && (ta < 0 || da[i] + db[j] < best)) {
+          best = da[i] + db[j];
+          ta = i;
+          tb = j;
+        }
+    for (int x = 0; x < k && ta >= 0; ++x)   // ambiguous: another cluster nearly as close to either centre
+      if ((x != ta && da[x] < p_.team_match * da[ta]) || (x != tb && db[x] < p_.team_match * db[tb])) ta = tb = -1;
+  }
+  if (ta < 0) {   // first model, or the match is ambiguous: the read-rate rule
+    how = "reads";
+    std::vector<int> order(k);
+    std::iota(order.begin(), order.end(), 0);
+    std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return -rate[a] < -rate[b]; });
+    std::vector<int> cand;
+    for (int j : order)
+      if (share[j] >= p_.min_team_share) cand.push_back(j);
+    if (cand.size() < 2) return;
+    ta = cand[0];
+    tb = cand[1];
+    if (!prev_a_.empty()) {
+      double d0 = sd(km.c[ta], prev_a_[0]) + sd(km.c[tb], prev_b_[0]);
+      double d1 = sd(km.c[ta], prev_b_[0]) + sd(km.c[tb], prev_a_[0]);
+      if (d1 < d0) std::swap(ta, tb);
+    }
+  }
   std::vector<std::string> roles(k, UNKNOWN_TEAM);
   int ref = -1;
   for (int j = 0; j < k; ++j)
     if (j != ta && j != tb && (ref < 0 || rate[j] < rate[ref])) ref = j;
   if (ref >= 0) roles[ref] = p_.ref_label;
-  if (!prev_a_.empty()) {
-    auto sd = [](const VecD &a, const VecD &b) {
-      double s = 0;
-      for (size_t i = 0; i < a.size(); ++i) s += (a[i] - b[i]) * (a[i] - b[i]);
-      return s;
-    };
-    double d0 = sd(km.c[ta], prev_a_[0]) + sd(km.c[tb], prev_b_[0]);
-    double d1 = sd(km.c[ta], prev_b_[0]) + sd(km.c[tb], prev_a_[0]);
-    if (d1 < d0) std::swap(ta, tb);
-  }
   roles[ta] = "A";
   roles[tb] = "B";
   prev_a_ = {km.c[ta]};
@@ -337,7 +360,7 @@ void OnlineTeams::update(int frame) {
     std::fflush(f);
   }
   std::ostringstream o;
-  o << "frame " << frame << ", " << X.size() << " tracks:";
+  o << "frame " << frame << ", " << X.size() << " tracks (" << how << "):";
   for (int j = 0; j < k; ++j) o << " " << roles[j] << " " << share[j] << "/" << rate[j];
   summary_ = o.str();
 }

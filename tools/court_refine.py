@@ -21,7 +21,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from tools import CAMERAS, ROOT
+from tools import CAMERAS, GAME_END, ROOT
 from tools.appearance import run_dataset
 from tools.calib_check import FLAG_SIDE, P_of, court_features, fit, q_of, residuals, total, rms, traces
 from tools.stitch import load_cameras
@@ -29,7 +29,7 @@ from tools.stitch import load_cameras
 USE = ("Base", "FT", "lane+", "lane-", "FTC", "Half", "side+", "side-")
 
 
-def clean_image(run: Path, cam: str, n: int, max_frame: int = 12600) -> np.ndarray:
+def clean_image(run: Path, cam: str, n: int, max_frame: int = GAME_END) -> np.ndarray:
     ds = run_dataset(run)
     cam_id = next(c for c, p, _ in CAMERAS if p == cam)
     cap = cv2.VideoCapture(str((ds / "videos" / f"{cam_id}_{cam}.mp4").resolve()))
