@@ -5,6 +5,7 @@
 #        COURT_FILTER=1 ./scripts/run_mv3dt.sh gym_60s c60_rtdetr_cf   # drop off-court detections before the tracker
 #        NEIGHBORS=pairs ./scripts/run_mv3dt.sh ...   # camera neighbour topology (tools/pub_sub.py): all|pairs|pairs_centre
 #        JERSEY=1 ./scripts/run_mv3dt.sh ...          # jersey-number SGIEs (apps/jersey) + jersey_reads.csv
+#        JERSEY_SCALING=1 (with JERSEY=1)              # bilinear crop scaling for the jersey SGIEs (default: nvinfer's)
 #        DETECTOR_MODEL=PeopleNet2.6.3 ./scripts/run_mv3dt.sh gym_60s c60_pn263
 #        ./scripts/run_mv3dt.sh gym_60s c60_nopose PoseEstimator.poseEstimatorType=0
 #
@@ -108,6 +109,10 @@ fi
 if [[ "${JERSEY:-0}" == 1 ]]; then
   [[ -f "$ROOT/external/bin/libnvdsinfer_jersey.so" ]] || { echo "run scripts/build_court_app.sh first"; exit 1; }
   cp "$ROOT"/apps/jersey/config_sgie_text{det,rec}.txt "$OUT/"
+  if [[ -n "${JERSEY_SCALING:-}" ]]; then   # nvinfer scaling-filter for the torso and text crops (1 = bilinear)
+    "$PY" -m tools.ds_config ini "$OUT/config_sgie_textdet.txt" property.scaling-filter="$JERSEY_SCALING"
+    "$PY" -m tools.ds_config ini "$OUT/config_sgie_textrec.txt" property.scaling-filter="$JERSEY_SCALING"
+  fi
   "$PY" -m tools.ds_config ini "$OUT/config_deepstream.txt" \
     secondary-gie0.enable=1 secondary-gie0.gpu-id=0 secondary-gie0.gie-unique-id=2 secondary-gie0.operate-on-gie-id=1 \
     secondary-gie0.operate-on-class-ids=0 secondary-gie0.batch-size=16 secondary-gie0.config-file=config_sgie_textdet.txt \

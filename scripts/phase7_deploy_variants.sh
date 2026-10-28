@@ -6,6 +6,7 @@
 #   int8_r1..r3         INT8 detector (own calibration, tools/int8_calibrate.py), every frame
 #   int8int1_r1..r3     INT8, every 2nd frame (earlyTerminationAge 3)
 #   int8t10_r1..r3      INT8, every frame, detector threshold 0.1 instead of nvinfer's default 0.2
+#   js_r1..r3           as int8t10, plus bilinear scaling of the jersey crops (JERSEY_SCALING=1)
 # Each run is followed by the jersey-read conversion and appearance extraction the evaluation needs.
 # DATASET (default gym_sync, the time-aligned clips) and PREFIX (default s_) set the dataset and the run directories
 # (experiments/<PREFIX><run>).
@@ -27,6 +28,9 @@ declare -A ENV=(
   [int8int1_r3]="PGIE_PRECISION=int8 PGIE_INTERVAL=1"
   [int8t10_r1]="PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1" [int8t10_r2]="PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1"
   [int8t10_r3]="PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1"
+  [js_r1]="PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1 JERSEY_SCALING=1"
+  [js_r2]="PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1 JERSEY_SCALING=1"
+  [js_r3]="PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1 JERSEY_SCALING=1"
 )
 declare -A EXTRA=(
   [int1_r1]="TargetManagement.earlyTerminationAge=3" [int1_r2]="TargetManagement.earlyTerminationAge=3"
@@ -36,7 +40,7 @@ declare -A EXTRA=(
   [int8int1_r1]="TargetManagement.earlyTerminationAge=3" [int8int1_r2]="TargetManagement.earlyTerminationAge=3"
   [int8int1_r3]="TargetManagement.earlyTerminationAge=3"
 )
-ORDER=(nodisp_r1 int8_r1 int8_r2 int8_r3 int8t10_r1 int8t10_r2 int8t10_r3)   # interval runs only on request
+ORDER=(nodisp_r1 int8_r1 int8_r2 int8_r3 int8t10_r1 int8t10_r2 int8t10_r3)   # interval and js runs only on request
 RUNS=("${@:-${ORDER[@]}}")
 
 for v in "${RUNS[@]}"; do
