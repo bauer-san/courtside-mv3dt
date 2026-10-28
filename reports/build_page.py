@@ -175,7 +175,7 @@ def main() -> None:
         "figures/idf1_by_config.png": idf1_chart(),
         "figures/loss_breakdown.png": loss_chart(),
         "figures/court_heatmap.png": photo("figures/court_heatmap.png", "Court heat maps of track events",
-                                           "Whole game, s_int8t10_r1, default tracker (team colour + jersey numbers). Rates are per player-minute; "
+                                           "Whole game, js_r1, default tracker (team colour + jersey numbers). Rates are per player-minute; "
                                            "panels show occupancy, new identities, lost tracks, relinks, duplicate "
                                            "tracks, camera coverage, ground-truth switches and cross-camera "
                                            "disagreement."),

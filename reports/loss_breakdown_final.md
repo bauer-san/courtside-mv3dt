@@ -2,10 +2,11 @@
 
 | category | mean | range |
 |---|---|---|
-| correct | 79.6% | 69%-89% |
-| wrong number, carried from another player | 7.6% | 3%-15% |
-| wrong number, other | 7.1% | 3%-12% |
-| unidentified: readable crops and reads, identity not established | 3.3% | 1%-5% |
-| wrong team (right number) | 1.9% | 0%-8% |
-| missed | 0.4% | 0%-1% |
-| unidentified: readable crops, no usable reads | 0.1% | 0%-0% |
+| correct | 85.2% | 74%-96% |
+| wrong number, other | 5.3% | 0%-13% |
+| wrong number, carried from another player | 4.3% | 1%-8% |
+| unidentified: readable crops and reads, identity not established | 3.0% | 1%-6% |
+| wrong team (right number) | 1.2% | 0%-4% |
+| missed | 0.5% | 0%-1% |
+| unidentified: readable crops, no usable reads | 0.3% | 0%-1% |
+| unidentified: no readable crops | 0.1% | 0%-0% |

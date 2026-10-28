@@ -6,7 +6,7 @@
 #   int8_r1..r3         INT8 detector (own calibration, tools/int8_calibrate.py), every frame
 #   int8int1_r1..r3     INT8, every 2nd frame (earlyTerminationAge 3)
 #   int8t10_r1..r3      INT8, every frame, detector threshold 0.1 instead of nvinfer's default 0.2
-#   js_r1..r3           as int8t10, plus bilinear scaling of the jersey crops (JERSEY_SCALING=1)
+#   js_r1..r3           as int8t10, with JERSEY_SCALING=1 (bilinear jersey crops; now also the configs' default)
 # Each run is followed by the jersey-read conversion and appearance extraction the evaluation needs.
 # DATASET (default gym_sync, the time-aligned clips) and PREFIX (default s_) set the dataset and the run directories
 # (experiments/<PREFIX><run>).

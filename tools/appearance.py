@@ -65,6 +65,8 @@ def load_boxes(run: Path, step: int) -> dict:
                 continue
             cam = SENSORS.get(m["sensorId"], m["sensorId"])
             for o in m.get("objects", []):
+                if "id" not in o:   # empty objects appear in the last frame of some runs
+                    continue
                 b = o.get("bbox", {})
                 boxes[(cam, fr)].append((o["id"], b.get("leftX", 0.0), b.get("topY", 0.0),
                                          b.get("rightX", 0.0), b.get("bottomY", 0.0)))

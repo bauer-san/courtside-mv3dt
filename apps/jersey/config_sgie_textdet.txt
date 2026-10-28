@@ -5,6 +5,9 @@
 # Preprocessing as RapidOCR feeds PP-OCRv4: BGR, (x/255 - 0.5) / 0.5.
 # Aspect ratio kept (padded): stretching wide top-down torsos (NL, NR) to 480x384 distorted the digits.
 [property]
+# bilinear crop scaling (nvinfer's default scales like nearest-neighbour): +5 points court-tracker identity,
+# 22 % more reads (js_r1-r3 vs s_int8t10_r1-r3, GitHub issue #2 follow-up)
+scaling-filter=1
 gpu-id=0
 onnx-file=/workspace/models/OCR/ch_PP-OCRv4_det_infer.onnx
 model-engine-file=/workspace/models/OCR/ch_PP-OCRv4_det_infer.onnx_b16_gpu0_fp16.engine

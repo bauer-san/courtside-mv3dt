@@ -101,7 +101,7 @@ Hand-labelled identity ground truth for two minutes of the game is in `gt/game_2
 `labels/`; the labelling pages are private claude.ai artifacts). DeepStream runs are not repeatable, so results are
 averaged over several runs:
 
-- `python -m tools.multi_eval s_int8t10_r1 s_int8t10_r2 s_int8t10_r3 [--jobs 8]`: identity accuracy per run and minute
+- `python -m tools.multi_eval js_r1 js_r2 js_r3 [--jobs 8]`: identity accuracy per run and minute
 - `python -m tools.loss_breakdown ...`: where identity accuracy is lost
 - `python -m tools.sync_eval <runs>`: aligned vs unaligned clips (MV3DT and court tracker, cross-camera distances)
 - `python -m tools.team_label_check <runs>`: the online team labels crop by crop over the whole game
