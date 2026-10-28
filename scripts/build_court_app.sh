@@ -79,7 +79,9 @@ m = m.replace("SRCS:= deepstream_test5_app_main.c deepstream_utc.c",
               "SRCS:= deepstream_test5_app_main.c deepstream_utc.c court_filter.c jersey_log.c torso_objects.c "
               "courttrack_probe.cpp courttrack.cpp online_teams.cpp")
 m = m.replace("CFLAGS+= $(shell pkg-config --cflags $(PKGS))",
-              "CFLAGS+= $(shell pkg-config --cflags $(PKGS))\nCFLAGS+= -ffp-contract=off  # gym-mv3dt: reproducible court tracker")
+              "CFLAGS+= $(shell pkg-config --cflags $(PKGS))\nCFLAGS+= -ffp-contract=off  # gym-mv3dt: reproducible court tracker\n"
+              "CFLAGS+= -O2  # gym-mv3dt: NVIDIA's Makefile sets no optimisation; the court tracker at -O0 took 0.57 ms per "
+              "frame and up to 42 ms in its slowest frames (replay), against 0.09 / 4 ms at -O2, with identical output")
 mk.write_text(m)
 EOF
 ( cd "$DST" && diff -u "$SRC/deepstream_test5_app_main.c" deepstream_test5_app_main.c > "$ROOT/apps/court_filter/test5_main.patch" || true )
