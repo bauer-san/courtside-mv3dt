@@ -187,6 +187,19 @@ Orin 64 GB with INT8, and not feasible on an Orin Nano Super.</p>
     minutes. <strong>0:00-6:29 is a game</strong> (red vs maroon, 2 referees); after that comes a warm-up, which is out of scope.</p>
 </li>
 <li>
+<p><strong>The four recordings are not time-aligned</strong> (GitHub issue #3, <code>tools/sync_check.py</code>): at the same frame number,
+    FL, NR and FR show what NL shows 13, 22 and 26 frames later (433, 733 and 867 ms), most likely because the four
+    RTSP recordings started one after another. Measured from ball hits on a backboard, which shake both cameras on that
+    mount at the same moment, and a ball-rim contact matched frame by frame between NL and FL; an independent right-rim
+    contact confirms the chain, and the offsets are the same at 2:13, 4:30, 5:24 and 6:07. Each camera's own timing is
+    intact (NR records at 29.83 fps and the transcode keeps it in step). <strong>All results in this report use these
+    unaligned clips.</strong> Time-aligned clips are under evaluation (section 9).</p>
+</li>
+<li>
+<p><strong>NL lost packets:</strong> six times during the game (0:48-5:22), NL's 4K stream lost a packet, which leaves about 0.9 s
+    of grey, undecodable frames each time in the transcode (about 5 s of the game in total).</p>
+</li>
+<li>
 <p><strong>Calibration:</strong> one 3 × 4 projection matrix per camera, in metres with the origin at centre court, fitted with the
     cameras on their mounts (section 5).</p>
 </li>
@@ -1188,8 +1201,14 @@ the wrong-identity periods after swaps (section 4.2).</p>
 <p><strong>Whatever the layout:</strong></p>
 <ul>
 <li>use identical cameras with locked exposure and focus</li>
-<li>synchronise frames (hardware sync or accurate timestamps)</li>
-<li>avoid pointing at windows or bright lights</li>
+<li>
+<p>synchronise frames (hardware sync or accurate timestamps) and have DeepStream batch the streams by timestamp, not
+ by arrival: the recordings used here were up to 0.9 s apart (section 2.2); MV3DT's own identities scored 52.4 %
+ on them and 60.2 % on time-aligned clips (3 runs each, <code>reports/sync_eval.md</code>)</p>
+</li>
+<li>
+<p>avoid pointing at windows or bright lights</p>
+</li>
 <li>calibrate with the mount positions as a constraint, as in section 5, ideally with measured court dimensions</li>
 </ul>
 </li>
@@ -1242,8 +1261,10 @@ on newly labelled ground truth.</p>
 <h2 id="9-next-steps-prioritised">9. Next steps (prioritised)</h2>
 <ol>
 <li>
-<p><strong>Check camera synchronisation</strong> (GitHub issue #3): frame timing of the 4K originals, hard sync events and
-    cross-camera trajectory correlation, then the position error any offset causes.</p>
+<p><strong>Time-aligned clips</strong> (GitHub issue #3): the offsets are measured (section 2.2). On aligned clips MV3DT's own
+    identities improve (52.4 % to 60.2 %) but the court tracker's do not yet (78.8 %, within run-to-run noise of the
+    80.6 % here); its settings were tuned on the unaligned clips. Next: re-measure the camera bias and re-check the
+    tracker's settings on aligned runs that aren't scored, then decide whether the aligned clips become the default.</p>
 </li>
 <li>
 <p><strong>Read jerseys from the native 4K frames</strong> (issue #2): detect and track on 1080p as now, cut torso crops from the

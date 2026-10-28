@@ -71,23 +71,34 @@ def main() -> None:
     raw, _ = _by_frame(d, keep)
     bias = estimate_bias(raw)
     print("tracker per-camera bias (m):", {c: tuple(round(v, 2) for v in b) for c, b in bias.items()})
+    from tools.gt_eval import frame_offsets
+    off = frame_offsets(run)       # runs on time-aligned clips: each camera's labels sit on shifted frames
     frames = sorted({k[0] for k in lab})
-    boxes = load_boxes(run, frames[1] - frames[0])
+    boxes = load_boxes(run, 1 if off else frames[1] - frames[0])
     box = {(fr, cam, str(g)): (l, t, r, b) for (cam, fr), v in boxes.items() for g, l, t, r, b in v}
     idx = {(int(f), str(c), str(g)): i for i, (f, c, g) in enumerate(zip(d["frame"], d["cam"], d["gid"]))}
 
-    rows = []      # one per labelled detection
+    # labels of one moment were made at one frame number in every camera; on time-aligned clips (tools/make_clips
+    # --offsets) those are different frames, so each labelled camera track is taken at the moment's median frame
+    members = collections.defaultdict(list)
     for k, ident in lab.items():
-        i = idx.get(k)
-        if i is None:
-            continue
-        l, t, r, b = box[k]
-        cam = k[1]
-        fp, ok = floor_point(cams[cam], np.array([(l + r) / 2]), np.array([b]))
-        bx = bias.get(cam, (0.0, 0.0))
-        rows.append(dict(frame=k[0], cam=cam, ident=ident, h=b - t, cut=b >= 1078,
-                         mv3dt=np.array([d["x"][i] - bx[0], d["y"][i] - bx[1]]), mv3dt_raw=np.array([d["x"][i], d["y"][i]]),
-                         bottom=fp[0]))
+        if k in idx:
+            members[(k[0] + off.get(k[1], 0), ident)].append(k)
+    rows = []      # one per labelled detection
+    for (moment, ident), ks in members.items():
+        t = int(np.median([k[0] for k in ks]))
+        for k in ks:
+            k = (t, k[1], k[2])
+            i = idx.get(k)
+            if i is None or k not in box:
+                continue
+            l, t_, r, b = box[k]
+            cam = k[1]
+            fp, ok = floor_point(cams[cam], np.array([(l + r) / 2]), np.array([b]))
+            bx = bias.get(cam, (0.0, 0.0))
+            rows.append(dict(frame=moment, cam=cam, ident=ident, h=b - t_, cut=b >= 1078,
+                             mv3dt=np.array([d["x"][i] - bx[0], d["y"][i] - bx[1]]),
+                             mv3dt_raw=np.array([d["x"][i], d["y"][i]]), bottom=fp[0]))
     people = collections.defaultdict(list)
     for r in rows:
         people[(r["frame"], r["ident"])].append(r)
