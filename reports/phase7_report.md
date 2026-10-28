@@ -87,10 +87,8 @@ a full identity, across about 10 people per minute (players from both teams, inc
 
 ### 2.4 Time alignment of the camera streams
 
-The four cameras were recorded over RTSP into separate files, and the recordings didn't start at the same moment. At
-the same frame number of the original transcodes, FL, NR and FR show what NL shows 13, 22 and 26 frames later (433,
-733 and 867 ms). The clips used in this report start that many frames apart (`datasets/gym_sync`; NL from frame 26,
-FL 13, NR 4, FR 0), so frame n of every camera shows the same moment.
+The clips used in this report are time-aligned: frame n of every camera shows the same moment. The four cameras were
+recorded over RTSP into separate files, and the original recordings started up to 0.87 s apart.
 
 **How the offsets were measured** (`tools/sync_check.py`):
 - **Camera shake:** a ball hitting a backboard shakes both cameras on that mount at the same moment. The global image
