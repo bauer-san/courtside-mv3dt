@@ -54,6 +54,34 @@ streams by capture timestamp.
 Videos, model weights and TensorRT engines are never committed (see `.gitignore`); `datasets/*/videos/` and
 `models/` stay local.
 
+## Jetson AGX Orin
+
+DeepStream 9.1 supports Jetson Orin with **JetPack 7.2 (L4T r39.2)**, and the `deepstream` container repository
+serves Jetson and PC from 9.1 on (the image used here has an arm64 variant). Runs happen on the device; scoring stays
+on the PC. Steps (GitHub issues #4 and #6):
+
+1. **Device:** JetPack 7.2 flashed, Docker with the NVIDIA runtime, `mosquitto` running (with
+   `set_tcp_nodelay true`, as on the PC), Python 3.12 venv support.
+2. **Code and assets:** clone this repository; run `./scripts/phase3_setup.sh` (NVIDIA's DeepStream checkout, Kafka,
+   models, container, MV3DT venv) and `./scripts/phase1_setup.sh` (this project's venv). On the PC,
+   `./scripts/jetson_bundle.sh <file>.tar` packs what isn't in git (models, time-aligned clips, calibration frames,
+   team model); copy it over and `tar -xf` it in the repository root.
+3. **Build:** `./scripts/build_court_app.sh` (the CUDA version is taken from the container).
+4. **INT8:** first try the PC's calibration cache (third-party JetPack 7.2 guides list TensorRT 10.16, as here): the
+   first run builds the engine; check `console.log` for layers falling back to higher precision. If the cache doesn't fit,
+   make one on the device ("INT8 on a new device" above) and set `PGIE_INT8_CALIB`.
+5. **Runs:** `./scripts/brokers.sh start`, then `./scripts/jetson_bench.sh bias gpu dla live` (camera bias, three
+   default runs on the GPU, the detector on each DLA core with `PGIE_DLA_CORE`, and one run with the court tracker
+   inside the pipeline). GPU load and shared memory come from `tegrastats` (`tegrastats.log`; there is no
+   `nvidia-smi`).
+6. **Scoring, on the PC:** copy the `experiments/agx_*` folders back, then
+   `python -m tools.calib_bias agx_cal_r1 agx_cal_r2 --into agx_r1 agx_r2 agx_r3 agx_dla0_r1 agx_dla1_r1` (the
+   device's camera bias), `python -m tools.multi_eval agx_r1 agx_r2 agx_r3`, `python -m tools.variant_eval --ref
+   js_r1 --runs agx_r1 ...` (fps, GPU load, boxes against the PC), and `python -m tools.courttrack_export live
+   agx_ct_r1` (live court tracker timing and replay check).
+
+Untested until the device is here: the arm64 container and build, the tegrastats log format, the DLA engines.
+
 ## Phases
 
 | Phase | Command |

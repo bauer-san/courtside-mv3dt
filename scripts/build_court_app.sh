@@ -85,12 +85,12 @@ EOF
 ( cd "$DST" && diff -u "$SRC/deepstream_test5_app_main.c" deepstream_test5_app_main.c > "$ROOT/apps/court_filter/test5_main.patch" || true )
 
 docker run --rm -v "$DS:/ds" -w /ds/src/apps/sample_apps/deepstream-test5-court --entrypoint bash "$IMAGE" \
-  -c "make CUDA_VER=13.2 -j8 >/tmp/build.log 2>&1 || { tail -40 /tmp/build.log; exit 1; }; chown $(id -u):$(id -g) deepstream-test5-court-app *.o ../deepstream-app/*.o ../../common/src/*.o ../../common/src/deepstream-yaml/*.o ../../../utils/nvds_msgapi/common_src/*.o 2>/dev/null || true"
+  -c "CV=\$(ls -d /usr/local/cuda-*.* | sed s/.*cuda-// | sort -V | tail -1); make CUDA_VER=\$CV -j8 >/tmp/build.log 2>&1 || { tail -40 /tmp/build.log; exit 1; }; chown $(id -u):$(id -g) deepstream-test5-court-app *.o ../deepstream-app/*.o ../../common/src/*.o ../../common/src/deepstream-yaml/*.o ../../../utils/nvds_msgapi/common_src/*.o 2>/dev/null || true"
 docker run --rm -v "$ROOT/apps/jersey:/src" -w /src --entrypoint bash "$IMAGE" \
-  -c "make -s 2>&1 | grep -v Winfinite-recursion | grep -E 'error' ; chown $(id -u):$(id -g) libnvdsinfer_jersey.so"
+  -c "make -s CUDA_VER=\$(ls -d /usr/local/cuda-*.* | sed s/.*cuda-// | sort -V | tail -1) 2>&1 | grep -v Winfinite-recursion | grep -E 'error' ; chown $(id -u):$(id -g) libnvdsinfer_jersey.so"
 docker run --rm -v "$ROOT/apps/yolox:/src" -w /src --entrypoint bash "$IMAGE" \
-  -c "make -s 2>&1 | grep -v Winfinite-recursion | grep -E 'error' ; chown $(id -u):$(id -g) libnvdsinfer_yolox.so"
+  -c "make -s CUDA_VER=\$(ls -d /usr/local/cuda-*.* | sed s/.*cuda-// | sort -V | tail -1) 2>&1 | grep -v Winfinite-recursion | grep -E 'error' ; chown $(id -u):$(id -g) libnvdsinfer_yolox.so"
 mkdir -p "$ROOT/external/bin"
 cp "$DST/deepstream-test5-court-app" "$ROOT/apps/jersey/libnvdsinfer_jersey.so" "$ROOT/apps/yolox/libnvdsinfer_yolox.so" \
   "$ROOT/external/bin/"
-echo "built external/bin/deepstream-test5-court-app, external/bin/libnvdsinfer_jersey.so"
+echo "built external/bin/deepstream-test5-court-app, external/bin/libnvdsinfer_jersey.so, external/bin/libnvdsinfer_yolox.so"

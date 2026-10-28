@@ -103,6 +103,16 @@ def perf(run: Path) -> dict:
             out["gpu_mem_peak_mib"] = float(mem.max())
             busy = util[util > 20]
             out["gpu_util_med"] = float(np.median(busy)) if len(busy) else 0.0
+    t = run / "tegrastats.log"           # Jetson (no nvidia-smi): GPU load GR3D_FREQ, shared RAM in use
+    if t.exists() and not g.exists():
+        text = t.read_text(errors="ignore")
+        util = np.array([float(x) for x in re.findall(r"GR3D_FREQ (\d+)%", text)])
+        ram = np.array([float(x) for x in re.findall(r"RAM (\d+)/\d+MB", text)])
+        if len(ram):
+            out["ram_peak_mib"] = float(ram.max())
+        busy = util[util > 20]
+        if len(util):
+            out["gpu_util_med"] = float(np.median(busy)) if len(busy) else 0.0
     return out
 
 

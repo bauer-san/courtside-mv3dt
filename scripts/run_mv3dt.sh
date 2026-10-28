@@ -19,7 +19,7 @@
 #
 # Outputs in experiments/<run-name>/:
 #   config_*.txt/yml, pub_sub_info_config_0.yml, camInfo_used/, outVideos/osd.mp4, bev/*.mp4, track_dump/track_dump_<stream>.txt,
-#   kafka.jsonl.gz, console.log, gpu.csv, run.txt
+#   kafka.jsonl.gz, console.log, gpu.csv (tegrastats.log on a Jetson), run.txt
 # Per-frame KITTI dumps are disabled: one file per camera per frame (>200k files for 15 min) stalls the
 # HDD/NTFS writeback; kafka.jsonl.gz and track_dump/ carry the same data.
 set -uo pipefail
@@ -106,6 +106,14 @@ if [[ "${PGIE_PRECISION:-fp16}" == int8 ]]; then
   "$PY" -m tools.ds_config ini "$OUT/config_deepstream.txt" \
     primary-gie.model-engine-file=/workspace/models/PeopleNet2.6.3/resnet34_peoplenet.onnx_b4_gpu0_int8.engine
 fi
+# PGIE_DLA_CORE=0|1 (Jetson AGX Orin; GitHub issue #4): the INT8 detector on that deep-learning accelerator, layers it
+# can't run falling back to the GPU (nvinfer's default). Untested on this PC (no DLA).
+if [[ -n "${PGIE_DLA_CORE:-}" ]]; then
+  [[ "${PGIE_PRECISION:-fp16}" == int8 ]] || { echo "PGIE_DLA_CORE needs PGIE_PRECISION=int8"; exit 1; }
+  "$PY" -m tools.ds_config ini "$OUT/config_pgie.txt" property.enable-dla=1 property.use-dla-core="$PGIE_DLA_CORE"
+  "$PY" -m tools.ds_config ini "$OUT/config_deepstream.txt" \
+    primary-gie.model-engine-file=/workspace/models/PeopleNet2.6.3/resnet34_peoplenet.onnx_b4_dla${PGIE_DLA_CORE}_int8.engine
+fi
 if [[ "$DETECTOR_MODEL" == YOLOX-m ]]; then   # the configurator names an FP16 engine; this detector is INT8
   "$PY" -m tools.ds_config ini "$OUT/config_deepstream.txt" \
     primary-gie.model-engine-file=/workspace/models/YOLOX/yolox_m_dyn.onnx_b4_gpu0_int8.engine
@@ -173,8 +181,12 @@ fi
     --dataset-path="$DS" --msgconv-config="$OUT/config_msgconv.txt" --output-path="$OUT/bev" \
     --average-multi-cam --show-ids --first-message-timeout=900 --idle-timeout=60 --max-timeout=14400 ) >"$OUT/bev.log" 2>&1 &
 BEV_PID=$!
-nvidia-smi --query-gpu=timestamp,memory.used,memory.total,utilization.gpu,utilization.encoder,utilization.decoder,power.draw \
-  --format=csv,nounits -l 1 >"$OUT/gpu.csv" &
+if command -v nvidia-smi >/dev/null; then
+  nvidia-smi --query-gpu=timestamp,memory.used,memory.total,utilization.gpu,utilization.encoder,utilization.decoder,power.draw \
+    --format=csv,nounits -l 1 >"$OUT/gpu.csv" &
+else                                  # Jetson: GPU load (GR3D_FREQ) and shared RAM from tegrastats
+  tegrastats --interval 1000 >"$OUT/tegrastats.log" &
+fi
 SMI_PID=$!
 trap 'kill $SMI_PID 2>/dev/null' EXIT
 sleep 5
@@ -198,7 +210,7 @@ if [[ $rc -ne 0 ]]; then kill $REC_PID $BEV_PID $CT_PID 2>/dev/null; fi
 echo "waiting for Kafka recorder / BEV renderer to finish..."
 wait $REC_PID; wait $BEV_PID; [[ -n "$CT_PID" ]] && wait $CT_PID
 {
-  echo "dataset=$DATASET detector=$DETECTOR_MODEL court_filter=${COURT_FILTER:-0} neighbors=${NEIGHBORS:-all} jersey=${JERSEY:-0} display=${DISPLAY_OUT:-1} pgie_interval=${PGIE_INTERVAL:-0} pgie_precision=$([[ "$DETECTOR_MODEL" == YOLOX-m ]] && echo int8 || echo "${PGIE_PRECISION:-fp16}") pgie_threshold=${PGIE_THRESHOLD:-default} courttrack=${COURTTRACK:-0} extra=$*"
+  echo "dataset=$DATASET detector=$DETECTOR_MODEL court_filter=${COURT_FILTER:-0} neighbors=${NEIGHBORS:-all} jersey=${JERSEY:-0} display=${DISPLAY_OUT:-1} pgie_interval=${PGIE_INTERVAL:-0} pgie_precision=$([[ "$DETECTOR_MODEL" == YOLOX-m ]] && echo int8 || echo "${PGIE_PRECISION:-fp16}") pgie_threshold=${PGIE_THRESHOLD:-default} courttrack=${COURTTRACK:-0} dla=${PGIE_DLA_CORE:-none} extra=$*"
   echo "pipeline_exit=$rc pipeline_elapsed_s=$elapsed"
   grep -E "^\*\*PERF:\s+[0-9]" "$OUT/console.log" | tail -1 | sed 's/^/last_perf=/'
 } | tee "$OUT/run.txt"
