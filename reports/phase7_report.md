@@ -425,9 +425,10 @@ runs of section 6.1; the main runs, with bilinear jersey crops, measured 89-95 f
   - or a lower camera frame rate. **15 fps was tested on the 3060 Ti** (GitHub issue #5; 3 runs, every frame
     detected, frame-counted settings halved): identity accuracy 82.9 % and end-to-end 79.6 %, against 84.4 % and
     82.4 % at 30 fps (4 runs), with MV3DT's own IDs clearly worse (53 % vs 62 %). But each frame costs about 20 %
-    more (74 fps per camera instead of about 90), because the jersey reader still reads each player every 0.2 s,
-    i.e. on more of the frames. Scaled the same way, four 15 fps cameras would run at about 9-15 fps on the Orin Nano
-    Super: not enough, unless the jersey reader reads less often (untested).
+    more (74-75 fps per camera instead of about 90), so four 15 fps cameras would run at about 9-15 fps on the Orin
+    Nano Super (scaled the same way): not enough. The jersey reader isn't the cause: reading each player every 7th
+    frame instead of every 3rd lowered GPU use (95 % to 89 %) but not the speed, and cost accuracy (81.1 % identity,
+    78.1 % end-to-end). The cause hasn't been identified.
 - **AGX Orin 64 GB:** four cameras at 30 fps look borderline to feasible.
   - **Six cameras at 30 fps** don't look feasible on the GPU alone.
   - **Its two DLAs** could take the INT8 detector off the GPU (DeepStream supports this), but their throughput for
@@ -446,7 +447,7 @@ runs of section 6.1; the main runs, with bilinear jersey crops, measured 89-95 f
 **Recommendation.**
 - **For four cameras at 30 fps (current or corner layout), choose the AGX Orin 64 GB.**
 - **The Orin Nano Super doesn't look feasible for four cameras, even at 15 fps** (estimate above). It would need
-  fewer cameras, or a 15 fps setup with a sparser jersey reader measured on the device.
+  fewer cameras, or the extra per-frame cost at 15 fps explained and removed (GitHub issue #5).
 - **Before buying, measure on the device:**
   - fps per camera (INT8, no display)
   - DLA throughput (AGX Orin)
