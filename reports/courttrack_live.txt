@@ -1,13 +1,13 @@
-ct3_r1 (game): live identities 189268; C++ replay identical 189268/189268, Python replay identical 189268/189268
-ct3_r1 (whole recording): live identities 512719; C++ replay identical 512719/512719, Python replay identical 512719/512719
-  game_2to3: identity IDF1 live 87.1% (end-to-end 86.3%), Python on Kafka + OpenCV histograms 86.5%; switches 24 / 23
-  game_4to5: identity IDF1 live 74.1% (end-to-end 72.8%), Python on Kafka + OpenCV histograms 69.4%; switches 35 / 36
-ct3_r2 (game): live identities 189919; C++ replay identical 189919/189919, Python replay identical 189919/189919
-ct3_r2 (whole recording): live identities 517201; C++ replay identical 468105/517230, Python replay identical 468105/517230
-  game_2to3: identity IDF1 live 84.4% (end-to-end 84.1%), Python on Kafka + OpenCV histograms 84.4%; switches 15 / 16
-  game_4to5: identity IDF1 live 71.4% (end-to-end 69.3%), Python on Kafka + OpenCV histograms 71.7%; switches 40 / 39
-ct3_r3 (game): live identities 190353; C++ replay identical 190353/190353, Python replay identical 190353/190353
-ct3_r3 (whole recording): live identities 514759; C++ replay identical 461062/514813, Python replay identical 461062/514813
-  game_2to3: identity IDF1 live 86.9% (end-to-end 86.6%), Python on Kafka + OpenCV histograms 86.9%; switches 21 / 23
-  game_4to5: identity IDF1 live 76.2% (end-to-end 75.4%), Python on Kafka + OpenCV histograms 75.9%; switches 33 / 34
-mean over 6 run-minutes: live 80.0% (range 71%-87%), end-to-end 79.1%; Python reference 79.1%; labelled people detected 98.8%
+cts_r1 (game): live identities 191419; C++ replay identical 191419/191419, Python replay identical 191419/191419
+cts_r1 (whole recording): live identities 529183; C++ replay identical 529183/529183, Python replay identical 529183/529183
+  game_2to3: identity IDF1 live 88.8% (end-to-end 86.6%), Python on Kafka + OpenCV histograms 89.1%; switches 23 / 23
+  game_4to5: identity IDF1 live 73.9% (end-to-end 71.3%), Python on Kafka + OpenCV histograms 76.3%; switches 58 / 56
+cts_r2 (game): live identities 189457; C++ replay identical 189457/189457, Python replay identical 189457/189457
+cts_r2 (whole recording): live identities 524810; C++ replay identical 524810/524810, Python replay identical 524810/524810
+  game_2to3: identity IDF1 live 89.2% (end-to-end 88.4%), Python on Kafka + OpenCV histograms 91.7%; switches 27 / 25
+  game_4to5: identity IDF1 live 77.7% (end-to-end 74.8%), Python on Kafka + OpenCV histograms 76.2%; switches 55 / 47
+cts_r3 (game): live identities 190287; C++ replay identical 190287/190287, Python replay identical 190287/190287
+cts_r3 (whole recording): live identities 524974; C++ replay identical 524974/524974, Python replay identical 524974/524974
+  game_2to3: identity IDF1 live 85.9% (end-to-end 85.4%), Python on Kafka + OpenCV histograms 86.2%; switches 39 / 40
+  game_4to5: identity IDF1 live 77.9% (end-to-end 75.6%), Python on Kafka + OpenCV histograms 74.6%; switches 43 / 45
+mean over 6 run-minutes: live 82.2% (range 74%-89%), end-to-end 80.4%; Python reference 82.3%; labelled people detected 97.7%

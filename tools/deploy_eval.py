@@ -1,4 +1,4 @@
-"""End-to-end identity accuracy of the deployment variants (INT8, detector interval, no display; report section 6.1).
+"""End-to-end identity accuracy of the detector variants (INT8 detection thresholds, no display; report section 6.1).
 
 End-to-end = correctly identified labelled detections / all labelled detections, so people a variant fails to detect
 count as errors (identity IDF1 alone is computed on the labels the variant detected, carried over by box overlap).
@@ -15,13 +15,8 @@ import numpy as np
 
 from tools import ROOT
 
-GROUPS = {"FP16, every frame (with display)": ["mount_r1", "mount_r2", "mount_r3"],
-          "FP16, every frame, no display": ["nodisp_r1"],
-          "INT8, every frame": ["int8_r1", "int8_r2", "int8_r3"],
-          "INT8, every frame, detector threshold 0.1": ["int8t10_r1", "int8t10_r2", "int8t10_r3"],
-          "FP16, every 2nd frame": ["int1_r1", "int1_r2", "int1_r3"],
-          "FP16, every 3rd frame": ["int2_r1", "int2_r2", "int2_r3"],
-          "INT8, every 2nd frame": ["int8int1_r1", "int8int1_r2", "int8int1_r3"]}
+GROUPS = {"INT8, detector threshold 0.2 (nvinfer default)": ["s_int8_r1", "s_int8_r2", "s_int8_r3"],
+          "INT8, detector threshold 0.1": ["s_int8t10_r1", "s_int8t10_r2", "s_int8t10_r3"]}   # time-aligned clips
 MINUTES = ("game_2to3", "game_4to5")
 
 

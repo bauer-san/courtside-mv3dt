@@ -230,7 +230,12 @@ def main() -> None:
     gt = {}
     for name in ("game_2to3", "game_4to5"):
         gt.update(load_gt(name, run))
-    gt_frames = sorted({k[0] for k in gt})
+    from tools.gt_eval import frame_offsets
+    off = frame_offsets(run)   # time-aligned clips: one labelled moment's labels sit on a different frame per camera
+    moments = collections.defaultdict(list)
+    for k in gt:
+        moments[k[0] + off.get(k[1], 0)].append(k)
+    banner_at = {max(k[0] for k in ks): m for m, ks in moments.items()}   # once the moment's last frame has passed
     if args.live:   # which labelled team each automatic team (A/B) corresponds to: majority over the labelled moments
         all_keys = out_keys if args.still is None else live_output(run, 0, 10 ** 9)[2]
         votes = collections.Counter((label[k].split(":")[0], v.split(":")[0]) for k, v in gt.items()
@@ -278,17 +283,12 @@ def main() -> None:
     check = None                                             # (until frame, text)
     for f in range(args.start, args.end + 1):
         img = base.copy()
-        is_gt = f in gt_frames
-        wrong_keys, n_ok, n_all = set(), 0, 0
-        if is_gt:
-            for k, ident in gt.items():
-                if k[0] == f:
-                    n_all += 1
-                    if shown(label.get(k, "")) == ident and (out_keys is None or k in out_keys):
-                        n_ok += 1
-                    else:
-                        wrong_keys.add(k)
-            mm, ss = divmod(f // 30, 60)
+        ok_label = lambda k: shown(label.get(k, "")) == gt[k] and (out_keys is None or k in out_keys)
+        wrong_keys = {k for k in gt if k[0] == f and not ok_label(k)}
+        if f in banner_at:
+            ks = moments[banner_at[f]]
+            n_ok, n_all = sum(ok_label(k) for k in ks), len(ks)
+            mm, ss = divmod(banner_at[f] // 30, 60)
             check = (f + 45, f"labelled moment {mm}:{ss:02d}: {n_ok} of {n_all} labels correct")
         for cam, col_, row_ in GRID:
             ok, frame = caps[cam].read()
@@ -334,7 +334,7 @@ def main() -> None:
             p = court_xy(x, y)
             cv2.circle(img, p, z(6), c, -1, cv2.LINE_AA)
             tag(img, p[0] + z(7), p[1] + z(4), text(lab), c, 0.35)
-        mm, ss = divmod(f // 30, 60)
+        mm, ss = divmod((f + off.get("NL", 0)) // 30, 60)     # NL video time (aligned clips start later)
         cv2.putText(img, f"game clock {mm}:{ss:02d}  (frame {f})", (z(12), z(22)), cv2.FONT_HERSHEY_SIMPLEX, 0.55 * Z, INK, 1,
                     cv2.LINE_AA)
         if check and f <= check[0]:

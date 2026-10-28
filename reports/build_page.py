@@ -175,7 +175,7 @@ def main() -> None:
         "figures/idf1_by_config.png": idf1_chart(),
         "figures/loss_breakdown.png": loss_chart(),
         "figures/court_heatmap.png": photo("figures/court_heatmap.png", "Court heat maps of track events",
-                                           "Whole game, mount_r1, default tracker (team colour + jersey numbers). Rates are per player-minute; "
+                                           "Whole game, s_int8t10_r1, default tracker (team colour + jersey numbers). Rates are per player-minute; "
                                            "panels show occupancy, new identities, lost tracks, relinks, duplicate "
                                            "tracks, camera coverage, ground-truth switches and cross-camera "
                                            "disagreement."),
@@ -203,11 +203,11 @@ def main() -> None:
 <div class="eyebrow">Phase 7 report · 2026-10-27</div>
 <h1>Multi-camera basketball player tracking</h1>
 <div class="meta">Four cameras, DeepStream 9.1 MV3DT, RTX 3060 Ti; target device Jetson AGX Orin 64 GB or Orin Nano Super.
-Cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
+Time-aligned streams, INT8 detector, cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
 <div class="board">
 <div class="hl"><b>{d[1]}</b><span>identity IDF1, default pipeline (players reported by team + number)</span></div>
 <div><b>{mv[1]}</b><span>identity IDF1, MV3DT global IDs as delivered</span></div>
-<div><b>56 fps</b><span>per camera on the 3060 Ti with jersey reading (30 needed)</span></div>
+<div><b>95 fps</b><span>per camera on the 3060 Ti with jersey reading, INT8 (30 needed)</span></div>
 <div><b>{lo}-{hi}%</b><span>range of identity IDF1 per run and labelled minute (identical DeepStream runs)</span></div>
 </div>
 {nav}

@@ -1,9 +1,9 @@
 reports/figures/court_heatmap.png
 
 per player-minute            occupancy  new   lost  relink  dup-share
-  left-end third                 18.3    2.30  3.06   2.24     4.6%
-  centre third                   22.3    2.07  2.74   1.48     2.5%
-  right-end third                20.2    1.54  2.13   1.64     1.6%
-  within 1.5 m of a sideline      4.0    3.52  7.04   2.01     0.5%
-  within 1.5 m of a baseline      4.1    6.57  8.76   3.16     0.1%
-  interior (not near a line)     53.0    1.49  1.85   1.62     3.2%
+  left-end third                 18.2    1.43  2.31   1.48     3.4%
+  centre third                   22.0    1.18  1.68   1.95     1.1%
+  right-end third                20.2    1.39  2.42   2.03     2.3%
+  within 1.5 m of a sideline      3.6    3.04  6.63   2.76     0.2%
+  within 1.5 m of a baseline      4.2    3.58  5.49   3.10     0.1%
+  interior (not near a line)     53.0    1.08  1.55   1.66     2.5%

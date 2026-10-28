@@ -85,7 +85,7 @@ def coverage(cams: dict, xe, ye, zs=(0.0, 1.8)) -> np.ndarray:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run")
-    ap.add_argument("--max-frame", type=int, default=GAME_END)
+    ap.add_argument("--max-frame", type=int, help="default: the end of the game (gt_eval.game_end)")
     ap.add_argument("--cell", type=float, default=2.0)
     ap.add_argument("--min-occ", type=float, default=0.5)
     ap.add_argument("--no-numbers", action="store_true", help="court tracker without jersey numbers")
@@ -93,6 +93,9 @@ def main() -> None:
     ap.add_argument("--out", type=Path, default=ROOT / "gt" / "game_2to3" / "court_heatmap.png")
     args = ap.parse_args()
     run = Path(args.run) if Path(args.run).is_dir() else ROOT / "experiments" / args.run
+    if args.max_frame is None:
+        from tools.gt_eval import game_end
+        args.max_frame = game_end(run)
     cams = load_cameras(run / "camInfo_used")
     centres = {c: camera_centre(P) for c, P in cams.items()}
     p = WTParams(online_relink=True, use_numbers=not args.no_numbers)
@@ -170,11 +173,19 @@ def main() -> None:
     lab = labelled(args.gt, run)
     d = load_detections(run / "kafka.jsonl.gz")
     idx = {(int(f), str(c), str(g)): i for i, (f, c, g) in enumerate(zip(d["frame"], d["cam"], d["gid"]))}
-    ppl = collections.defaultdict(list)
+    from tools.gt_eval import frame_offsets
+    off = frame_offsets(run)        # time-aligned clips: each camera's labels of a moment sit on shifted frames
+    members = collections.defaultdict(list)
     for k, ident in lab.items():
         if k in idx:
-            i = idx[k]
-            ppl[(k[0], ident)].append((k[1], np.array([d["x"][i], d["y"][i]])))
+            members[(k[0] + off.get(k[1], 0), ident)].append(k)
+    ppl = collections.defaultdict(list)
+    for key, ks in members.items():
+        t = int(np.median([k[0] for k in ks]))      # each labelled camera track at the moment's median frame
+        for k in ks:
+            i = idx.get((t, k[1], k[2]))
+            if i is not None:
+                ppl[key].append((k[1], np.array([d["x"][i], d["y"][i]])))
     pts, dist = [], []
     for v in ppl.values():
         for a in range(len(v)):

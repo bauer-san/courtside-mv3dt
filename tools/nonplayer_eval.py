@@ -6,12 +6,13 @@ output (confirmed tracks, as sent in the per-frame messages): output at all, out
 also where they are (distance to the nearest court line, negative = outside), whether their track ever moves, and the
 body height estimated from the box (FL/FR, tools/appearance), as candidate cues for dropping seated people.
 
-  mount runs   Python reference, main causal configuration (world_tracker.track_default: stored bias, online team
+  other runs   Python reference, default configuration (world_tracker.track_default: stored bias, online team
                model, no spectator filter)
   ct3 runs     the live DeepStream output, replayed from its recorded inputs (identical to the live output)
 
-  python -m tools.nonplayer_eval mount_r1 mount_r2 mount_r3 ct3_r1 ct3_r2 ct3_r3 [--jobs 6] [--md out.md]
-  python -m tools.nonplayer_eval mount_r1 mount_r2 mount_r3 --no-seated   # without the seated-person rule (mount runs)
+  live runs    (runs with recorded court-tracker inputs, COURTTRACK=1) the live DeepStream output, replayed
+  python -m tools.nonplayer_eval s_int8t10_r1 s_int8t10_r2 s_int8t10_r3 cts_r1 cts_r2 cts_r3 [--jobs 6] [--md out.md]
+  python -m tools.nonplayer_eval s_int8t10_r1 --no-seated   # without the seated-person rule (Python reference runs)
 Also reports identity IDF1 per labelled minute (identity output), so a rule's cost on players is visible.
 """
 
@@ -103,12 +104,12 @@ def main() -> None:
     ap.add_argument("--no-seated", action="store_true", help="without the seated-person rule (mount runs only; the live runs "
                     "were filtered in the pipeline)")
     a = ap.parse_args()
-    mount = [r for r in a.runs if r.startswith("mount_")]
+    mount = [r for r in a.runs if not (ROOT / "experiments" / r / "courttrack_inputs.bin").exists()]   # Python reference
     others = {r: mount[(i + 1) % len(mount)] if mount else None for i, r in enumerate(mount)}
     with ProcessPoolExecutor(a.jobs, max_tasks_per_child=1) as ex:
         res = list(ex.map(job, [(r, others.get(r), None if a.no_seated else "default") for r in a.runs]))
     lines = []
-    for group, names in (("Python reference, main configuration (mount runs)", [r for r in a.runs if r in mount]),
+    for group, names in (("Python reference, default configuration", [r for r in a.runs if r in mount]),
                          ("Live in DeepStream", [r for r in a.runs if r not in mount])):
         rows = [x for r in res if r["run"] in names for x in r["rows"]]
         if not rows:

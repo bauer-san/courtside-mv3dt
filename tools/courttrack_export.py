@@ -37,7 +37,7 @@ from pathlib import Path
 
 import numpy as np
 
-from tools import GAME_END, ROOT
+from tools import ROOT
 from tools import world_tracker as wtm
 from tools.world_tracker import WTParams, identity_tracks, is_static_edge, track_run
 
@@ -220,7 +220,8 @@ def live(runs: list[Path]) -> None:
         names = {i: n for i, (n, _) in next(read_inputs(run / "courttrack_inputs.bin")).items()}
         cpp = {(k[0], names[k[1]], str(k[2])): v for k, v in cpp.items()}
         T, py = replay_inputs(run / "courttrack_inputs.bin")
-        for scope, last in (("game", GAME_END), ("whole recording", 10 ** 9)):
+        from tools.gt_eval import game_end
+        for scope, last in (("game", game_end(run)), ("whole recording", 10 ** 9)):
             kc = [k for k in set(lv) | set(cpp) if k[0] <= last]
             kp = [k for k in set(lv) | set(py) if k[0] <= last]
             same_c = sum(lv.get(k, "?") == cpp.get(k, "?") for k in kc)

@@ -2,7 +2,7 @@
 
 For each run, the court tracker runs in its main configuration (world_tracker.track_default) and every good crop's
 online label (A, B or none) is compared with the offline model's label (red, maroon, ref, other; a label needs
-p >= WTParams.team_min_p, as in the tracker), over the game (frames <= tools.GAME_END, 6:29). Online team
+p >= WTParams.team_min_p, as in the tracker), over the game (to 6:29, gt_eval.game_end; times in the original NL frames). Online team
 names are matched to colours by majority. Reported per period: crops of each colour given the other team's name,
 referee crops given a team name, and team names given to crops the offline model left unlabelled.
 
@@ -30,6 +30,10 @@ def check(run_name: str) -> list[str]:
     for k, (probs, _) in team_probs(run).items():
         best = max(probs, key=probs.get)
         offline[k] = best if best != "other" and probs[best] >= p_min else None
+    from tools.gt_eval import frame_offsets
+    nl = frame_offsets(run).get("NL", 0)   # time-aligned clips start later: report in the original NL frames
+    given = {(k[0] + nl, k[1], k[2]): v for k, v in given.items()}
+    offline = {(k[0] + nl, k[1], k[2]): v for k, v in offline.items()}
     keys = [k for k in given if k[0] <= GAME_END and k in offline]
     votes = collections.Counter((given[k], offline[k]) for k in keys if given[k] and offline[k] in ("red", "maroon"))
     colour = {}

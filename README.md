@@ -2,13 +2,14 @@
 
 Multi-camera basketball player tracking with NVIDIA DeepStream 9.1 Multi-View 3D Tracking (MV3DT) and a court-plane
 tracker that reports each player by identity (team + jersey number). Developed on Ubuntu 24.04 with an RTX 3060 Ti
-(8 GB, driver 580); the target is a Jetson (AGX Orin), so everything that runs live is causal.
+(8 GB, driver 580); the target is a Jetson (AGX Orin 64 GB or Orin Nano Super), so everything that runs live is
+causal. The default configuration: INT8 detector (threshold 0.1), no display, time-aligned camera streams.
 
 Results and the full write-up: [reports/phase7_report.md](reports/phase7_report.md).
 
 ![Live output: four camera views with player labels and the top-down court](docs/images/live_output.jpg)
 
-*The court tracker running inside DeepStream (one frame of the live output, 2:44 into the test game): each player
+*The court tracker running inside DeepStream (one frame of the live output, 2:45 into the test game): each player
 labelled by automatically found team (A/B) and jersey number, and their positions on the court. Faces, the crowd,
 signs and the floor logo are pixelated (`python -m tools.render_labels <run> --live --scale 1.5 --sanitize --still
 <frame>`).*
@@ -35,6 +36,11 @@ camera, valid for **1920 x 1080 undistorted** frames) is fitted with each pair h
 World frame: metres, origin at centre court, +x toward the right end, +y to the left when facing the right end, z up.
 Court size and markings: `tools/court.py`.
 
+**Time alignment:** the four recordings started up to 0.87 s apart. `datasets/gym_sync` holds clips cut so that frame
+n of every camera shows the same moment (`tools/make_clips.py --offsets NL=26,FL=13,NR=4`); the offsets were measured
+with `tools/sync_check.py` (camera shake from backboard hits, ball-rim contacts). A live system must batch the camera
+streams by capture timestamp.
+
 ## Setup
 
 - One-time host setup (needs sudo): `./scripts/install_nvidia_container_toolkit.sh`
@@ -60,7 +66,7 @@ Videos, model weights and TensorRT engines are never committed (see `.gitignore`
 | 5b. MV3DT on the court, headless | `./scripts/run_mv3dt.sh gym_60s c60_pnt` (also `gym_180s`, `gym_full`) |
 | 6. Variants (detectors, pose, tracker, association, topology, court filter) | `./scripts/phase6_variants.sh gym_60s c60 <variant ...>`, `./scripts/phase6_tracker_sweep.sh gym_60s t60 <step ...>` |
 | 7. Evaluation and report | `JOBS=8 ./scripts/phase8_reevaluate.sh` (every result table and figure), `python3 reports/build_page.py` (web page) |
-| 7b. Deployment variants (no display, INT8, detector interval) | `./scripts/phase7_deploy_variants.sh` |
+| 7b. Detector variants (INT8 thresholds; runs on the aligned clips) | `./scripts/phase7_deploy_variants.sh` |
 | 8. Court tracker inside DeepStream | `./scripts/build_court_app.sh`, then `./scripts/phase8_courttrack_live.sh` |
 
 ## Running
@@ -82,10 +88,9 @@ Don't edit `scripts/*.sh` while a run is using them (bash reads scripts as it go
 
 ## Court tracker
 
-- **Python reference:** `tools/world_tracker.py`. `track_default(run)` is the main configuration, causal as deployed:
-  automatic team colours (`tools/online_teams.py`), the camera bias stored in camInfo, no offline filters. Identity
-  output via `identity_tracks`. `track_run(run, WTParams(online_relink=True))` alone uses inputs prepared offline from
-  the whole recording (comparison only).
+- **Python reference:** `tools/world_tracker.py`. `track_default(run)` is the default configuration, causal as
+  deployed: automatic team colours (`tools/online_teams.py`), the camera bias stored in camInfo, no offline filters.
+  Identity output via `identity_tracks`.
 - **C++ port, used in DeepStream:** `apps/courttrack/` (`courttrack.cpp`, `online_teams.cpp`, probe
   `courttrack_probe.cpp`). `make -C apps/courttrack` builds `ct_replay`, which replays recorded inputs; the C++ and
   Python versions give identical output on the same inputs (`tools/courttrack_export.py`).
@@ -96,9 +101,9 @@ Hand-labelled identity ground truth for two minutes of the game is in `gt/game_2
 `labels/`; the labelling pages are private claude.ai artifacts). DeepStream runs are not repeatable, so results are
 averaged over several runs:
 
-- `python -m tools.multi_eval mount_r1 mount_r2 mount_r3 [--jobs 8]`: tracker configurations, paired by run and minute
+- `python -m tools.multi_eval s_int8t10_r1 s_int8t10_r2 s_int8t10_r3 [--jobs 8]`: identity accuracy per run and minute
 - `python -m tools.loss_breakdown ...`: where identity accuracy is lost
-- `python -m tools.causal_eval ...`: the main configuration's causal inputs vs offline counterparts
+- `python -m tools.sync_eval <runs>`: aligned vs unaligned clips (MV3DT and court tracker, cross-camera distances)
 - `python -m tools.team_label_check <runs>`: the online team labels crop by crop over the whole game
 - `python -m tools.nonplayer_eval ...`: spectators and other non-players in the output
 - `python -m tools.courttrack_export live <runs>`: runs made with `COURTTRACK=1` (replay checks and scores)

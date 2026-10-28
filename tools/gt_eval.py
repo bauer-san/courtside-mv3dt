@@ -47,6 +47,13 @@ def frame_offsets(run: Path) -> dict:
     return json.loads(m.read_text()).get("offsets", {}) if m.exists() else {}
 
 
+def game_end(run: Path) -> int:
+    """Last game frame of the run's clips (tools.GAME_END is in the original NL frames; a time-aligned dataset's clips
+    start later by their NL offset)."""
+    from tools import GAME_END
+    return GAME_END - frame_offsets(run).get("NL", 0)
+
+
 def remap(gt: dict, src: Path, dst: Path, step: int = 60, min_iou: float = 0.6) -> dict:
     """Carry labels made on run `src`'s detections over to run `dst` (other MV3DT ids): same moment and camera (the
     frame shifted by the datasets' per-camera offsets, if any), best box overlap >= min_iou."""

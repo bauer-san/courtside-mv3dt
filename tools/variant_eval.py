@@ -1,6 +1,6 @@
 """Detection-level comparison of pipeline variants (INT8 detector, detector interval, no display) with FP16 references.
 
-For each variant run against a reference run (FP16, detector every frame), on the game frames:
+For each variant run against a reference run (detector every frame), on the game frames:
   speed            fps per camera, GPU use and memory (tools/evaluate.perf)
   output frames    share of frames that carry any detections (a detector interval with MV3DT's visual tracker off
                    only outputs on detector frames)
@@ -18,24 +18,22 @@ from pathlib import Path
 
 import numpy as np
 
-from tools import GAME_END, ROOT
+from tools import ROOT
 from tools.appearance import load_boxes
 from tools.evaluate import inside, perf
-from tools.gt_eval import load_gt
+from tools.gt_eval import game_end, load_gt
 from tools.stitch import Params as StitchParams, ground_filter, load_cameras, load_detections
-
-MAX_FRAME = GAME_END
-
 
 def court_boxes(run: Path) -> dict:
     """(frame, cam) -> array of court-filtered boxes [l, t, r, b] (game frames)."""
+    last = game_end(run)
     d = load_detections(run / "kafka.jsonl.gz")
     keep = ground_filter(d, load_cameras(run / "camInfo_used"), inside, StitchParams(margin=0.3))
     ok = {(int(f), str(c), str(g)) for f, c, g in zip(d["frame"][keep], d["cam"][keep], d["gid"][keep])
-          if f <= MAX_FRAME}
+          if f <= last}
     out = collections.defaultdict(list)
     for (cam, fr), v in load_boxes(run, 1).items():
-        if fr > MAX_FRAME:
+        if fr > last:
             continue
         for g, l, t, r, b in v:
             if (fr, cam, str(g)) in ok:
@@ -103,7 +101,7 @@ def main() -> None:
     rp = lambda r: Path(r) if Path(r).is_dir() else ROOT / "experiments" / r
     ref_run = rp(args.ref)
     ref = court_boxes(ref_run)
-    n_frames = MAX_FRAME + 1
+    n_frames = game_end(ref_run) + 1
     lines = ["| run | config | fps/camera | GPU use | GPU mem | frames with output | box recall vs ref | "
              "box precision vs ref | label recall |", "|---|---|---|---|---|---|---|---|---|"]
     for r in args.runs:
@@ -120,7 +118,7 @@ def main() -> None:
                      f"{p.get('gpu_mem_peak_mib', float('nan')) / 1024:.2f} GB | {frames_out:.0%} | "
                      f"{c['box_recall']:.1%} | {c['box_precision']:.1%} | {lr:.1%} |")
         print(lines[-1], flush=True)
-    md = f"### Detection-level comparison with {args.ref} (FP16, detector every frame), game frames\n\n" + "\n".join(lines) + "\n"
+    md = f"### Detection-level comparison with {args.ref}, game frames\n\n" + "\n".join(lines) + "\n"
     print(md)
     if args.md:
         args.md.write_text(md)

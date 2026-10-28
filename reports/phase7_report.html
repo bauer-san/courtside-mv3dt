@@ -71,24 +71,26 @@ svg.chart .row:hover .hit { fill: var(--accent-soft); }
 <div class="eyebrow">Phase 7 report · 2026-10-27</div>
 <h1>Multi-camera basketball player tracking</h1>
 <div class="meta">Four cameras, DeepStream 9.1 MV3DT, RTX 3060 Ti; target device Jetson AGX Orin 64 GB or Orin Nano Super.
-Cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
+Time-aligned streams, INT8 detector, cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
 <div class="board">
-<div class="hl"><b>80.6%</b><span>identity IDF1, default pipeline (players reported by team + number)</span></div>
-<div><b>52.4%</b><span>identity IDF1, MV3DT global IDs as delivered</span></div>
-<div><b>56 fps</b><span>per camera on the 3060 Ti with jersey reading (30 needed)</span></div>
-<div><b>71-90%</b><span>range of identity IDF1 per run and labelled minute (identical DeepStream runs)</span></div>
+<div class="hl"><b>79.9%</b><span>identity IDF1, default pipeline (players reported by team + number)</span></div>
+<div><b>61.5%</b><span>identity IDF1, MV3DT global IDs as delivered</span></div>
+<div><b>95 fps</b><span>per camera on the 3060 Ti with jersey reading, INT8 (30 needed)</span></div>
+<div><b>70-89%</b><span>range of identity IDF1 per run and labelled minute (identical DeepStream runs)</span></div>
 </div>
 <nav class="toc" aria-label="Sections"><a href="#1-summary">1. Summary</a><a href="#2-setup">2. Setup</a><a href="#3-pipeline">3. Pipeline</a><a href="#4-results">4. Results</a><a href="#5-calibration">5. Calibration</a><a href="#6-deployment-options-measured-on-the-3060-ti-estimated-for-jetson">6. Deployment options: measured on the 3060 Ti, estimated for Jetson</a><a href="#7-camera-placement-and-quantity">7. Camera placement and quantity</a><a href="#8-limitations">8. Limitations</a><a href="#9-next-steps-prioritised">9. Next steps (prioritised)</a><a href="#10-how-to-reproduce">10. How to reproduce</a></nav>
 </header><main class="doc"><p>Four-camera basketball court, NVIDIA DeepStream 9.1 Multi-View 3D Tracking (MV3DT), evaluated on a Dell XPS 8960
-(RTX 3060 Ti 8 GB) with deployment on a Jetson (AGX Orin 64 GB or Orin Nano Super) in mind. Date: 2026-10-27.</p>
-<p>This report describes the pipeline's default configuration. It is causal, as it runs live: every input is available
-while the game is played, and nothing needs an operator. All results come from DeepStream runs on the final
-calibration, which places every camera on its physical mount (section 5): three runs (<code>mount_r1</code>-<code>mount_r3</code>) for the
-main results, three more with the court tracker running inside DeepStream (<code>ct3_r1</code>-<code>ct3_r3</code>, section 4.6). All
-court-tracker figures are regenerated with the final code by <code>scripts/phase8_reevaluate.sh</code>.</p>
+(RTX 3060 Ti 8 GB) with deployment on a Jetson (AGX Orin 64 GB or Orin Nano Super) in mind. Date: 2026-10-28.</p>
+<p>This report describes the pipeline's default configuration: INT8 detector, no display, time-aligned camera streams
+(section 2.4). It is causal, as it runs live: every input is available while the game is played, and nothing needs an
+operator. All results come from DeepStream runs on the final calibration, which places every camera on its physical
+mount (section 5): three runs (<code>s_int8t10_r1</code>-<code>r3</code>) for the main results, three more with the court tracker running
+inside DeepStream (<code>cts_r1</code>-<code>r3</code>, section 4.6). All court-tracker figures are regenerated with the final code by
+<code>scripts/phase8_reevaluate.sh</code>.</p>
 <h2 id="1-summary">1. Summary</h2>
-<p><strong>Recommendation.</strong> Use DeepStream for detection, per-camera tracking and jersey reading. Then run the <em>court tracker</em>
-developed here on its output and report each player by identity (team + jersey number), not by track ID.</p>
+<p><strong>Recommendation.</strong> Use DeepStream for detection, per-camera tracking and jersey reading, on time-aligned camera
+streams. Then run the <em>court tracker</em> developed here on its output and report each player by identity (team + jersey
+number), not by track ID.</p>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -99,27 +101,31 @@ developed here on its output and report each player by identity (team + jersey n
 <tbody>
 <tr>
 <td><strong>Court tracker, player identities</strong> (Python reference)</td>
-<td><strong>80.6 % (71-90 %)</strong></td>
+<td><strong>79.9 % (70-89 %)</strong></td>
 </tr>
 <tr>
 <td>The same, running live inside DeepStream in C++ (3 further runs, section 4.6)</td>
-<td>80.0 % (71-87 %)</td>
+<td>82.2 % (74-89 %)</td>
 </tr>
 </tbody>
 </table></div>
 <p>IDF1 here is the share of labelled detections that end up on the output unit matched to the right player. It's
 measured on hand-labelled ground truth (section 2.3). For reference, MV3DT's own global IDs, as DeepStream delivers
-them, score 52.4 % (38-61 %) on the same ground truth.</p>
+them, score 61.5 % (59-66 %) on the same runs.</p>
 <ul>
 <li>
-<p><strong>Speed on the 3060 Ti:</strong> the DeepStream pipeline with jersey reading runs at about 56 fps per camera (real time
-    is 30). The court tracker takes about 1.9 ms per frame on one CPU core in Python, and about 0.1 ms in its C++ port,
-    which gives identical output (section 4.5).</p>
+<p><strong>Speed on the 3060 Ti:</strong> the pipeline with jersey reading runs at 94-97 fps per camera (real time is 30), and at
+    85-90 fps with the court tracker inside it and its evaluation logs. The court tracker itself takes about 0.08 ms per
+    frame in its C++ port (2.1 ms in Python), with identical output (section 4.5).</p>
 </li>
 <li>
-<p><strong>Running live inside DeepStream (section 4.6):</strong> the C++ court tracker and the automatic team model run as part of
-    the pipeline and send one Kafka message per frame with every player's identity and court position. The pipeline
-    still runs at about 58 fps per camera.</p>
+<p><strong>Running live inside DeepStream (section 4.6):</strong> the C++ court tracker and the automatic team model send one Kafka
+    message per frame with every player's identity and court position.</p>
+</li>
+<li>
+<p><strong>The camera streams must be time-aligned (section 2.4).</strong> The recordings started up to 0.87 s apart. Aligning them
+    raised identity accuracy from 77.0 % to 79.9 % and MV3DT's own from 54.8 % to 61.5 %; with the offsets doubled the
+    court tracker fell to 72.8 %. A live system must align the streams by timestamp.</p>
 </li>
 <li>
 <p><strong>No operator:</strong> the two teams are found automatically from torso colour as the game runs and named A and B. From
@@ -127,40 +133,30 @@ them, score 52.4 % (38-61 %) on the same ground truth.</p>
     position correction is measured once at installation.</p>
 </li>
 <li>
-<p><strong>Seated spectators are dropped before tracking (section 4.7):</strong> 4 % of their detections reach the output, none
-    with an identity, while 99 % of player detections do.</p>
+<p><strong>Seated spectators are dropped before tracking (section 4.7):</strong> 6 % of their detections reach the output, 2-3 %
+    with an identity, while all but 0.4 % of player detections do.</p>
 </li>
 <li>
 <p><strong>Still not good enough for reliable per-player statistics.</strong> About 20 % of player time is credited to the wrong
-    player or no player. Most of that is a <em>wrong</em> identity (about 15 %), not a missing one (about 4.5 %; section 4.2).</p>
+    player or no player. Most of that is a <em>wrong</em> identity (about 17 %), not a missing one (about 4 %; section 4.2).</p>
 </li>
 <li>
 <p><strong>Results vary from run to run.</strong> Repeated DeepStream runs of the same configuration give different MV3DT IDs and
-    jersey reads. Per-minute identity IDF1 ranges from 71 % to 90 %, so every number here is an average over three
-    runs.</p>
+    jersey reads. Per-minute identity IDF1 ranges from 70 % to 89 %, so every number here is an average over three runs.</p>
 </li>
 <li>
-<p><strong>Measured deployment options (section 6):</strong></p>
-<ul>
-<li>
-<p><strong>INT8 detector:</strong> 55 % faster than FP16 on the 3060 Ti, at 6-7 points lower end-to-end identity accuracy
-(4-5 points with a lower detection threshold).</p>
+<p><strong>Detector threshold (section 6.1):</strong> INT8 with a detection threshold of 0.1 instead of nvinfer's default 0.2
+    detects 97.2 % of labelled people instead of 94.2 %, for 77.7 % end-to-end identity accuracy instead of 74.2 %.</p>
 </li>
 <li>
-<p><strong>Detector every 2nd or 3rd frame:</strong> costs 14-28 points with MV3DT and barely speeds anything up, so it's ruled
-out.</p>
+<p><strong>Jetson (estimated from these measurements, section 6.2):</strong> four cameras at 30 fps look borderline to feasible on
+    an AGX Orin 64 GB, and not feasible on an Orin Nano Super.</p>
 </li>
 <li>
-<p><strong>Jetson (estimated from these measurements):</strong> four cameras at 30 fps look borderline to feasible on an AGX
-Orin 64 GB with INT8, and not feasible on an Orin Nano Super.</p>
-</li>
-</ul>
-</li>
-<li>
-<p><strong>Camera placement matters more than the number of cameras.</strong> Moving the same four cameras from the backboards to
-    high corner mounts would raise the share of the court seen by two cameras at jersey-readable size, from clearly
-    different directions, from 20 % to about 80 % (simulated). Six high wall cameras would reach about 96 %, but
-    probably need more compute than the Orin Nano Super offers (section 7).</p>
+<p><strong>Camera placement (section 7):</strong> moving the same four cameras from the backboards to high corner mounts would
+    raise the share of the play seen by two cameras at jersey-readable size, from clearly different directions, from
+    23 % to about 87 %, while framing both baskets for highlight clips (simulated). Six high wall cameras would reach
+    98-99 % with two highlight views per basket, but need more compute than these estimates allow at 30 fps.</p>
 </li>
 </ul>
 <h2 id="2-setup">2. Setup</h2>
@@ -183,17 +179,9 @@ Orin 64 GB with INT8, and not feasible on an Orin Nano Super.</p>
     far half.</p>
 </li>
 <li>
-<p><strong>Video:</strong> the cameras record 4K; this pipeline uses a 1920 × 1080, 30 fps, undistorted transcode of about 15
-    minutes. <strong>0:00-6:29 is a game</strong> (red vs maroon, 2 referees); after that comes a warm-up, which is out of scope.</p>
-</li>
-<li>
-<p><strong>The four recordings are not time-aligned</strong> (GitHub issue #3, <code>tools/sync_check.py</code>): at the same frame number,
-    FL, NR and FR show what NL shows 13, 22 and 26 frames later (433, 733 and 867 ms), most likely because the four
-    RTSP recordings started one after another. Measured from ball hits on a backboard, which shake both cameras on that
-    mount at the same moment, and a ball-rim contact matched frame by frame between NL and FL; an independent right-rim
-    contact confirms the chain, and the offsets are the same at 2:13, 4:30, 5:24 and 6:07. Each camera's own timing is
-    intact (NR records at 29.83 fps and the transcode keeps it in step). <strong>All results in this report use these
-    unaligned clips.</strong> Time-aligned clips are under evaluation (section 9).</p>
+<p><strong>Video:</strong> the cameras record 4K; this pipeline uses 1920 × 1080, 30 fps, undistorted transcodes of about 15
+    minutes, cut so that the four streams are time-aligned (section 2.4). <strong>0:00-6:29 is a game</strong> (red vs maroon,
+    2 referees); after that comes a warm-up, which is out of scope. Times in this report are those of the NL video.</p>
 </li>
 <li>
 <p><strong>NL lost packets:</strong> six times during the game (0:48-5:22), NL's 4K stream lost a packet, which leaves about 0.9 s
@@ -212,7 +200,8 @@ a full identity, across about 10 people per minute (players from both teams, inc
 <li><strong>Labelling:</strong> done by the user on a web page, with the tracker's guess shown but not counted.</li>
 <li>
 <p><strong>Scoring:</strong> labels attach to detection keys (frame, camera, box), so any tracker that uses the same detections can
-    be scored. They carry over to new DeepStream runs by box overlap.</p>
+    be scored. They carry over to new DeepStream runs by box overlap, with each camera's frame offset applied
+    (<code>tools/gt_eval.py</code>).</p>
 </li>
 <li>
 <p><strong>Refs:</strong> both referees were labelled only as "ref", so referees aren't scored.</p>
@@ -220,9 +209,91 @@ a full identity, across about 10 people per minute (players from both teams, inc
 <li><strong>Limit:</strong> both minutes have been used for development decisions, so there is no untouched held-out data left
     (section 8).</li>
 </ul>
+<h3 id="24-time-alignment-of-the-camera-streams">2.4 Time alignment of the camera streams</h3>
+<p>The four cameras were recorded over RTSP into separate files, and the recordings didn't start at the same moment. At
+the same frame number of the original transcodes, FL, NR and FR show what NL shows 13, 22 and 26 frames later (433,
+733 and 867 ms). The clips used in this report start that many frames apart (<code>datasets/gym_sync</code>; NL from frame 26,
+FL 13, NR 4, FR 0), so frame n of every camera shows the same moment.</p>
+<p><strong>How the offsets were measured</strong> (<code>tools/sync_check.py</code>):</p>
+<ul>
+<li>
+<p><strong>Camera shake:</strong> a ball hitting a backboard shakes both cameras on that mount at the same moment. The global image
+    shift between consecutive frames, cross-correlated between the two cameras on a mount, gives NL-FR 26 frames (two
+    hits) and NR-FL 9 frames (two hits).</p>
+</li>
+<li>
+<p><strong>Ball-rim contact:</strong> the two mounts are linked by a ball entering the left rim, matched frame by frame in NL and FL
+    (13 frames). A right-rim contact seen by NR and FR confirms the chain (4 frames, as predicted).</p>
+</li>
+<li>
+<p><strong>No drift:</strong> the offsets are the same at 2:13, 4:30, 5:24 and 6:07. Each camera's own timing is intact (NR records
+    at 29.83 fps, the others at 30.00; the transcodes place frames by timestamp, so NR stays in step).</p>
+</li>
+<li>
+<p><strong>Not usable:</strong> matching the players' own motion between cameras gives biased offsets, because position errors
+    that depend on running direction look like time shifts. Only image events are used.</p>
+</li>
+</ul>
+<p><strong>Why it matters.</strong> MV3DT associates people across cameras by comparing their positions at the same frame number,
+and the court tracker fuses the cameras' floor positions frame by frame. With the streams out of step, both compare
+different moments. The same INT8 pipeline was run on the original clips, on the aligned ones, and on clips with the
+offsets doubled (<code>tools/sync_eval.py</code>, <code>reports/sync_eval.md</code>):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Clips</th>
+<th>Largest offset between cameras with overlapping views</th>
+<th>Runs</th>
+<th>Court tracker identity IDF1</th>
+<th>End-to-end</th>
+<th>MV3DT's own IDs</th>
+<th>Foot-point distance, same person and frame (NL-FR / FL-FR / NL-FL)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Aligned</strong> (default)</td>
+<td>0</td>
+<td>3</td>
+<td><strong>79.9 %</strong> (70-89 %)</td>
+<td><strong>77.7 %</strong></td>
+<td>61.5 %</td>
+<td>0.21 / 0.36 / 0.51 m</td>
+</tr>
+<tr>
+<td>Original</td>
+<td>433 ms (NL-FL, FL-FR)</td>
+<td>3</td>
+<td>77.0 % (68-85 %)</td>
+<td>75.4 %</td>
+<td>54.8 %</td>
+<td>0.56 / 0.41 / 0.60 m</td>
+</tr>
+<tr>
+<td>Offsets doubled</td>
+<td>867 ms (NL-FL, FL-FR)</td>
+<td>1</td>
+<td>72.8 % (62-84 %)</td>
+<td>70.8 %</td>
+<td>52.5 %</td>
+<td>0.63 / 0.58 / 0.69 m</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Tolerance.</strong> With up to about 0.4 s between cameras that see the same area, the court tracker lost about 3 points
+of identity accuracy and MV3DT about 7; at about 0.9 s the court tracker lost about 7. The court tracker tolerates
+offsets better than MV3DT because identities rest mostly on jersey numbers and team colour, which each camera
+supplies on its own; positions, speeds and distances, however, are averaged across cameras that show different
+moments. Differences of 2-3 points are at the edge of the run-to-run spread, and the doubled-offset case is a single
+run.</p>
+<p><strong>For a live system:</strong> the cameras need synchronised clocks (NTP or hardware sync), and DeepStream must batch the
+four streams by capture timestamp, not by arrival order.</p>
 <h2 id="3-pipeline">3. Pipeline</h2>
 <ol>
-<li><strong>Detection:</strong> PeopleNet 2.6.3 (FP16, 960 × 544, every frame, batch of 4 cameras).</li>
+<li>
+<p><strong>Detection:</strong> PeopleNet 2.6.3, INT8 (TensorRT calibration made with the deployment TensorRT version), 960 × 544,
+    every frame, batch of 4 cameras, detection threshold 0.1 (section 6.1).</p>
+</li>
 <li>
 <p><strong>Court filter</strong> (custom probe): drops detections whose floor point lies outside the court plus 0.75 m (benches,
     crowd, scorer's table).</p>
@@ -238,19 +309,17 @@ a full identity, across about 10 people per minute (players from both teams, inc
 <li>a text detector (PP-OCRv4 det, 384 × 480) finds text boxes</li>
 <li>a digit recogniser (PP-OCRv4 rec, 48 × 64) reads 1-2 digit numbers</li>
 </ul>
-<p>About 14.5 reads per second over the game; 94.5-94.9 % of reads checked against the ground truth are correct.</p>
 </li>
 <li>
 <p><strong>Court tracker</strong> (C++ probe inside DeepStream, <code>apps/courttrack</code>; Python reference <code>tools/world_tracker.py</code>). A
     court-plane Kalman tracker over MV3DT's foot points, fully causal: its output is final as soon as it's made.</p>
 <ul>
 <li>
-<p><strong>camera position bias:</strong> each camera's foot points carry a constant offset (mainly NL −0.20 m and NR +0.18 m
+<p><strong>camera position bias:</strong> each camera's foot points carry a constant offset (mainly NL −0.24 m and NR +0.24 m
  along the court). It is measured once at installation from detections of the same person in two cameras
  (<code>tools/calib_bias.py</code>), stored in each camera's calibration file as <code>courtTrackerBias_m</code>, and subtracted before
- tracking. It is stable across runs (NL −0.18 to −0.21 m, NR +0.17 to +0.20 m on three runs) and must be
- re-measured whenever the calibration changes. The stored values were measured on three runs (<code>ct2_r1</code>-<code>ct2_r3</code>)
- that are not used for any result here.</p>
+ tracking. The stored values were measured on two runs (<code>s_int8cal_r1</code>, <code>r2</code>) that are not used for any result
+ here, and must be re-measured whenever the calibration or the detector changes.</p>
 </li>
 <li>
 <p><strong>seated spectators:</strong> detections whose box bottom and MV3DT foot point disagree in the way seated people do
@@ -285,9 +354,9 @@ a full identity, across about 10 people per minute (players from both teams, inc
 <li>
 <p><strong>later models</strong> start from the previous centres, and the team names A and B stay with the clusters nearest the
  previous team centres. The read-rate rule decides again only if that match is ambiguous (another cluster within
- twice the squared distance), which didn't happen during the game after the first model in any run here. So identities (A:23)
- stay stable, and a change in who gets read (for example livelier spectators near the end of a game) can't move
- a team name to another cluster.</p>
+ twice the squared distance), which didn't happen during the game after the first model in any run here. So
+ identities (A:23) stay stable, and a change in who gets read (for example livelier spectators near the end of a
+ game) can't move a team name to another cluster.</p>
 </li>
 <li>
 <p>everything outside the two team clusters, referees included, gets no team label</p>
@@ -310,31 +379,31 @@ a full identity, across about 10 people per minute (players from both teams, inc
 </thead>
 <tbody>
 <tr>
-<td>mount_r1</td>
-<td>56.0</td>
-<td>87 %</td>
-<td>2.75 GB</td>
+<td>s_int8t10_r1</td>
+<td>95.7</td>
+<td>88 %</td>
+<td>2.28 GB</td>
 </tr>
 <tr>
-<td>mount_r2</td>
-<td>56.6</td>
+<td>s_int8t10_r2</td>
+<td>93.8</td>
 <td>89 %</td>
-<td>2.68 GB</td>
+<td>2.40 GB</td>
 </tr>
 <tr>
-<td>mount_r3</td>
-<td>57.4</td>
+<td>s_int8t10_r3</td>
+<td>96.9</td>
 <td>89 %</td>
-<td>2.60 GB</td>
+<td>2.42 GB</td>
 </tr>
 </tbody>
 </table></div>
-<p>These figures include the on-screen display, the tiler and writing an annotated video, none of which a deployment
-needs. Without them the same pipeline runs at 61 fps per camera; with an INT8 detector, at 95 fps (section 6.1).</p>
+<p>No display or annotated video (<code>reports/deploy_variants_detection.md</code>). With the court tracker running inside the
+pipeline and its evaluation logs written to this PC's hard disk: 85.3-90.0 fps per camera (section 4.6).</p>
 <ul>
 <li><strong>Jersey reader, per crop:</strong> text detector 0.36 ms, recogniser 0.16 ms (TensorRT FP16).</li>
-<li><strong>Court tracker:</strong> 1.9 ms per frame mean, 4.7 ms p99, on one core of an i7-13700 (Python). The C++ port runs at
-    0.08-0.11 ms per frame on the same inputs (section 4.5).</li>
+<li><strong>Court tracker:</strong> 2.1 ms per frame on one core of an i7-13700 (Python). The C++ port takes 0.08 ms per frame on
+    the same inputs (section 4.5).</li>
 </ul>
 <h3 id="42-accuracy">4.2 Accuracy</h3>
 <div class="tbl"><table>
@@ -347,40 +416,44 @@ needs. Without them the same pipeline runs at 61 fps per camera; with an INT8 de
 <tbody>
 <tr>
 <td>Identity IDF1</td>
-<td><strong>80.6 %</strong> (mean); per run and minute 87, 75, 90, 75, 85, 71 %</td>
+<td><strong>79.9 %</strong> (mean); per run and minute 83, 81, 86, 70, 89, 71 %</td>
+</tr>
+<tr>
+<td>End-to-end (correctly identified / all labelled detections)</td>
+<td>77.7 %; 97.2 % of labelled people detected</td>
 </tr>
 <tr>
 <td>Identity switches</td>
-<td>26 per labelled minute (mean)</td>
+<td>28 per labelled minute (mean)</td>
 </tr>
 </tbody>
 </table></div>
-<p>The first labelled minute (2:00-3:00) scores 85-90 %, the second (4:00-5:00) 71-75 %, in every run.</p>
-<figure class="fig"><svg class="chart" viewBox="0 0 760 246" role="img" aria-label="Where identity IDF1 is still lost"><line class="grid" x1="330.0" y1="4" x2="330.0" y2="218"/><text class="tick" x="330.0" y="234" text-anchor="middle">0</text><line class="grid" x1="402.0" y1="4" x2="402.0" y2="218"/><text class="tick" x="402.0" y="234" text-anchor="middle">2</text><line class="grid" x1="474.0" y1="4" x2="474.0" y2="218"/><text class="tick" x="474.0" y="234" text-anchor="middle">4</text><line class="grid" x1="546.0" y1="4" x2="546.0" y2="218"/><text class="tick" x="546.0" y="234" text-anchor="middle">6</text><line class="grid" x1="618.0" y1="4" x2="618.0" y2="218"/><text class="tick" x="618.0" y="234" text-anchor="middle">8</text><line class="grid" x1="690.0" y1="4" x2="690.0" y2="218"/><text class="tick" x="690.0" y="234" text-anchor="middle">10</text><g class="row hl"><title>wrong number, carried from another player: 9.4%</title><rect class="hit" x="0" y="8" width="760" height="34"/><text class="lab" x="318" y="29.0" text-anchor="end">wrong number, carried from another player</text><rect class="bar" x="330" y="16" width="338.4" height="18" rx="3"/><text class="val" x="676.4" y="29.0">9.4%</text></g><g class="row hl"><title>wrong number, other: 4.8%</title><rect class="hit" x="0" y="42" width="760" height="34"/><text class="lab" x="318" y="63.0" text-anchor="end">wrong number, other</text><rect class="bar" x="330" y="50" width="172.8" height="18" rx="3"/><text class="val" x="510.8" y="63.0">4.8%</text></g><g class="row hl"><title>unidentified: readable crops and reads, identity not established: 3.5%</title><rect class="hit" x="0" y="76" width="760" height="34"/><text class="lab" x="318" y="97.0" text-anchor="end">unidentified: readable crops and reads, identity not established</text><rect class="bar" x="330" y="84" width="126.0" height="18" rx="3"/><text class="val" x="464.0" y="97.0">3.5%</text></g><g class="row hl"><title>wrong team (right number): 0.9%</title><rect class="hit" x="0" y="110" width="760" height="34"/><text class="lab" x="318" y="131.0" text-anchor="end">wrong team (right number)</text><rect class="bar" x="330" y="118" width="32.4" height="18" rx="3"/><text class="val" x="370.4" y="131.0">0.9%</text></g><g class="row hl"><title>missed: 0.6%</title><rect class="hit" x="0" y="144" width="760" height="34"/><text class="lab" x="318" y="165.0" text-anchor="end">missed</text><rect class="bar" x="330" y="152" width="21.6" height="18" rx="3"/><text class="val" x="359.6" y="165.0">0.6%</text></g><g class="row hl"><title>unidentified: readable crops, no usable reads: 0.4%</title><rect class="hit" x="0" y="178" width="760" height="34"/><text class="lab" x="318" y="199.0" text-anchor="end">unidentified: readable crops, no usable reads</text><rect class="bar" x="330" y="186" width="14.4" height="18" rx="3"/><text class="val" x="352.4" y="199.0">0.4%</text></g></svg><figcaption>Share of labelled detections not credited to the right player (%), mean of 3 runs × 2 minutes. The remaining 80.5 % are correct.</figcaption></figure>
+<figure class="fig"><svg class="chart" viewBox="0 0 760 246" role="img" aria-label="Where identity IDF1 is still lost"><line class="grid" x1="330.0" y1="4" x2="330.0" y2="218"/><text class="tick" x="330.0" y="234" text-anchor="middle">0</text><line class="grid" x1="402.0" y1="4" x2="402.0" y2="218"/><text class="tick" x="402.0" y="234" text-anchor="middle">2</text><line class="grid" x1="474.0" y1="4" x2="474.0" y2="218"/><text class="tick" x="474.0" y="234" text-anchor="middle">4</text><line class="grid" x1="546.0" y1="4" x2="546.0" y2="218"/><text class="tick" x="546.0" y="234" text-anchor="middle">6</text><line class="grid" x1="618.0" y1="4" x2="618.0" y2="218"/><text class="tick" x="618.0" y="234" text-anchor="middle">8</text><line class="grid" x1="690.0" y1="4" x2="690.0" y2="218"/><text class="tick" x="690.0" y="234" text-anchor="middle">10</text><g class="row hl"><title>wrong number, carried from another player: 7.6%</title><rect class="hit" x="0" y="8" width="760" height="34"/><text class="lab" x="318" y="29.0" text-anchor="end">wrong number, carried from another player</text><rect class="bar" x="330" y="16" width="273.6" height="18" rx="3"/><text class="val" x="611.6" y="29.0">7.6%</text></g><g class="row hl"><title>wrong number, other: 7.1%</title><rect class="hit" x="0" y="42" width="760" height="34"/><text class="lab" x="318" y="63.0" text-anchor="end">wrong number, other</text><rect class="bar" x="330" y="50" width="255.6" height="18" rx="3"/><text class="val" x="593.6" y="63.0">7.1%</text></g><g class="row hl"><title>unidentified: readable crops and reads, identity not established: 3.3%</title><rect class="hit" x="0" y="76" width="760" height="34"/><text class="lab" x="318" y="97.0" text-anchor="end">unidentified: readable crops and reads, identity not established</text><rect class="bar" x="330" y="84" width="118.8" height="18" rx="3"/><text class="val" x="456.8" y="97.0">3.3%</text></g><g class="row hl"><title>wrong team (right number): 1.9%</title><rect class="hit" x="0" y="110" width="760" height="34"/><text class="lab" x="318" y="131.0" text-anchor="end">wrong team (right number)</text><rect class="bar" x="330" y="118" width="68.4" height="18" rx="3"/><text class="val" x="406.4" y="131.0">1.9%</text></g><g class="row hl"><title>missed: 0.4%</title><rect class="hit" x="0" y="144" width="760" height="34"/><text class="lab" x="318" y="165.0" text-anchor="end">missed</text><rect class="bar" x="330" y="152" width="14.4" height="18" rx="3"/><text class="val" x="352.4" y="165.0">0.4%</text></g><g class="row hl"><title>unidentified: readable crops, no usable reads: 0.1%</title><rect class="hit" x="0" y="178" width="760" height="34"/><text class="lab" x="318" y="199.0" text-anchor="end">unidentified: readable crops, no usable reads</text><rect class="bar" x="330" y="186" width="3.6" height="18" rx="3"/><text class="val" x="341.6" y="199.0">0.1%</text></g></svg><figcaption>Share of labelled detections not credited to the right player (%), mean of 3 runs × 2 minutes. The remaining 79.6 % are correct.</figcaption></figure>
 <ul>
 <li>
-<p><strong>Wrong number carried over from another player (9.4 %):</strong> a track swaps players and keeps the old identity until
+<p><strong>Wrong number carried over from another player (7.6 %):</strong> a track swaps players and keeps the old identity until
     enough new reads arrive. Reads are sparse: a given player is read only every several seconds.</p>
 </li>
 <li>
-<p><strong>Wrong number, other (4.8 %):</strong> misreads, and identities established from too few reads.</p>
+<p><strong>Wrong number, other (7.1 %):</strong> misreads, and identities established from too few reads.</p>
 </li>
 <li>
-<p><strong>Unidentified (3.9 %):</strong> almost all of it (3.5 %) on tracks with readable crops and reads that never reached an
+<p><strong>Unidentified (3.4 %):</strong> almost all of it (3.3 %) on tracks with readable crops and reads that never reached an
     identity.</p>
 </li>
 <li>
-<p><strong>Wrong team with the right number (0.9 %):</strong> on the numbers both teams wear (1 and 3).</p>
+<p><strong>Wrong team with the right number (1.9 %):</strong> on the numbers both teams wear (1 and 3).</p>
 </li>
-<li><strong>Missed by the tracker (0.6 %):</strong> small; part of it is the seated-spectator rule (section 4.7). Detection and court
+<li><strong>Missed by the tracker (0.4 %):</strong> small; part of it is the seated-spectator rule (section 4.7). Detection and court
     filtering aren't the bottleneck.</li>
 </ul>
-<p><strong>Run-to-run variation.</strong> Two DeepStream runs of the same configuration share 98.7 % of their boxes, but the MV3DT
-IDs, per-camera tracklets and the jersey reads attached to them come out differently, most likely because the order
-in which cameras exchange tracker messages varies. Every number here is therefore a mean over three runs.</p>
+<p><strong>Run-to-run variation.</strong> Repeated DeepStream runs of the same configuration detect nearly the same boxes (97.6-98.3 %
+of one run's boxes are found again in another), but the MV3DT IDs, per-camera tracklets and the jersey reads attached
+to them come out differently, most likely because the order in which cameras exchange tracker messages varies. Every
+number here is therefore a mean over three runs.</p>
 <h3 id="43-where-on-the-court">4.3 Where on the court</h3>
-<figure class="fig plate"><img src="figures/court_heatmap.png" alt="Court heat maps of track events" loading="lazy"><figcaption>Whole game, mount_r1, default tracker (team colour + jersey numbers). Rates are per player-minute; panels show occupancy, new identities, lost tracks, relinks, duplicate tracks, camera coverage, ground-truth switches and cross-camera disagreement.</figcaption></figure>
-<p>Over the whole game (mount_r1):</p>
+<figure class="fig plate"><img src="figures/court_heatmap.png" alt="Court heat maps of track events" loading="lazy"><figcaption>Whole game, s_int8t10_r1, default tracker (team colour + jersey numbers). Rates are per player-minute; panels show occupancy, new identities, lost tracks, relinks, duplicate tracks, camera coverage, ground-truth switches and cross-camera disagreement.</figcaption></figure>
+<p>Over the whole game (s_int8t10_r1):</p>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -393,33 +466,33 @@ in which cameras exchange tracker messages varies. Every number here is therefor
 <tbody>
 <tr>
 <td>Interior</td>
-<td>1.5</td>
-<td>1.9</td>
-<td>3.2 %</td>
+<td>1.1</td>
+<td>1.6</td>
+<td>2.5 %</td>
 </tr>
 <tr>
 <td>Within 1.5 m of a sideline</td>
-<td>3.5</td>
-<td>7.0</td>
-<td>0.5 %</td>
+<td>3.0</td>
+<td>6.6</td>
+<td>0.2 %</td>
 </tr>
 <tr>
 <td>Within 1.5 m of a baseline</td>
-<td>6.6</td>
-<td>8.8</td>
+<td>3.6</td>
+<td>5.5</td>
 <td>0.1 %</td>
 </tr>
 <tr>
 <td>Left-end third</td>
+<td>1.4</td>
 <td>2.3</td>
-<td>3.1</td>
-<td>4.6 %</td>
+<td>3.4 %</td>
 </tr>
 <tr>
 <td>Right-end third</td>
-<td>1.5</td>
-<td>2.1</td>
-<td>1.6 %</td>
+<td>1.4</td>
+<td>2.4</td>
+<td>2.3 %</td>
 </tr>
 </tbody>
 </table></div>
@@ -429,48 +502,48 @@ in which cameras exchange tracker messages varies. Every number here is therefor
     there, and often only one camera sees them.</p>
 </li>
 <li>
-<p><strong>Ends:</strong> the left end is somewhat worse than the right end.</p>
+<p><strong>Ends:</strong> the two ends are similar.</p>
 </li>
 </ul>
 <h3 id="44-team-labels">4.4 Team labels</h3>
 <p>The online team model's labels were checked crop by crop over the whole game against reference colour labels (a
 colour clustering of the whole game with clusters named by hand, used only for this check; <code>tools/team_label_check.py</code>,
-<code>reports/team_label_check.txt</code>). Six runs: the three mount runs (Python) and the three <code>ct3</code> runs (Python reference).</p>
+<code>reports/team_label_check.txt</code>). Six runs: the three main runs and the three <code>cts</code> runs (Python reference).</p>
 <ul>
 <li><strong>Teams:</strong> maroon was A and red B in every run.</li>
 <li>
-<p><strong>First minute:</strong> no labels before the first model at 0:30. Between 0:30 and 1:00, 12-23 % of red crops were
-    labelled A; between 1:00 and 2:00, up to 29 crops per run.</p>
+<p><strong>First minute:</strong> no labels before the first model at 0:30. Between 0:30 and 1:00, 5-12 % of red crops were
+    labelled A; between 1:00 and 2:00, up to 4 crops per run.</p>
 </li>
 <li>
-<p><strong>2:00 to the end of the game (6:29):</strong> no crop got the other team's name, and at most 7 referee crops per run got
+<p><strong>2:00 to the end of the game (6:29):</strong> no crop got the other team's name, and at most 9 referee crops per run got
     a team label.</p>
 </li>
 <li>
-<p><strong>Unchecked:</strong> the model also gives team names to about 5,400-6,500 crops per run that the reference left
+<p><strong>Unchecked:</strong> the model also gives team names to about 5,600-6,700 crops per run that the reference left
     unlabelled, mostly A. It hasn't been checked whether those are players or people beside the court.</p>
 </li>
 <li>
 <p><strong>Assumption:</strong> the first model's read-rate rule assumes players' numbers are read clearly more often than anyone
-    else's shirt in the first 30 s of a game. From 2:00 to the end of the game the team clusters got reads on 2.3-4.6 %
-    of detections; the third cluster usually much less (median 0.3-2.0 % per run), but in one run up to 4.1 %. That is
-    why later models keep the team names on their clusters instead of applying the rule again.</p>
+    else's shirt in the first 30 s of a game. From 2:00 to the end of the game the team clusters got reads on 2.2-4.6 %
+    of detections, the third cluster on a median of 0.4-1.1 % (at most 2.1 %).</p>
 </li>
 </ul>
 <h3 id="45-c-port-of-the-court-tracker">4.5 C++ port of the court tracker</h3>
 <p><code>apps/courttrack</code> is a C++ port of the court tracker (<code>courttrack.cpp</code>) and of the online team model
-(<code>online_teams.cpp</code>), for use inside the DeepStream pipeline. Both were checked by feeding them the exact per-frame
-inputs of the Python version (recorded with <code>tools/courttrack_export.py</code>, replayed with <code>apps/courttrack/ct_replay</code>):</p>
+(<code>online_teams.cpp</code>), for use inside the DeepStream pipeline. Both were checked by replaying the exact per-frame
+inputs recorded in the live runs (<code>apps/courttrack/ct_replay</code> and the Python reference, <code>tools/courttrack_export.py
+live</code>):</p>
 <ul>
 <li>
-<p><strong>Same output:</strong> on mount_r1-r3, all of about 516,000-517,000 detection identities per run are identical to the
-    Python version's, as are identity IDF1 and switch counts on both labelled minutes. This needs the colour statistics
-    summed in a fixed order, fused multiply-add disabled in the C++ builds (<code>-ffp-contract=off</code>, which matters on the
-    Jetson's ARM CPU) and NumPy's percentile formula matched exactly.</p>
+<p><strong>Same output:</strong> on <code>cts_r1</code>-<code>r3</code>, the C++ and the Python replays reproduce all of about 525,000-529,000 live
+    detection identities per run (the whole recording). This needs the colour statistics summed in a fixed order, fused
+    multiply-add disabled in the C++ builds (<code>-ffp-contract=off</code>, which matters on the Jetson's ARM CPU) and NumPy's
+    percentile formula matched exactly.</p>
 </li>
 <li>
-<p><strong>Speed:</strong> 0.08-0.11 ms per frame on one core of the i7, against 1.9 ms for the Python version. The team model's
-    re-clustering every 5 s takes up to about 6 ms.</p>
+<p><strong>Speed:</strong> 0.08 ms per frame on one core of the i7 (replay of <code>cts_r1</code>), against 2.1 ms for the Python version.
+    The slowest frames, 3.5-4.8 ms, are the team model's re-clustering every 5 s.</p>
 </li>
 </ul>
 <h3 id="46-running-inside-deepstream">4.6 Running inside DeepStream</h3>
@@ -499,7 +572,7 @@ inputs of the Python version (recorded with <code>tools/courttrack_export.py</co
     Python reference can replay.</p>
 </li>
 </ul>
-<p><strong>Checked on three full-game runs</strong> (<code>ct3_r1</code>-<code>ct3_r3</code>, FP16, no display):</p>
+<p><strong>Checked on three full-game runs</strong> (<code>cts_r1</code>-<code>r3</code>):</p>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -510,74 +583,73 @@ inputs of the Python version (recorded with <code>tools/courttrack_export.py</co
 <tbody>
 <tr>
 <td>C++ and Python replays of the recorded inputs</td>
-<td>identical to the live output over the game (all of about 190,000 detection identities per run) ¹</td>
+<td>identical to the live output (all of about 525,000-529,000 detection identities per run)</td>
 </tr>
 <tr>
 <td>Identity IDF1, live</td>
-<td><strong>80.0 %</strong> (71-87 %); end-to-end 79.1 % (98.8 % of labelled people detected)</td>
+<td><strong>82.2 %</strong> (74-89 %); end-to-end 80.4 % (97.7 % of labelled people detected)</td>
 </tr>
 <tr>
 <td>Python reference on the same runs (Kafka output, OpenCV histograms)</td>
-<td>79.1 %</td>
+<td>82.3 %</td>
 </tr>
 <tr>
 <td>Pipeline speed with the court tracker</td>
-<td>57.5-58.2 fps per camera, with the evaluation logs written to this PC's hard disk</td>
+<td>85.3-90.0 fps per camera, with the evaluation logs written to this PC's hard disk</td>
 </tr>
 <tr>
 <td>Court tracker + team model, in the pipeline</td>
-<td>1.1 ms mean, about 11 ms p99, 55-63 ms max per frame</td>
+<td>0.88-0.89 ms mean, about 9 ms p99, 54-63 ms max per frame</td>
 </tr>
 <tr>
 <td>Torso histograms, in the pipeline</td>
-<td>2.7 ms mean per four-camera batch (every 3rd frame)</td>
+<td>1.7 ms mean per four-camera batch (every 3rd frame)</td>
+</tr>
+<tr>
+<td>Kafka messages</td>
+<td>26,935 per run, none failed</td>
 </tr>
 </tbody>
 </table></div>
-<p>¹ These runs were recorded before the team-name rule of section 3 (names stay with their clusters) was added. During
-the game it made no difference; in the warm-up after it, the current code's replays differ from the recorded output
-of two runs from 8:05 and 11:17 on.</p>
 <ul>
 <li>
-<p><strong>Live vs Python reference:</strong> the same score (80.0 % against 79.1 %; 2 run-minutes better, 4 within half a point).
-    The live pipeline computes the torso histograms differently (NV12 frames scaled to small tiles, against OpenCV on
-    full-resolution frames); the team model learns from whichever it gets.</p>
+<p><strong>Live vs Python reference:</strong> the same score (82.2 % against 82.3 %; 2 run-minutes better, 2 worse, 2 within half
+    a point). The live pipeline computes the torso histograms differently (NV12 frames scaled to small tiles, against
+    OpenCV on full-resolution frames); the team model learns from whichever it gets.</p>
 </li>
 <li>
-<p><strong>Duplicate ids:</strong> MV3DT occasionally gives two different people the same object id in one camera and frame
-    (70-200 times per game, several metres apart). Everything downstream is keyed by (frame, camera, id), so only the
-    first is kept.</p>
+<p><strong>Duplicate ids:</strong> MV3DT occasionally gives two different people the same object id in one camera and frame.
+    Everything downstream is keyed by (frame, camera, id), so only the first is kept.</p>
 </li>
 <li>
-<p><strong>Speed in the pipeline:</strong> the same computation takes about 0.1 ms per frame when replayed alone, against 1.1 ms in
-    the pipeline, presumably because it shares the CPU with DeepStream's threads (not investigated). The slowest frames
+<p><strong>Speed in the pipeline:</strong> the same computation takes 0.08 ms per frame when replayed alone, against 0.9 ms in the
+    pipeline, presumably because it shares the CPU with DeepStream's threads (not investigated). The slowest frames
     are the team model's re-clustering, which runs on the probe's streaming thread. On a Jetson, this is the part to
     watch: it can be moved to a worker thread with its result applied a fixed number of frames later, which keeps the
     output reproducible.</p>
 </li>
 <li>
-<p><strong>Logging:</strong> writing the evaluation logs to this PC's hard disk stalls for up to 3.6 s at times. The logs are for
-    evaluation only and would be off in deployment. The Kafka send is timed together with them (2.4-2.6 ms per frame
-    on average, including the stalls).</p>
+<p><strong>Logging:</strong> the evaluation logs are written to this PC's hard disk, which stalls at times; they would be off in
+    deployment.</p>
 </li>
 </ul>
 <h3 id="47-seated-spectators">4.7 Seated spectators</h3>
-<p>The labels include 160 crops of people who aren't players (453 detections in the three mount runs). Almost all of
-them are spectators in the front-row seats, seen by FR (414 of the 453), which looks across the court at them
+<p>The labels include crops of people who aren't players (336 detections in the three main runs). Almost all of them are
+spectators in the front-row seats, seen by FR (309 of the 336), which looks across the court at them
 (<code>tools/nonplayer_eval.py</code>, <code>reports/nonplayer_output.md</code>).</p>
 <ul>
 <li>
 <p><strong>The problem:</strong> their boxes end at the line, so the court filter keeps them. MV3DT's body model assumes a standing
-    person, so it places their feet about 2 m inside the court (median), among the players, where they could take
-    players' identities.</p>
+    person, so it places their feet about 2 m inside the court, among the players, where they could take players'
+    identities.</p>
 </li>
 <li>
 <p><strong>The rule:</strong> for a seated person, the box bottom projected onto the floor lands at their seat, at or just outside
-    the line, while MV3DT puts the feet 2 m further in. For players the two agree to about 0.3 m. A detection is dropped
+    the line, while MV3DT puts the feet 2 m further in. For players the two agree closely. A detection is dropped
     before tracking when its two foot points are more than 1 m apart <em>and</em> its box-bottom point is less than 0.6 m
-    inside the lines (boxes cut by the bottom image edge are never dropped). On the labelled detections this catches
-    96 % of the spectators and 0.5 % of the players. No pose model is needed; both points are already available, in
-    Python and in the DeepStream probe.</p>
+    inside the lines (boxes cut by the bottom image edge are never dropped). On the labelled detections of the main runs
+    this drops 93.5 % of the spectators' detections and 0.4 % of the players'. No pose model is needed; both points are
+    already available, in Python and in the DeepStream probe.</p>
 </li>
 </ul>
 <div class="tbl"><table>
@@ -591,16 +663,16 @@ them are spectators in the front-row seats, seen by FR (414 of the 453), which l
 </thead>
 <tbody>
 <tr>
-<td>Python reference (mount runs)</td>
-<td>4 %</td>
-<td>0 %</td>
-<td>99 %</td>
+<td>Python reference (main runs)</td>
+<td>6 % (19 of 336)</td>
+<td>3 % (10)</td>
+<td>99.6 %</td>
 </tr>
 <tr>
-<td>Live in DeepStream (<code>ct3</code> runs)</td>
-<td>4 %</td>
-<td>0.2 % (1 detection)</td>
-<td>99 %</td>
+<td>Live in DeepStream (<code>cts</code> runs)</td>
+<td>6 % (21 of 336)</td>
+<td>2 % (6)</td>
+<td>99.6 %</td>
 </tr>
 </tbody>
 </table></div>
@@ -674,125 +746,57 @@ them are spectators in the front-row seats, seen by FR (414 of the 453), which l
 </ul>
 <figure class="fig plate"><img src="figures/fl_calibration_before_after.jpg" alt="FL camera court overlay before and after re-tracing" loading="lazy"><figcaption>FL camera. Top: original calibration with its hand traces (red). Bottom: lines re-traced from the image; the projected court (yellow) sits on the paint, and the 3-point arc (magenta, not used in the fit) lands on the painted arc.</figcaption></figure>
 <p><strong>Position consistency between cameras.</strong> For the same labelled person at the same moment, MV3DT foot points from two
-cameras differ by a median 0.37 m (18 % of pairs over 0.9 m; 1,114 pairs over three runs). The error runs mostly
-along each camera's line of sight. It comes from estimating feet out of boxes (posture, boxes cut by the frame edge),
-not from the calibration.</p>
+cameras differ by a median 0.32-0.52 m per run and minute (11-29 % of pairs over 0.9 m; 986 pairs over the three main
+runs; <code>tools/xcam.py</code>). The error runs mostly along each camera's line of sight (spread 0.63 m along it, 0.42 m
+across). It comes from estimating feet out of boxes (posture, boxes cut by the frame edge), not from the calibration.</p>
 <h2 id="6-deployment-options-measured-on-the-3060-ti-estimated-for-jetson">6. Deployment options: measured on the 3060 Ti, estimated for Jetson</h2>
-<h3 id="61-measured-int8-detector-interval-and-no-display">6.1 Measured: INT8, detector interval and no display</h3>
-<p>Before any of these is proposed for a Jetson, each was run on the 3060 Ti (three full DeepStream runs per variant
-unless noted, all without on-screen display or annotated video) and scored on the ground truth. <strong>End-to-end</strong>
-counts correctly identified labelled detections over <em>all</em> labelled detections, so people a variant fails to detect
-count as errors.</p>
+<h3 id="61-measured-int8-detection-threshold">6.1 Measured: INT8 detection threshold</h3>
+<p>Both thresholds were run three times on the time-aligned clips, without display, and scored on the ground truth.
+<strong>End-to-end</strong> counts correctly identified labelled detections over <em>all</em> labelled detections, so people the detector
+misses count as errors (<code>reports/deploy_end_to_end.md</code>, <code>reports/deploy_variants_detection.md</code>).</p>
 <div class="tbl"><table>
 <thead>
 <tr>
-<th>Variant</th>
+<th>INT8 detector</th>
 <th>fps per camera</th>
 <th>GPU use</th>
 <th>Labelled people detected</th>
+<th>Identity IDF1 (detected)</th>
 <th>End-to-end identity</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>FP16, detector every frame, with display (mount_r1-r3)</td>
-<td>56.7</td>
-<td>88 %</td>
-<td>98.8 %</td>
-<td>79.7 % (70-89 %)</td>
+<td>threshold 0.2 (nvinfer default)</td>
+<td>95.6-96.2</td>
+<td>88-89 %</td>
+<td>94.2 %</td>
+<td>78.5 %</td>
+<td>74.2 % (57-88 %)</td>
 </tr>
 <tr>
-<td>FP16, detector every frame (1 run)</td>
-<td>61.0</td>
-<td>87 %</td>
-<td>99.0 %</td>
-<td>78.5 % (71-86 %)</td>
-</tr>
-<tr>
-<td><strong>INT8, detector every frame</strong></td>
-<td><strong>94.6</strong></td>
-<td>88 %</td>
-<td>94.7 %</td>
-<td><strong>72.3 %</strong> (63-83 %)</td>
-</tr>
-<tr>
-<td>INT8, detector every frame, detection threshold 0.1 instead of 0.2</td>
-<td>93.2 ¹</td>
-<td>90 %</td>
-<td>97.9 %</td>
-<td>74.9 % (63-83 %)</td>
-</tr>
-<tr>
-<td>FP16, detector every 2nd frame</td>
-<td>75.1</td>
-<td>76 %</td>
-<td>82.9 %</td>
-<td>65.2 % (60-69 %)</td>
-</tr>
-<tr>
-<td>FP16, detector every 3rd frame</td>
-<td>45.7</td>
-<td>68 %</td>
-<td>66.6 %</td>
-<td>51.6 % (40-63 %)</td>
-</tr>
-<tr>
-<td>INT8, detector every 2nd frame</td>
-<td>92.4</td>
-<td>76 %</td>
-<td>75.4 %</td>
-<td>59.7 % (57-61 %)</td>
+<td><strong>threshold 0.1 (default here)</strong></td>
+<td>93.8-96.9</td>
+<td>88-89 %</td>
+<td>97.2 %</td>
+<td>79.9 %</td>
+<td><strong>77.7 %</strong> (67-88 %)</td>
 </tr>
 </tbody>
 </table></div>
-<p>¹ Mean of two runs. The third ran at 65 fps while other CPU-heavy jobs ran on the same PC, so its speed is
-not comparable; its accuracy is included.</p>
-<p>Full tables: <code>reports/deploy_end_to_end.md</code>, <code>reports/deploy_variants_detection.md</code>, <code>reports/deploy_idf1_*.md</code>.</p>
 <ul>
 <li>
-<p><strong>No display:</strong> about 8 % faster (61 vs 57 fps per camera) with identical output. Assumed for every embedded
-    configuration below.</p>
+<p><strong>The lower threshold</strong> finds more of the labelled people at the same speed, and the people it adds are identified
+    about as well as the rest, so the end-to-end gain (3.5 points) comes mostly from detection.</p>
 </li>
 <li>
-<p><strong>INT8 detector:</strong></p>
-<ul>
-<li><strong>Speed:</strong> 55 % faster than FP16 (95 vs 61 fps per camera).</li>
-<li>
-<p><strong>Accuracy:</strong> 6-7 points lower end-to-end (72.3 % vs 78.5-79.7 %). INT8 detects about 4 % fewer labelled
-people (players 93.4 % vs 98.7 %, non-players 70.8 % vs 94.4 %; <code>reports/deploy_int8_by_category.md</code>).</p>
+<p><strong>Calibration:</strong> NVIDIA's published INT8 calibration file was made with an older TensorRT (10.3), which names the
+    activation layers differently; with it, most layers fell back to full precision. The runs here use a calibration
+    made with the deployment TensorRT version (10.16) on 400 frames from the video (<code>tools/int8_calibrate.py</code>). A Jetson
+    needs a calibration made with its own TensorRT version, and the camera bias re-measured with it (section 3).</p>
 </li>
 <li>
-<p><strong>Lower detection threshold:</strong> lowering it from 0.2 to 0.1 recovers most of the missed people (97.9 % detected,
-players 96.9 %), and part of the accuracy: end-to-end 74.9 % against 72.3 %, with identity IDF1 on detected
-labels about the same (76.5 % vs 76.3 %). So missed detections explain part of INT8's loss, not all of it.
-INT8 boxes also sit differently: only 88-89 % of them match an FP16 box (IoU ≥ 0.5), against 98.6 % between two
-FP16 runs. That suggests box placement, which feeds the floor positions, as a further cause. Not adopted yet; both
-are being investigated (GitHub issue #1).</p>
-</li>
-<li>
-<p><strong>Calibration:</strong> NVIDIA's published calibration file was made with an older TensorRT (10.3), which names the
-activation layers differently. With it, most layers fell back to full precision and the detector was slower than
-FP16. The runs above use a calibration made with the deployment TensorRT version (10.16) on 400 frames from the
-video (<code>tools/int8_calibrate.py</code>). A Jetson needs a calibration made with its own TensorRT version.</p>
-</li>
-</ul>
-</li>
-<li>
-<p><strong>Detector every 2nd or 3rd frame (DeepStream <code>interval</code>): not usable with MV3DT.</strong></p>
-<ul>
-<li><strong>Accuracy:</strong> it costs 14-28 points end-to-end against the three FP16 runs.</li>
-<li>
-<p><strong>Speed:</strong> it barely helps (every 3rd frame is even slower than every frame). GPU use falls while speed doesn't
-rise, so the bottleneck moves to MV3DT's own tracking work.</p>
-</li>
-<li>
-<p><strong>Output rate:</strong> with MV3DT's visual tracker off, positions come out only on detector frames.</p>
-</li>
-<li><strong>Tracker changes needed:</strong> MV3DT drops a new track the first time it misses a detection, so the runs needed a
-longer early-termination window (3 frames for every 2nd frame, 4 for every 3rd), and the court tracker's
-frame-counting rules had to be scaled to the detection rate.</li>
-</ul>
-<p>NVIDIA's MV3DT configurations always detect on every frame.</p>
+<p><strong>INT8 accuracy</strong> is being investigated further (GitHub issue #1).</p>
 </li>
 </ul>
 <h3 id="62-estimated-for-agx-orin-64-gb-and-orin-nano-super">6.2 Estimated for AGX Orin 64 GB and Orin Nano Super</h3>
@@ -860,7 +864,7 @@ spec sheets before buying.</p>
 <div class="tbl"><table>
 <thead>
 <tr>
-<th>Configuration (detector every frame, no display)</th>
+<th>Configuration (INT8, detector every frame, no display)</th>
 <th>3060 Ti (measured)</th>
 <th>AGX Orin 64 GB (estimate)</th>
 <th>Orin Nano Super (estimate)</th>
@@ -868,25 +872,19 @@ spec sheets before buying.</p>
 </thead>
 <tbody>
 <tr>
-<td>FP16: fps per camera with 4 cameras</td>
-<td>61</td>
-<td>17-24</td>
-<td>8-12</td>
-</tr>
-<tr>
-<td>INT8: fps per camera with 4 cameras</td>
+<td>fps per camera with 4 cameras</td>
 <td>95</td>
 <td><strong>27-38</strong></td>
 <td><strong>12-19</strong></td>
 </tr>
 <tr>
-<td>INT8: fps per camera with 6 cameras</td>
+<td>fps per camera with 6 cameras</td>
 <td>63</td>
 <td>18-25</td>
 <td>8-13</td>
 </tr>
 <tr>
-<td>INT8: GPU share of one 30 fps camera</td>
+<td>GPU share of one 30 fps camera</td>
 <td>7 %</td>
 <td>17-25 %</td>
 <td>35-56 %</td>
@@ -895,17 +893,13 @@ spec sheets before buying.</p>
 </table></div>
 <p><strong>What this means:</strong></p>
 <ul>
-<li>
-<p><strong>Orin Nano Super:</strong> four cameras at 30 fps don't look feasible, even with INT8. Detecting every 2nd frame was
-    ruled out in 6.1. What remains:</p>
-<ul>
+<li><strong>Orin Nano Super:</strong> four cameras at 30 fps don't look feasible. What remains:<ul>
 <li>two cameras</li>
-<li>or a lower camera frame rate. Running the cameras at 15 fps, with every frame detected, is a different thing
-from a detector interval and <strong>is untested</strong>.</li>
+<li>or a lower camera frame rate. Running the cameras at 15 fps, with every frame detected, <strong>is untested</strong>.</li>
 </ul>
 </li>
 <li>
-<p><strong>AGX Orin 64 GB:</strong> four cameras at 30 fps with INT8 look borderline to feasible.</p>
+<p><strong>AGX Orin 64 GB:</strong> four cameras at 30 fps look borderline to feasible.</p>
 <ul>
 <li><strong>Six cameras at 30 fps</strong> don't look feasible on the GPU alone.</li>
 <li>
@@ -913,13 +907,13 @@ from a detector interval and <strong>is untested</strong>.</li>
 this model must be measured.</p>
 </li>
 <li>
-<p><strong>4K decoding:</strong> four 4K streams for the hybrid jersey reading (section 7.3) are within its decoder, not the
-Orin Nano Super's.</p>
+<p><strong>4K decoding:</strong> four 4K streams for jersey reading or highlight clips (section 7) are within its decoder, not
+the Orin Nano Super's.</p>
 </li>
 </ul>
 </li>
 <li>
-<p><strong>Court tracker:</strong> inside the pipeline on the 3060 Ti PC it takes 1.1 ms per frame on average, with p99 about 11 ms
+<p><strong>Court tracker:</strong> inside the pipeline on the 3060 Ti PC it takes 0.9 ms per frame on average, with p99 about 9 ms
     and occasional frames up to 63 ms (the team model's re-clustering; section 4.6). The Orin's cores are slower, so
     the worst frames could exceed a 33 ms frame period. That doesn't drop frames by itself, but it needs measuring on
     the device; moving the re-clustering to a worker thread is the fix if needed. Finished tracks also need pruning to
@@ -928,6 +922,9 @@ Orin Nano Super's.</p>
 <li>
 <p><strong>Brokers:</strong> MV3DT exchanges messages over MQTT between its per-camera trackers; on a single device the broker runs
     locally. Kafka is only needed if metadata leaves the device.</p>
+</li>
+<li>
+<p><strong>Time alignment:</strong> the streams must be batched by capture timestamp (section 2.4).</p>
 </li>
 </ul>
 <p><strong>Recommendation.</strong></p>
@@ -944,8 +941,9 @@ Orin Nano Super's.</p>
 </ul>
 <h2 id="7-camera-placement-and-quantity">7. Camera placement and quantity</h2>
 <p>The current cameras sit at backboard height and see players mostly from the side. That is the main reason tracks
-swap in close encounters (section 4.2). This section compares candidate layouts with a camera-layout simulator
-(<code>tools/camera_layout.py</code>) and sets them against compute.</p>
+swap in close encounters (section 4.2). The 4K streams may also be used to cut highlight clips, so the cameras must
+cover where the action happens, not just the floor. This section compares candidate layouts with a camera-layout
+simulator (<code>tools/camera_layout.py</code>) and sets them against compute.</p>
 <h3 id="71-method">7.1 Method</h3>
 <ul>
 <li>
@@ -965,13 +963,23 @@ triangulate positions and separate players who overlap in one view.</p>
 </ul>
 </li>
 <li>
-<p><strong>Validation:</strong> for the current cameras, real detection boxes measure 0.87-1.02 times the predicted standing height
-    (median per camera, mount_r1, game frames; FL lowest). So the model's pixel sizes are realistic, if somewhat
+<p><strong>Where the action is:</strong> every floor cell is weighted by the time players spent there in the game (court-tracker
+    positions of s_int8t10_r1). "Share of the action" counts where play happened; "area" counts the floor equally.</p>
+</li>
+<li>
+<p><strong>Highlight framing:</strong> per basket, a camera frames the scene if players' feet and heads within 3 m of the rim and
+    the ball up to 1.5 m above the rim are all in its image. Reported with the rim's width in pixels on the camera's 4K
+    frame and the view: end-on (less than 30° from the court's long axis), corner, or sideline (more than 60°).</p>
+</li>
+<li>
+<p><strong>Validation:</strong> for the current cameras, real detection boxes measure 0.87-1.01 times the predicted standing height
+    (median per camera, s_int8t10_r1, game frames; FL lowest). So the model's pixel sizes are realistic, if somewhat
     generous for FL.</p>
 </li>
 <li>
-<p><strong>Fair comparison:</strong> each new camera's lens (50-95° horizontal) and aim point are chosen by a search that maximises
-    the area seen by two readable cameras at least 45° apart. Existing cameras stay as calibrated.</p>
+<p><strong>Choice of lenses and aims:</strong> each new camera's lens (50-95° horizontal) and aim point are chosen by a search that
+    maximises the share of the action seen by two readable cameras at least 45° apart, plus a credit for framing each
+    basket (and for a second view of it from another direction). Existing cameras stay as calibrated.</p>
 </li>
 <li>
 <p><strong>Venue assumptions, to be replaced by measurements:</strong> walls 2 m beyond the lines, wall mounts up to 6 m high. Room
@@ -985,122 +993,118 @@ triangulate positions and separate players who overlap in one view.</p>
 <tr>
 <th>Layout (mounts 6 m high)</th>
 <th>Streams</th>
-<th>≥2 readable views, ≥45° apart</th>
-<th>≥3 readable views</th>
-<th>No readable view</th>
-<th>Median look-down / shadow</th>
+<th>≥2 readable views ≥45° apart (area / action)</th>
+<th>No readable view (area / action)</th>
+<th>Baskets framed for highlights (view, rim width in 4K)</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>A. Current: 4 on the backboards</td>
 <td>4</td>
-<td>20 %</td>
-<td>0 %</td>
-<td>6 %</td>
-<td>15° / 9.2 m</td>
+<td>20 % / 23 %</td>
+<td>6 % / 1 %</td>
+<td>each by one far camera, end-on, 98-99 px</td>
 </tr>
 <tr>
 <td>E. Keep the 2 far backboard cameras, move 2 to the sideline walls at half court</td>
 <td>4</td>
-<td>65 %</td>
-<td>35 %</td>
-<td>0 %</td>
-<td>20° / 6.1 m</td>
+<td>57 % / 81 %</td>
+<td>3 % / 0 %</td>
+<td>each end-on 98-99 px + corner 73-74 px</td>
 </tr>
 <tr>
-<td><strong>C. 4 high in the corners</strong> (lenses about 60°, aimed across the court)</td>
+<td><strong>C. 4 high in the corners</strong></td>
 <td><strong>4</strong></td>
-<td><strong>78 %</strong></td>
-<td>53 %</td>
-<td>9 %</td>
-<td>26° / 4.4 m</td>
+<td><strong>64 % / 84 %</strong></td>
+<td>5 % / 3 %</td>
+<td>each sideline 134-143 px + end-on 69 px</td>
 </tr>
 <tr>
 <td>B. Current 4 + 2 on the sideline walls at half court</td>
 <td>6</td>
-<td>70 %</td>
-<td>53 %</td>
-<td>0 %</td>
-<td>30° / 4.0 m</td>
+<td>61 % / 84 %</td>
+<td>2 % / 0 %</td>
+<td>each end-on 98-99 px + corner 74 px</td>
 </tr>
 <tr>
 <td>D. 4 corners + 2 on the sideline walls at half court</td>
 <td>6</td>
-<td>93 %</td>
-<td>69 %</td>
-<td>1 %</td>
-<td>27° / 4.3 m</td>
+<td>85 % / 96 %</td>
+<td>2 % / 1 %</td>
+<td>each sideline 134 px + end-on 57-69 px</td>
 </tr>
 <tr>
-<td><strong>F. 4 on the sideline walls at the quarter lines + 1 per baseline wall</strong> (lenses 50-70°)</td>
+<td><strong>F. 4 on the sideline walls at the quarter lines + 1 per baseline wall</strong></td>
 <td><strong>6</strong></td>
-<td><strong>96 %</strong></td>
-<td>64 %</td>
-<td>0 %</td>
-<td>28° / 4.1 m</td>
+<td><strong>88 % / 99 %</strong></td>
+<td>4 % / 0 %</td>
+<td>each sideline 121 px + corner or end-on 63-77 px</td>
 </tr>
 </tbody>
 </table></div>
 <p>The table and figure are regenerated by <code>python -m tools.camera_layout</code> into <code>reports/camera_layouts.md</code> and
 <code>reports/figures/camera_layouts.png</code>.</p>
+<ul>
+<li>
+<p><strong>Highlights cost some tracking coverage with four cameras:</strong> aimed for tracking alone (no highlight credit in the
+    search, <code>HL_WEIGHT = 0</code>), the four corner cameras reach 94 % of the action with two well-separated views, but frame
+    neither basket; aimed to frame both baskets too, they reach 84 %. With six cameras the cost disappears (layout F:
+    99 %).</p>
+</li>
+<li>
+<p><strong>Where the play is, coverage is better than the area figures suggest:</strong> the cells without two good views are
+    mostly cells where little play happened.</p>
+</li>
+</ul>
 <p><strong>Mounting height</strong> (<code>reports/camera_layouts_height.md</code>):</p>
 <div class="tbl"><table>
 <thead>
 <tr>
 <th>Height</th>
-<th>C: ≥2 readable views ≥45° apart</th>
-<th>C: no readable view</th>
-<th>C: shadow</th>
-<th>F: ≥2 readable views ≥45° apart</th>
-<th>F: shadow</th>
+<th>C: ≥2 readable views ≥45° apart (area / action)</th>
+<th>C: no readable view (action)</th>
+<th>F: ≥2 readable views ≥45° apart (area / action)</th>
+<th>F: baskets framed</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>4.5 m</td>
-<td>85 %</td>
+<td>73 % / 87 %</td>
 <td>2 %</td>
-<td>7.5 m</td>
-<td>98 %</td>
-<td>6.3 m</td>
+<td>93 % / 99 %</td>
+<td>each corner 78-79 px + end-on 59-70 px</td>
 </tr>
 <tr>
 <td>5 m</td>
-<td>84 %</td>
+<td>72 % / 87 %</td>
 <td>2 %</td>
-<td>6.4 m</td>
-<td>97 %</td>
-<td>5.2 m</td>
+<td>93 % / 98 %</td>
+<td>each corner 77-79 px + end-on 59-70 px</td>
 </tr>
 <tr>
 <td>6 m</td>
-<td>78 %</td>
-<td>9 %</td>
-<td>4.4 m</td>
-<td>96 %</td>
-<td>4.1 m</td>
+<td>64 % / 84 %</td>
+<td>3 %</td>
+<td>88 % / 99 %</td>
+<td>each sideline 121 px + corner or end-on 63-77 px</td>
 </tr>
 <tr>
 <td>7 m</td>
-<td>80 %</td>
+<td>61 % / 81 %</td>
 <td>3 %</td>
-<td>4.2 m</td>
-<td>92 %</td>
-<td>3.1 m</td>
+<td>86 % / 96 %</td>
+<td>each sideline 117-142 px + corner 76-96 px</td>
 </tr>
 </tbody>
 </table></div>
+<p>In layout C, every height keeps both baskets framed from a sideline view (128-143 px) and an end-on view (60-69 px).</p>
 <ul>
 <li><strong>Lower mounts:</strong> players appear larger, so slightly more of the court is readable.</li>
 <li><strong>Higher mounts:</strong> steeper views, which shrink the area hidden behind each player.</li>
-<li>
-<p><strong>For the corner layout, about 5 m is the best balance:</strong> 84 % two-camera coverage with only 2 % of the court
-    unreadable.</p>
-</li>
-<li>
-<p><strong>The six-camera layout</strong> works well anywhere from 4.5 to 6 m.</p>
-</li>
+<li><strong>For the corner layout, about 4.5-5 m is the best balance:</strong> 87 % of the action seen by two well-separated cameras,
+    2 % unreadable, both baskets framed from two directions.</li>
 </ul>
 <h3 id="73-compute-per-camera-stream">7.3 Compute per camera stream</h3>
 <div class="tbl"><table>
@@ -1135,13 +1139,13 @@ triangulate positions and separate players who overlap in one view.</p>
 </table></div>
 <ul>
 <li>
-<p><strong>Basis:</strong> the measured INT8 runs (95 fps per camera at 88 % GPU use, section 6.1). The estimates assume the AGX
-    Orin 64 GB is 2.5-3.5 times slower and the Orin Nano Super 5-8 times slower. Neither assumption has been measured.</p>
+<p><strong>Basis:</strong> the measured INT8 runs (about 95 fps per camera at 88-89 % GPU use, section 6.1). The estimates assume
+    the AGX Orin 64 GB is 2.5-3.5 times slower and the Orin Nano Super 5-8 times slower. Neither assumption has been
+    measured.</p>
 </li>
 <li>
 <p><strong>DLAs:</strong> on the AGX Orin, running the detector on its DLAs would free GPU time; not measured.</p>
 </li>
-<li><strong>Detector interval:</strong> not an option with MV3DT (section 6.1).</li>
 <li>
 <p><strong>Jersey reading</strong> scales with the number of readable players rather than cameras. More cameras can be held to the
     same read budget.</p>
@@ -1151,8 +1155,8 @@ triangulate positions and separate players who overlap in one view.</p>
 </li>
 <li>
 <p><strong>The cameras already record 4K;</strong> this pipeline uses a 1080p transcode. The detector runs at 960 × 544 either way.
-    So feeding the 4K streams costs mainly decoding (about 4× the decode work, to be checked on the Orin Nano Super),
-    while the jersey reader would get torso crops with twice the pixels.</p>
+    Feeding the 4K streams costs mainly decoding (about 4× the decode work), while the jersey reader would get torso
+    crops with twice the pixels and highlight clips full resolution.</p>
 <ul>
 <li>
 <p><strong>What it wouldn't change:</strong> with the current cameras, the simulator shows readable coverage unchanged (94 % of
@@ -1161,11 +1165,11 @@ tall at 1080p.</p>
 </li>
 <li>
 <p><strong>What it could change:</strong> read reliability (more reads and fewer misreads on sharp crops), which would shorten
-the wrong-identity periods after swaps (section 4.2).</p>
+the wrong-identity periods after swaps (section 4.2; GitHub issue #2).</p>
 </li>
 <li>
-<p><strong>Lighter variant if decode is the limit:</strong> a 1080p stream for detection and tracking plus a 4K stream at
-5-10 fps for reading only.</p>
+<p><strong>Lighter variant if decode is the limit:</strong> a 1080p stream for detection and tracking plus 4K recorded for clips
+and read at 5-10 fps for jerseys.</p>
 </li>
 </ul>
 </li>
@@ -1173,49 +1177,48 @@ the wrong-identity periods after swaps (section 4.2).</p>
 <h3 id="74-proposal">7.4 Proposal</h3>
 <ol>
 <li>
-<p><strong>Same compute as today (4 streams): move to layout C, four corner cameras at about 5 m.</strong></p>
+<p><strong>Same compute as today (4 streams): move to layout C, four corner cameras at about 4.5-5 m.</strong></p>
 <ul>
-<li>Lenses about 60° horizontal, each aimed diagonally across the court.</li>
-<li>Two-camera, well-separated readable coverage rises from 20 % to about 84 %.</li>
 <li>
-<p>Views become steeper (median 15° → 20°), and the area hidden behind players shrinks from about 9 m to about
- 6 m.</p>
+<p>Lenses and aims as chosen by the search (about 60-70° horizontal at 6 m), so that each basket is framed side-on
+ from its near corner and end-on from a far corner.</p>
 </li>
 <li>
-<p>This is the best accuracy per unit of compute. With four streams it needs an AGX Orin 64 GB at 30 fps
- (section 6.2).</p>
+<p>The share of the action seen by two well-separated readable cameras rises from 23 % to about 87 %, and both
+ baskets are framed for highlight clips from two directions (rim about 140 px wide from the sideline, 60 px
+ end-on, in 4K).</p>
 </li>
+<li>
+<p>Views become steeper (median look-down 15° → 20-22°), and the area hidden behind players shrinks from about 9 m
+ to about 6 m.</p>
+</li>
+<li>
+<p>With four streams it needs an AGX Orin 64 GB at 30 fps (section 6.2).</p>
+</li>
+<li><strong>If six streams are affordable, use layout F:</strong> four sideline cameras at the quarter lines plus one per baseline,
+at 4.5-5 m: 98-99 % of the action covered, both baskets framed from two directions. Six streams at 30 fps exceed an
+AGX Orin's GPU by the estimates in section 6.2, unless its DLAs take the detector or the cameras run at a lower
+frame rate (both untested).</li>
 </ul>
 </li>
 <li>
-<p><strong>If six streams are affordable, use layout F:</strong> four sideline cameras at the quarter lines plus one per baseline,
-    at 5-6 m, for about 96 % coverage. Six streams at 30 fps exceed an AGX Orin's GPU by the estimates in section 6.2,
-    unless its DLAs take the detector or the cameras run at a lower frame rate (both untested).</p>
-</li>
-<li>
 <p><strong>If cameras can't move:</strong> keep the far backboard cameras and move the two near ones to the sideline walls at half
-    court (layout E, still 4 streams, 65 %). Adding two cameras to the current four (layout B, 6 streams, 70 %) costs
-    more compute and still does worse than four corner cameras.</p>
+    court (layout E, still 4 streams): 81 % of the action, and the backboard cameras keep the best end-on basket views
+    (rim about 98 px).</p>
 </li>
 <li>
 <p><strong>Whatever the layout:</strong></p>
 <ul>
-<li>use identical cameras with locked exposure and focus</li>
-<li>
-<p>synchronise frames (hardware sync or accurate timestamps) and have DeepStream batch the streams by timestamp, not
- by arrival: the recordings used here were up to 0.9 s apart (section 2.2); MV3DT's own identities scored 52.4 %
- on them and 60.2 % on time-aligned clips (3 runs each, <code>reports/sync_eval.md</code>)</p>
-</li>
-<li>
-<p>avoid pointing at windows or bright lights</p>
-</li>
+<li>use identical cameras with locked exposure and focus, recording 4K for clips</li>
+<li>synchronise the cameras' clocks and batch the streams by timestamp (section 2.4)</li>
+<li>avoid pointing at windows or bright lights</li>
 <li>calibrate with the mount positions as a constraint, as in section 5, ideally with measured court dimensions</li>
 </ul>
 </li>
 </ol>
-<p><strong>Caveat.</strong> These are geometric coverage figures, not tracking accuracy. Before buying hardware, the best check is a
-temporary installation (stands or poles at the corners) for one session, run through the same pipeline and scored
-on newly labelled ground truth.</p>
+<p><strong>Caveat.</strong> These are geometric coverage figures, not tracking accuracy or clip quality. Before buying hardware, the
+best check is a temporary installation (stands or poles at the corners) for one session, run through the same
+pipeline and scored on newly labelled ground truth.</p>
 <p><strong>How the professional systems compare</strong> (general knowledge, not verified here):</p>
 <ul>
 <li>
@@ -1242,7 +1245,7 @@ on newly labelled ground truth.</p>
     model's settings. A third labelled minute would give an unbiased final number.</p>
 </li>
 <li>
-<p><strong>Run-to-run variation:</strong> per-minute identity IDF1 ranges from 71 % to 90 % across DeepStream runs. Three runs
+<p><strong>Run-to-run variation:</strong> per-minute identity IDF1 ranges from 70 % to 89 % across DeepStream runs. Three runs
     narrow it, but differences under about 2 points aren't reliable.</p>
 </li>
 <li>
@@ -1254,6 +1257,10 @@ on newly labelled ground truth.</p>
     thresholds are tested on this one game. Other courts, lighting and kits are untested.</p>
 </li>
 <li>
+<p><strong>Time alignment:</strong> the offsets were measured on this recording. A live system must keep the streams aligned by
+    timestamp; the tolerance in section 2.4 rests on three runs per setting and one run with doubled offsets.</p>
+</li>
+<li>
 <p><strong>Court size and venue:</strong> the court's length and width are fitted, not measured. The camera-placement study assumes
     wall distances and mounting heights.</p>
 </li>
@@ -1261,24 +1268,18 @@ on newly labelled ground truth.</p>
 <h2 id="9-next-steps-prioritised">9. Next steps (prioritised)</h2>
 <ol>
 <li>
-<p><strong>Time-aligned clips</strong> (GitHub issue #3): the offsets are measured (section 2.2). On aligned clips MV3DT's own
-    identities improve (52.4 % to 60.2 %) but the court tracker's do not yet (78.8 %, within run-to-run noise of the
-    80.6 % here); its settings were tuned on the unaligned clips. Next: re-measure the camera bias and re-check the
-    tracker's settings on aligned runs that aren't scored, then decide whether the aligned clips become the default.</p>
+<p><strong>Read jerseys from the native 4K frames</strong> (GitHub issue #2): detect and track on 1080p as now, cut torso crops
+    from the 4K frames. Offline experiment first; it targets the largest error (wrong identities after swaps) through
+    more reliable reads.</p>
 </li>
 <li>
-<p><strong>Read jerseys from the native 4K frames</strong> (issue #2): detect and track on 1080p as now, cut torso crops from the
-    4K frames. Offline experiment first; it targets the largest error (wrong identities after swaps) through more
-    reliable reads.</p>
-</li>
-<li>
-<p><strong>INT8 accuracy</strong> (issue #1): box placement and the lower threshold on the 3060 Ti, then an INT8 profile for the
-    Jetson.</p>
+<p><strong>INT8 accuracy</strong> (issue #1): box placement and threshold settings, then an INT8 profile for the Jetson.</p>
 </li>
 <li>
 <p><strong>Measure on the target Jetson (AGX Orin 64 GB, or Orin Nano Super with fewer cameras or 15 fps).</strong></p>
 <ul>
-<li>Re-calibrate INT8 for its TensorRT version (<code>tools/int8_calibrate.py</code>).</li>
+<li>Re-calibrate INT8 for its TensorRT version (<code>tools/int8_calibrate.py</code>) and re-measure the camera bias.</li>
+<li>Batch the camera streams by capture timestamp (section 2.4).</li>
 <li>Measure fps per camera without display, and DLA throughput (AGX Orin).</li>
 <li>
 <p>Measure the court tracker's worst-frame time in the pipeline; move the team model's re-clustering to a worker
@@ -1292,8 +1293,8 @@ frame is detected, so MV3DT works as designed; it needs the same three-run evalu
 </ul>
 </li>
 <li>
-<p><strong>Trial the corner layout (C) for one session</strong> with temporary mounts at about 5 m, label a minute and compare with
-    the current layout. Simulated two-camera coverage rises from 20 % to about 84 % at the same compute.</p>
+<p><strong>Trial the corner layout (C) for one session</strong> with temporary mounts at about 4.5-5 m, label a minute and compare
+    with the current layout, including the highlight framing of both baskets.</p>
 </li>
 <li>
 <p><strong>More reads per player where it matters.</strong> Re-read tracks for a second or two after a close encounter, and tracks
@@ -1309,23 +1310,24 @@ frame is detected, so MV3DT works as designed; it needs the same three-run evalu
 </ol>
 <h2 id="10-how-to-reproduce">10. How to reproduce</h2>
 <pre><code class="language-bash">./scripts/brokers.sh start
-for r in mount_r1 mount_r2 mount_r3; do
-  DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all ./scripts/run_mv3dt.sh gym_full $r
-  ~/.venvs/mv3dt/bin/python -m tools.jersey from-ds $r
-  cp experiments/full_pn263_cf_jersey/{team_model.npz,teams.yml} experiments/$r/   # reference colour labels (4.4 only)
-  ~/.venvs/mv3dt/bin/python -m tools.appearance extract $r
+python -m tools.make_clips --start 0 --seconds 898 --offsets NL=26,FL=13,NR=4 --name gym_sync   # aligned clips
+export PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1
+for r in s_int8cal_r1 s_int8cal_r2; do       # camera bias (not scored)
+  DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all DISPLAY_OUT=0 ./scripts/run_mv3dt.sh gym_sync $r
 done
-./scripts/phase7_deploy_variants.sh   # deployment variants (no display, INT8, detector interval), section 6.1
-~/.venvs/mv3dt/bin/python -m tools.variant_eval --ref nodisp_r1 --runs int8_r1 int1_r1 --md reports/deploy_variants_detection.md
-~/.venvs/mv3dt/bin/python -m tools.calib_bias ct2_r1 ct2_r2 ct2_r3 --write   # camera bias into camInfo (runs not evaluated)
-./scripts/build_court_app.sh &amp;&amp; ./scripts/phase8_courttrack_live.sh ct3_r1 ct3_r2 ct3_r3   # section 4.6
-JOBS=8 ./scripts/phase8_reevaluate.sh   # every court-tracker table and figure in this report (sections 4-6)
-~/.venvs/mv3dt/bin/python -m tools.camera_layout --validate mount_r1 --md reports/camera_layouts.md
+~/.venvs/mv3dt/bin/python -m tools.calib_bias s_int8cal_r1 s_int8cal_r2 --write
+unset PGIE_PRECISION PGIE_THRESHOLD
+./scripts/phase7_deploy_variants.sh int8_r1 int8_r2 int8_r3 int8t10_r1 int8t10_r2 int8t10_r3   # main runs + threshold 0.2
+PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1 ./scripts/phase8_courttrack_live.sh cts_r1 cts_r2 cts_r3   # section 4.6
+JOBS=8 ./scripts/phase8_reevaluate.sh   # every court-tracker table and figure in this report
+~/.venvs/mv3dt/bin/python -m tools.variant_eval --ref s_int8_r1 --runs s_int8_r2 s_int8_r3 s_int8t10_r1 s_int8t10_r2 \
+  s_int8t10_r3 cts_r1 cts_r2 cts_r3 --md reports/deploy_variants_detection.md
+~/.venvs/mv3dt/bin/python -m tools.camera_layout --validate s_int8t10_r1 --occupancy s_int8t10_r1 \
+  --md reports/camera_layouts.md --heights 4.5,5,6,7 --heights-md reports/camera_layouts_height.md
 python3 reports/build_page.py   # web page version
-make -C apps/courttrack &amp;&amp; ~/.venvs/mv3dt/bin/python -m tools.courttrack_export export-online mount_r1 /tmp/ct \
-  &amp;&amp; apps/courttrack/ct_replay /tmp/ct/inputs.bin /tmp/ct/cpp_out.txt \
-  &amp;&amp; ~/.venvs/mv3dt/bin/python -m tools.courttrack_export compare mount_r1 /tmp/ct   # C++ vs Python, section 4.5
 </code></pre>
+<p>Each run is followed by the jersey-read conversion and appearance extraction (in the scripts). The original and
+doubled-offset clips of section 2.4: <code>make_clips</code> without <code>--offsets</code>, and with <code>--offsets FL=13,NR=22,FR=26</code>.</p>
 <ul>
 <li><strong>Calibration:</strong> <code>tools/court_refine.py &lt;run&gt; &lt;cam&gt;</code> (line traces), then <code>tools/calib_mount.py --write</code>.</li>
 <li>

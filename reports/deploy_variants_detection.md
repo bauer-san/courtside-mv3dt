@@ -1,20 +1,12 @@
-### Detection-level comparison with nodisp_r1 (FP16, detector every frame), game frames
+### Detection-level comparison with s_int8_r1, game frames
 
 | run | config | fps/camera | GPU use | GPU mem | frames with output | box recall vs ref | box precision vs ref | label recall |
 |---|---|---|---|---|---|---|---|---|
-| mount_r1 | extra= | 56.0 | 87 % | 2.69 GB | 100% | 98.6% | 98.7% | 98.7% |
-| int1_r1 | display=0 pgie_interval=1 pgie_precision=fp16 extra=TargetManagement.earlyTerminationAge=3 | 74.4 | 76 % | 2.40 GB | 50% | 80.4% | 98.7% | 83.5% |
-| int1_r2 | display=0 pgie_interval=1 pgie_precision=fp16 extra=TargetManagement.earlyTerminationAge=3 | 75.4 | 76 % | 2.50 GB | 50% | 80.2% | 98.7% | 82.9% |
-| int1_r3 | display=0 pgie_interval=1 pgie_precision=fp16 extra=TargetManagement.earlyTerminationAge=3 | 75.6 | 77 % | 2.50 GB | 50% | 79.9% | 98.7% | 82.3% |
-| int2_r1 | display=0 pgie_interval=2 pgie_precision=fp16 extra=TargetManagement.earlyTerminationAge=4 | 45.6 | 68 % | 2.42 GB | 33% | 65.3% | 99.2% | 67.1% |
-| int2_r2 | display=0 pgie_interval=2 pgie_precision=fp16 extra=TargetManagement.earlyTerminationAge=4 | 45.1 | 68 % | 2.41 GB | 33% | 65.2% | 99.2% | 66.5% |
-| int2_r3 | display=0 pgie_interval=2 pgie_precision=fp16 extra=TargetManagement.earlyTerminationAge=4 | 46.5 | 68 % | 2.33 GB | 33% | 65.2% | 99.3% | 65.9% |
-| int8_r1 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 94.4 | 88 % | 2.46 GB | 100% | 91.8% | 89.0% | 94.8% |
-| int8_r2 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 94.0 | 88 % | 2.46 GB | 100% | 91.9% | 88.6% | 94.7% |
-| int8_r3 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 95.4 | 89 % | 2.46 GB | 100% | 92.0% | 88.8% | 94.4% |
-| int8int1_r1 | display=0 pgie_interval=1 pgie_precision=int8 extra=TargetManagement.earlyTerminationAge=3 | 92.4 | 77 % | 2.44 GB | 50% | 68.6% | 92.2% | 76.5% |
-| int8int1_r2 | display=0 pgie_interval=1 pgie_precision=int8 extra=TargetManagement.earlyTerminationAge=3 | 92.6 | 76 % | 2.44 GB | 50% | 68.3% | 92.1% | 75.0% |
-| int8int1_r3 | display=0 pgie_interval=1 pgie_precision=int8 extra=TargetManagement.earlyTerminationAge=3 | 92.2 | 76 % | 2.54 GB | 50% | 68.1% | 92.0% | 74.4% |
-| int8t10_r1 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 93.8 | 90 % | 2.38 GB | 100% | 94.0% | 88.4% | 97.6% |
-| int8t10_r2 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 65.0 | 83 % | 2.47 GB | 100% | 93.6% | 88.3% | 97.6% |
-| int8t10_r3 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 92.6 | 89 % | 2.47 GB | 100% | 93.8% | 88.4% | 98.2% |
+| s_int8_r2 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 96.0 | 89 % | 2.38 GB | 100% | 97.6% | 98.1% | 76.1% |
+| s_int8_r3 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 96.2 | 88 % | 2.28 GB | 100% | 98.3% | 98.4% | 75.8% |
+| s_int8t10_r1 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 95.7 | 88 % | 2.28 GB | 100% | 98.3% | 94.8% | 78.1% |
+| s_int8t10_r2 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 93.8 | 89 % | 2.40 GB | 100% | 97.6% | 95.3% | 77.8% |
+| s_int8t10_r3 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 96.9 | 89 % | 2.42 GB | 100% | 98.0% | 95.2% | 78.0% |
+| cts_r1 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 87.5 | 88 % | 2.41 GB | 100% | 97.9% | 95.3% | 77.5% |
+| cts_r2 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 85.3 | 87 % | 2.44 GB | 100% | 97.8% | 95.4% | 78.0% |
+| cts_r3 | display=0 pgie_interval=0 pgie_precision=int8 extra= | 90.0 | 89 % | 2.45 GB | 100% | 97.8% | 95.0% | 78.3% |

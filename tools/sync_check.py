@@ -102,28 +102,37 @@ def sheet(pos: str, end: str, f0: int, f1: int, out: str) -> None:
     print(out)
 
 
-def agree(runs: list[str], offsets: dict) -> None:
+def pair_distances(run, offsets: dict | None = None) -> dict:
+    """(cam a, cam b) -> (distances at the same frame number, distances with b shifted by its offset relative to a):
+    MV3DT foot points of the same person (court-tracker tracks) over the game."""
+    from tools.gt_eval import game_end
     from tools.stitch import load_detections
     from tools.world_tracker import track_default
+    offsets = offsets or {}
+    last = game_end(run)
+    d = load_detections(run / "kafka.jsonl.gz")
+    pos = {(int(f), str(c), str(g)): (x, y) for f, c, g, x, y in zip(d["frame"], d["cam"], d["gid"], d["x"], d["y"])}
+    res = collections.defaultdict(lambda: ([], []))
+    for t in track_default(run):
+        per = collections.defaultdict(dict)
+        for k in t.dets:
+            k = (int(k[0]), str(k[1]), str(k[2]))
+            if k[0] <= last and k in pos:
+                per[k[1]][k[0]] = pos[k]
+        cams = [c for c in HD if c in per]
+        for a, b in itertools.combinations(cams, 2):
+            lag = offsets.get(b, 0) - offsets.get(a, 0)
+            for f, pa in per[a].items():
+                if f in per[b]:
+                    res[(a, b)][0].append(np.hypot(*np.subtract(pa, per[b][f])))
+                if f + lag in per[b]:
+                    res[(a, b)][1].append(np.hypot(*np.subtract(pa, per[b][f + lag])))
+    return dict(res)
+
+
+def agree(runs: list[str], offsets: dict) -> None:
     for r in runs:
-        run = ROOT / "experiments" / r
-        d = load_detections(run / "kafka.jsonl.gz")
-        pos = {(int(f), str(c), str(g)): (x, y) for f, c, g, x, y in zip(d["frame"], d["cam"], d["gid"], d["x"], d["y"])}
-        res = collections.defaultdict(lambda: ([], []))
-        for t in track_default(run):
-            per = collections.defaultdict(dict)
-            for k in t.dets:
-                k = (int(k[0]), str(k[1]), str(k[2]))
-                if k[0] <= GAME_END and k in pos:
-                    per[k[1]][k[0]] = pos[k]
-            cams = [c for c in HD if c in per]
-            for a, b in itertools.combinations(cams, 2):
-                lag = offsets.get(b, 0) - offsets.get(a, 0)
-                for f, pa in per[a].items():
-                    if f in per[b]:
-                        res[(a, b)][0].append(np.hypot(*np.subtract(pa, per[b][f])))
-                    if f + lag in per[b]:
-                        res[(a, b)][1].append(np.hypot(*np.subtract(pa, per[b][f + lag])))
+        res = pair_distances(ROOT / "experiments" / r, offsets)
         print(r + ": " + "; ".join(f"{a}-{b} {np.median(x):.2f} -> {np.median(y):.2f} m (n={len(x)})"
                                    for (a, b), (x, y) in sorted(res.items(), key=lambda kv: -len(kv[1][0]))
                                    if len(x) > 500))
