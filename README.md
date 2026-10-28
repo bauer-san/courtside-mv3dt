@@ -71,8 +71,10 @@ Videos, model weights and TensorRT engines are never committed (see `.gitignore`
 
 ## Running
 
-`./scripts/run_mv3dt.sh <dataset> <run> [Section.key=value ...]` writes everything to `experiments/<run>/`: generated
-configs, `kafka.jsonl.gz` (all MV3DT messages), `console.log`, `gpu.csv`, `run.txt`, and optionally videos. Options:
+`./scripts/run_default.sh <run>` runs the default configuration on the time-aligned clips and prepares the run for
+scoring. It calls `./scripts/run_mv3dt.sh <dataset> <run> [Section.key=value ...]`, which writes everything to
+`experiments/<run>/`: generated configs, `kafka.jsonl.gz` (all MV3DT messages), `console.log`, `gpu.csv`, `run.txt`,
+and optionally videos. Options:
 
 | Variable | Effect |
 |---|---|
@@ -82,9 +84,24 @@ configs, `kafka.jsonl.gz` (all MV3DT messages), `console.log`, `gpu.csv`, `run.t
 | `COURTTRACK=1` | court tracker + automatic team colours in the pipeline; one Kafka message per frame on topic `courttrack` (needs `JERSEY=1`) |
 | `DISPLAY_OUT=0` | no on-screen display or annotated video |
 | `PGIE_PRECISION=int8`, `PGIE_INTERVAL=n`, `PGIE_THRESHOLD=x` | detector precision, interval and threshold |
+| `PGIE_INT8_CALIB=<file>` | INT8 calibration cache in the model folder (default: the one made for TensorRT 10.16) |
+| `PGIE_TOPK=n`, `PGIE_NMS_IOU=x` | boxes kept per frame after NMS (default 20) and its IoU threshold (default 0.5) |
 | `NEIGHBORS=all\|pairs\|pairs_centre` | MV3DT camera neighbour topology |
 
 Don't edit `scripts/*.sh` while a run is using them (bash reads scripts as it goes).
+
+### INT8 on a new device
+
+An INT8 calibration cache only works with the TensorRT version it was made with: with NVIDIA's published cache
+(TensorRT 10.3), most layers silently fell back to full precision. On every new device or container version (a
+Jetson included):
+1. Make a cache with that device's TensorRT, from the same calibration frames
+   (`experiments/int8_calib/calib_frames.npy`; `tools/int8_calibrate.py` shows the command).
+2. Put it in the model folder, set `PGIE_INT8_CALIB` to its name, and delete the cached INT8 engine
+   (`resnet34_peoplenet.onnx_b4_gpu0_int8.engine`) so nvinfer rebuilds it.
+3. Re-measure the court tracker's camera bias with two unscored runs (`tools/calib_bias.py --write`), since box
+   placement changes with the detector build.
+4. Re-score accuracy over three runs (`tools/multi_eval.py`).
 
 ## Court tracker
 

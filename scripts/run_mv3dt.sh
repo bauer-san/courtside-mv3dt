@@ -74,6 +74,14 @@ fi
 if [[ -n "${PGIE_THRESHOLD:-}" ]]; then
   "$PY" -m tools.ds_config ini "$OUT/config_pgie.txt" class-attrs-all.pre-cluster-threshold="$PGIE_THRESHOLD"
 fi
+# PeopleNet 2.6.3 box clustering: NMS (IoU PGIE_NMS_IOU, default 0.5) keeping the top PGIE_TOPK boxes per frame
+# (default 20). This is what nvinfer did implicitly before: its default cv::groupRectangles is unavailable in this
+# build, so it fell back to exactly these values (warning in console.log). Lifting the cap to 100 let more seated
+# spectators through on FR and lowered identity accuracy (nms_r1-r3, GitHub issue #1).
+if [[ "$DETECTOR_MODEL" == PeopleNet2.6.3 || -n "${PGIE_TOPK:-}" ]]; then
+  "$PY" -m tools.ds_config ini "$OUT/config_pgie.txt" property.cluster-mode=2 class-attrs-all.topk="${PGIE_TOPK:-20}" \
+    class-attrs-all.nms-iou-threshold="${PGIE_NMS_IOU:-0.5}"
+fi
 # PGIE_PRECISION=int8: detector in INT8. Calibration cache made with this container's TensorRT (10.16) by
 # tools/int8_calibrate.py; NVIDIA's NGC cache (resnet34_peoplenet_int8.txt, TensorRT 10.3) names the activations
 # differently, so most layers fell back to FP16/FP32 (tested 2026-10-24). PGIE_INT8_CALIB overrides the cache.

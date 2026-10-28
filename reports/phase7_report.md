@@ -129,7 +129,9 @@ arrival order. That hasn't been built or tested here (section 9).
 ## 3. Pipeline
 
 1. **Detection:** PeopleNet 2.6.3, INT8 (TensorRT calibration made with the deployment TensorRT version), 960 × 544,
-   every frame, batch of 4 cameras, detection threshold 0.1 (section 6.1).
+   every frame, batch of 4 cameras, detection threshold 0.1 (section 6.1). Boxes are clustered by NMS (IoU 0.5),
+   keeping at most 20 per camera frame; the cap applies before the court filter and keeps out some of the seated
+   spectators FR sees (GitHub issue #1).
 2. **Court filter** (custom probe): drops detections whose floor point lies outside the court plus 0.75 m (benches,
    crowd, scorer's table).
 3. **MV3DT** (NvDCF tracker with the single-view 3D person model, multi-view association over MQTT). Provides
@@ -384,7 +386,7 @@ results; the comparison is about detection, which the jersey reader doesn't affe
   activation layers differently; with it, most layers fell back to full precision. The runs here use a calibration
   made with the deployment TensorRT version (10.16) on 400 frames from the video (`tools/int8_calibrate.py`). A Jetson
   needs a calibration made with its own TensorRT version, and the camera bias re-measured with it (section 3).
-- **INT8 accuracy** is being investigated further (GitHub issue #1).
+- **INT8 accuracy** was checked against FP16 on this pipeline in GitHub issue #1.
 
 ### 6.2 Estimated for AGX Orin 64 GB and Orin Nano Super
 
@@ -591,9 +593,8 @@ pipeline and scored on newly labelled ground truth.
 
 ## 9. Next steps (prioritised)
 
-1. **INT8 accuracy** (issue #1): box placement and threshold settings, then an INT8 profile for the Jetson.
-2. **Measure on the target Jetson (AGX Orin 64 GB, or Orin Nano Super with fewer cameras or 15 fps).**
-   - Re-calibrate INT8 for its TensorRT version (`tools/int8_calibrate.py`) and re-measure the camera bias.
+1. **Measure on the target Jetson (AGX Orin 64 GB, or Orin Nano Super with fewer cameras or 15 fps).**
+   - Re-calibrate INT8 for its TensorRT version and re-measure the camera bias (README, "INT8 on a new device").
    - Build and test pairing the live camera streams by capture timestamp (section 2.4; the clips here were
      pre-aligned).
    - Measure fps per camera without display, and DLA throughput (AGX Orin; issue #4).
@@ -602,15 +603,15 @@ pipeline and scored on newly labelled ground truth.
    - Check that the pipeline shuts down at end of stream (section 2.4: it didn't on the original clips here; issue
      #7).
    - Re-score accuracy with `tools/multi_eval.py` and `tools/courttrack_export.py live`.
-3. **Test a lower camera frame rate (15 fps) on the 3060 Ti** (issue #5) if the Orin Nano Super stays in
+2. **Test a lower camera frame rate (15 fps) on the 3060 Ti** (issue #5) if the Orin Nano Super stays in
    consideration. Every frame is detected, so MV3DT works as designed; it needs the same three-run evaluation as
    section 6.1.
-4. **Trial the corner layout (C) for one session** (issue #9) with temporary mounts at about 4.5-5 m, label a minute
+3. **Trial the corner layout (C) for one session** (issue #9) with temporary mounts at about 4.5-5 m, label a minute
    and compare with the current layout, including the highlight framing of both baskets.
-5. **More reads per player where it matters** (issue #8). Re-read tracks for a second or two after a close
+4. **More reads per player where it matters** (issue #8). Re-read tracks for a second or two after a close
    encounter, and tracks without an identity.
-6. **Label a third minute** (5:00-6:00 is still unused) for a clean held-out score before any final claims.
-7. **Use the official roster** (numbers per team, available for real games): reject reads of numbers on neither
+5. **Label a third minute** (5:00-6:00 is still unused) for a clean held-out score before any final claims.
+6. **Use the official roster** (numbers per team, available for real games): reject reads of numbers on neither
    roster, and settle the team of a number only one team wears. The roster can't say which colour is which team, but
    the tracker can learn that from which numbers each colour cluster is read with. This also targets the wrong-team
    errors on shared numbers.
@@ -620,13 +621,9 @@ pipeline and scored on newly labelled ground truth.
 ```bash
 ./scripts/brokers.sh start
 python -m tools.make_clips --start 0 --seconds 898 --offsets NL=26,FL=13,NR=4 --name gym_sync   # aligned clips
-export PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1
-for r in s_int8cal_r1 s_int8cal_r2; do       # camera bias (not scored)
-  DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all DISPLAY_OUT=0 ./scripts/run_mv3dt.sh gym_sync $r
-done
+for r in s_int8cal_r1 s_int8cal_r2; do ./scripts/run_default.sh $r; done   # camera bias (not scored)
 ~/.venvs/mv3dt/bin/python -m tools.calib_bias s_int8cal_r1 s_int8cal_r2 --write
-unset PGIE_PRECISION PGIE_THRESHOLD
-PREFIX= ./scripts/phase7_deploy_variants.sh js_r1 js_r2 js_r3   # main runs
+for r in js_r1 js_r2 js_r3; do ./scripts/run_default.sh $r; done             # main runs ²
 PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1 ./scripts/phase8_courttrack_live.sh ctj_r1 ctj_r2 ctj_r3   # section 4.6
 DATASET=gym PREFIX=j_ ./scripts/phase7_deploy_variants.sh int8t10_r1 int8t10_r2 int8t10_r3   # section 2.4, original clips
 DATASET=gym_sync2x PREFIX=j2x_ ./scripts/phase7_deploy_variants.sh int8t10_r1                  # section 2.4, offsets doubled
@@ -648,6 +645,9 @@ Each run is followed by the jersey-read conversion and appearance extraction (in
 doubled-offset clips of section 2.4: `make_clips` without `--offsets`, and with `--offsets FL=13,NR=22,FR=26`.
 ¹ The section 6.1 runs were made with nvinfer's default crop scaling for the jersey reader; repeated now, they would
 use the bilinear scaling that is the default in `apps/jersey/config_sgie_text{det,rec}.txt`.
+² The main runs were made with `phase7_deploy_variants.sh js_r1 js_r2 js_r3` before `run_default.sh` existed, with
+nvinfer's implicit NMS fallback (IoU 0.5, top 20) instead of the same settings written out; a check run of the script
+gave the same boxes.
 
 - **Calibration:** `tools/court_refine.py <run> <cam>` (line traces), then `tools/calib_mount.py --write`.
 - **Ground truth:** `gt/game_2to3`, `gt/game_4to5` (labels in `labels/`; the labelling pages are private claude.ai

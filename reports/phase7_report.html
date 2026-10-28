@@ -295,7 +295,9 @@ arrival order. That hasn't been built or tested here (section 9).</p>
 <ol>
 <li>
 <p><strong>Detection:</strong> PeopleNet 2.6.3, INT8 (TensorRT calibration made with the deployment TensorRT version), 960 × 544,
-    every frame, batch of 4 cameras, detection threshold 0.1 (section 6.1).</p>
+    every frame, batch of 4 cameras, detection threshold 0.1 (section 6.1). Boxes are clustered by NMS (IoU 0.5),
+    keeping at most 20 per camera frame; the cap applies before the court filter and keeps out some of the seated
+    spectators FR sees (GitHub issue #1).</p>
 </li>
 <li>
 <p><strong>Court filter</strong> (custom probe): drops detections whose floor point lies outside the court plus 0.75 m (benches,
@@ -805,7 +807,7 @@ results; the comparison is about detection, which the jersey reader doesn't affe
     needs a calibration made with its own TensorRT version, and the camera bias re-measured with it (section 3).</p>
 </li>
 <li>
-<p><strong>INT8 accuracy</strong> is being investigated further (GitHub issue #1).</p>
+<p><strong>INT8 accuracy</strong> was checked against FP16 on this pipeline in GitHub issue #1.</p>
 </li>
 </ul>
 <h3 id="62-estimated-for-agx-orin-64-gb-and-orin-nano-super">6.2 Estimated for AGX Orin 64 GB and Orin Nano Super</h3>
@@ -1275,11 +1277,10 @@ pipeline and scored on newly labelled ground truth.</p>
 </ul>
 <h2 id="9-next-steps-prioritised">9. Next steps (prioritised)</h2>
 <ol>
-<li><strong>INT8 accuracy</strong> (issue #1): box placement and threshold settings, then an INT8 profile for the Jetson.</li>
 <li>
 <p><strong>Measure on the target Jetson (AGX Orin 64 GB, or Orin Nano Super with fewer cameras or 15 fps).</strong></p>
 <ul>
-<li>Re-calibrate INT8 for its TensorRT version (<code>tools/int8_calibrate.py</code>) and re-measure the camera bias.</li>
+<li>Re-calibrate INT8 for its TensorRT version and re-measure the camera bias (README, "INT8 on a new device").</li>
 <li>
 <p>Build and test pairing the live camera streams by capture timestamp (section 2.4; the clips here were
  pre-aligned).</p>
@@ -1322,13 +1323,9 @@ section 6.1.</li>
 <h2 id="10-how-to-reproduce">10. How to reproduce</h2>
 <pre><code class="language-bash">./scripts/brokers.sh start
 python -m tools.make_clips --start 0 --seconds 898 --offsets NL=26,FL=13,NR=4 --name gym_sync   # aligned clips
-export PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1
-for r in s_int8cal_r1 s_int8cal_r2; do       # camera bias (not scored)
-  DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all DISPLAY_OUT=0 ./scripts/run_mv3dt.sh gym_sync $r
-done
+for r in s_int8cal_r1 s_int8cal_r2; do ./scripts/run_default.sh $r; done   # camera bias (not scored)
 ~/.venvs/mv3dt/bin/python -m tools.calib_bias s_int8cal_r1 s_int8cal_r2 --write
-unset PGIE_PRECISION PGIE_THRESHOLD
-PREFIX= ./scripts/phase7_deploy_variants.sh js_r1 js_r2 js_r3   # main runs
+for r in js_r1 js_r2 js_r3; do ./scripts/run_default.sh $r; done             # main runs ²
 PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1 ./scripts/phase8_courttrack_live.sh ctj_r1 ctj_r2 ctj_r3   # section 4.6
 DATASET=gym PREFIX=j_ ./scripts/phase7_deploy_variants.sh int8t10_r1 int8t10_r2 int8t10_r3   # section 2.4, original clips
 DATASET=gym_sync2x PREFIX=j2x_ ./scripts/phase7_deploy_variants.sh int8t10_r1                  # section 2.4, offsets doubled
@@ -1348,7 +1345,10 @@ python3 reports/build_page.py   # web page version
 <p>Each run is followed by the jersey-read conversion and appearance extraction (in the scripts). The original and
 doubled-offset clips of section 2.4: <code>make_clips</code> without <code>--offsets</code>, and with <code>--offsets FL=13,NR=22,FR=26</code>.
 ¹ The section 6.1 runs were made with nvinfer's default crop scaling for the jersey reader; repeated now, they would
-use the bilinear scaling that is the default in <code>apps/jersey/config_sgie_text{det,rec}.txt</code>.</p>
+use the bilinear scaling that is the default in <code>apps/jersey/config_sgie_text{det,rec}.txt</code>.
+² The main runs were made with <code>phase7_deploy_variants.sh js_r1 js_r2 js_r3</code> before <code>run_default.sh</code> existed, with
+nvinfer's implicit NMS fallback (IoU 0.5, top 20) instead of the same settings written out; a check run of the script
+gave the same boxes.</p>
 <ul>
 <li><strong>Calibration:</strong> <code>tools/court_refine.py &lt;run&gt; &lt;cam&gt;</code> (line traces), then <code>tools/calib_mount.py --write</code>.</li>
 <li>
