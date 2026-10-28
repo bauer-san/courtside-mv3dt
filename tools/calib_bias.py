@@ -9,6 +9,8 @@ calibration changes.
 
   python -m tools.calib_bias s_int8cal_r1 s_int8cal_r2            # per-run and pooled values
   python -m tools.calib_bias s_int8cal_r1 s_int8cal_r2 --write    # store the pooled values in camInfo
+  python -m tools.calib_bias yx_cal_r2 yx_cal_r3 --into yx_r1 yx_r2   # store them in those runs' camInfo_used only
+                                                                     # (another detector, GitHub issue #10)
 """
 
 import argparse
@@ -60,6 +62,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("runs", nargs="+")
     ap.add_argument("--write", action="store_true")
+    ap.add_argument("--into", nargs="+", default=[], help="store in these runs' camInfo_used instead")
     a = ap.parse_args()
     from tools.world_tracker import estimate_bias
     pooled = {}
@@ -73,6 +76,9 @@ def main() -> None:
     if a.write:
         write(b, a.runs)
         print(f"written to {CAMINFO}/*.yml ({KEY})")
+    for r in a.into:
+        write(b, a.runs, ROOT / "experiments" / r / "camInfo_used")
+        print(f"written to experiments/{r}/camInfo_used/*.yml ({KEY})")
 
 
 if __name__ == "__main__":

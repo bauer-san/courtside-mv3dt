@@ -9,6 +9,10 @@ nvinfer reads through int8-calib-file (network-mode=1).
   docker run --rm --gpus all -v $PWD:/ws -w /ws -e PYTHONPATH=/ws/experiments/int8_calib/pylib \\
       --entrypoint python3 nvcr.io/nvidia/deepstream:9.1-triton-multiarch \\
       tools/int8_calibrate.py <model.onnx> experiments/int8_calib/calib_frames.npy <out.cache>
+
+YOLOX (GitHub issue #10) takes BGR 0-255 pixels, letterboxed to 640 x 640: the same 400 frames converted by
+tools/yolox_person.py calib-frames into experiments/int8_calib/calib_frames_yolox.npy, then this tool with --raw
+(no x / 255). The input shape is taken from the frames file.
 """
 
 import ctypes
@@ -36,9 +40,9 @@ class DeviceBuffer:
 
 
 class Calibrator(trt.IInt8EntropyCalibrator2):
-    def __init__(self, frames: np.ndarray, cache: str):
+    def __init__(self, frames: np.ndarray, cache: str, scale: float = 1 / 255.0):
         super().__init__()
-        self.frames, self.cache, self.i = frames, cache, 0
+        self.frames, self.cache, self.i, self.scale = frames, cache, 0, scale
         self.buf = DeviceBuffer(BATCH * frames[0].size * 4)
 
     def get_batch_size(self):
@@ -47,7 +51,7 @@ class Calibrator(trt.IInt8EntropyCalibrator2):
     def get_batch(self, names):
         if self.i + BATCH > len(self.frames):
             return None
-        x = np.ascontiguousarray(self.frames[self.i:self.i + BATCH].astype(np.float32) / 255.0)
+        x = np.ascontiguousarray(self.frames[self.i:self.i + BATCH].astype(np.float32) * self.scale)
         self.i += BATCH
         self.buf.copy_from(x)
         return [self.buf.ptr.value]
@@ -62,7 +66,8 @@ class Calibrator(trt.IInt8EntropyCalibrator2):
 
 def main() -> None:
     onnx, frames_path, out = sys.argv[1:4]
-    frames = np.load(frames_path)
+    raw = "--raw" in sys.argv[4:]
+    frames = np.load(frames_path, mmap_mode="r")
     logger = trt.Logger(trt.Logger.WARNING)
     builder = trt.Builder(logger)
     net = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
@@ -75,11 +80,11 @@ def main() -> None:
     cfg = builder.create_builder_config()
     cfg.set_flag(trt.BuilderFlag.INT8)
     profile = builder.create_optimization_profile()
-    shape = (BATCH, 3, 544, 960)
+    shape = (BATCH, *frames.shape[1:])
     profile.set_shape(inp.name, shape, shape, shape)
     cfg.add_optimization_profile(profile)
     cfg.set_calibration_profile(profile)
-    cfg.int8_calibrator = Calibrator(frames, out)
+    cfg.int8_calibrator = Calibrator(frames, out, 1.0 if raw else 1 / 255.0)
     engine = builder.build_serialized_network(net, cfg)
     print("calibration cache written" if engine is not None else "build failed", out)
 

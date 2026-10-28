@@ -14,6 +14,7 @@ filtered, as recorded on Kafka). YOLOX boxes get the same court filter (box-bott
                boxes on the same pairs (boxes cut by the image edge left out)
 
   python -m tools.yolox_person js_r1 [--models yolox_m yolox_l] [--md out.md]
+  python -m tools.yolox_person calib-frames   # INT8 calibration frames for YOLOX (tools/int8_calibrate.py --raw)
 """
 
 import argparse
@@ -237,12 +238,30 @@ def evaluate(run_name: str, models: list[str]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def calib_frames() -> Path:
+    """INT8 calibration frames for YOLOX in DeepStream: PeopleNet's 400 calibration frames (RGB, 960 x 544) as nvinfer
+    feeds YOLOX (BGR, 0-255, scaled to 640 x 360 and padded with black at the bottom, maintain-aspect-ratio=1)."""
+    import cv2
+    src = np.load(ROOT / "experiments" / "int8_calib" / "calib_frames.npy", mmap_mode="r")
+    out = np.zeros((len(src), 3, SIZE, SIZE), np.uint8)
+    for i, x in enumerate(src):
+        img = cv2.resize(np.ascontiguousarray(x.transpose(1, 2, 0)[:, :, ::-1]), (SIZE, SIZE * 9 // 16),
+                         interpolation=cv2.INTER_LINEAR)
+        out[i, :, :img.shape[0]] = img.transpose(2, 0, 1)
+    path = ROOT / "experiments" / "int8_calib" / "calib_frames_yolox.npy"
+    np.save(path, out)
+    return path
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("run")
+    ap.add_argument("run", help="run to compare with, or calib-frames (INT8 calibration frames for YOLOX)")
     ap.add_argument("--models", nargs="+", default=["yolox_m", "yolox_l"])
     ap.add_argument("--md", type=Path)
     a = ap.parse_args()
+    if a.run == "calib-frames":
+        print(calib_frames())
+        return
     md = evaluate(a.run, a.models)
     print(md)
     if a.md:

@@ -36,6 +36,7 @@ DETECTOR_MODEL="${DETECTOR_MODEL:-PeopleNetTransformer}"
 case "$DETECTOR_MODEL" in
   RTDETR) DETECTOR_CONFIG=config_pgie_rt_detr.txt ;;
   PeopleNet2.6.3) DETECTOR_CONFIG=config_pgie_peoplenet.txt ;;
+  YOLOX-m) DETECTOR_CONFIG=config_pgie_yolox.txt ;;   # INT8 only (GitHub issue #10); apps/yolox
   *) DETECTOR_CONFIG=config_pgie.txt ;;
 esac
 [[ -d "$DS/videos" ]] || { echo "no dataset $DS"; exit 1; }
@@ -43,6 +44,14 @@ esac
 mkdir -p "$OUT"/{outVideos,bev,track_dump}
 
 "$ROOT/scripts/brokers.sh" start
+
+if [[ "$DETECTOR_MODEL" == YOLOX-m ]]; then   # template and model files (not in git) for the configurator
+  cp "$ROOT/apps/yolox/config_pgie_yolox.txt" "$APP/config_templates/"
+  for f in yolox_m_dyn.onnx labels.txt yolox_m_int8_trt10.16.cache; do
+    [[ -f "$APP/models/YOLOX/$f" ]] || { echo "missing $APP/models/YOLOX/$f (GitHub issue #10)"; exit 1; }
+  done
+  [[ -f "$ROOT/external/bin/libnvdsinfer_yolox.so" ]] || { echo "run scripts/build_court_app.sh first"; exit 1; }
+fi
 
 # 1. NVIDIA auto-configurator (must run from the app dir: templates are relative paths).
 # It shells out to `python` for the pub/sub generator, so mv3dt_venv must be on PATH (NVIDIA activates it).
@@ -96,6 +105,10 @@ if [[ "${PGIE_PRECISION:-fp16}" == int8 ]]; then
   # it; delete it after changing the calibration cache)
   "$PY" -m tools.ds_config ini "$OUT/config_deepstream.txt" \
     primary-gie.model-engine-file=/workspace/models/PeopleNet2.6.3/resnet34_peoplenet.onnx_b4_gpu0_int8.engine
+fi
+if [[ "$DETECTOR_MODEL" == YOLOX-m ]]; then   # the configurator names an FP16 engine; this detector is INT8
+  "$PY" -m tools.ds_config ini "$OUT/config_deepstream.txt" \
+    primary-gie.model-engine-file=/workspace/models/YOLOX/yolox_m_dyn.onnx_b4_gpu0_int8.engine
 fi
 sed -i '/^kitti-track-output-dir=/d;/^gie-kitti-output-dir=/d' "$OUT/config_deepstream.txt"
 cp -rL "$DS/camInfo" "$OUT/camInfo_used"
@@ -185,7 +198,7 @@ if [[ $rc -ne 0 ]]; then kill $REC_PID $BEV_PID $CT_PID 2>/dev/null; fi
 echo "waiting for Kafka recorder / BEV renderer to finish..."
 wait $REC_PID; wait $BEV_PID; [[ -n "$CT_PID" ]] && wait $CT_PID
 {
-  echo "dataset=$DATASET detector=$DETECTOR_MODEL court_filter=${COURT_FILTER:-0} neighbors=${NEIGHBORS:-all} jersey=${JERSEY:-0} display=${DISPLAY_OUT:-1} pgie_interval=${PGIE_INTERVAL:-0} pgie_precision=${PGIE_PRECISION:-fp16} pgie_threshold=${PGIE_THRESHOLD:-default} courttrack=${COURTTRACK:-0} extra=$*"
+  echo "dataset=$DATASET detector=$DETECTOR_MODEL court_filter=${COURT_FILTER:-0} neighbors=${NEIGHBORS:-all} jersey=${JERSEY:-0} display=${DISPLAY_OUT:-1} pgie_interval=${PGIE_INTERVAL:-0} pgie_precision=$([[ "$DETECTOR_MODEL" == YOLOX-m ]] && echo int8 || echo "${PGIE_PRECISION:-fp16}") pgie_threshold=${PGIE_THRESHOLD:-default} courttrack=${COURTTRACK:-0} extra=$*"
   echo "pipeline_exit=$rc pipeline_elapsed_s=$elapsed"
   grep -E "^\*\*PERF:\s+[0-9]" "$OUT/console.log" | tail -1 | sed 's/^/last_perf=/'
 } | tee "$OUT/run.txt"

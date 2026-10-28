@@ -5,7 +5,8 @@
 #   apps/court_filter/jersey_log.c    CSV log of jersey-number reads (probe on the secondary GIE bin src)
 #   apps/courttrack/                  court tracker + online team model, per-frame Kafka messages (probe after
 #                                     jersey_log on the same pad; active with $COURTTRACK_CONFIG)
-# and the nvinfer parser library apps/jersey/libnvdsinfer_jersey.so (text-detector + digit-recogniser SGIEs).
+# and the nvinfer parser libraries apps/jersey/libnvdsinfer_jersey.so (text-detector + digit-recogniser SGIEs)
+# and apps/yolox/libnvdsinfer_yolox.so (YOLOX person detector, GitHub issue #10).
 # Changes to NVIDIA's code: #includes and two probe attachments after create_pipeline() in main.c, one SRCS line
 # in the Makefile. Built inside the DeepStream container; binary and library go to external/bin/.
 set -euo pipefail
@@ -87,6 +88,9 @@ docker run --rm -v "$DS:/ds" -w /ds/src/apps/sample_apps/deepstream-test5-court 
   -c "make CUDA_VER=13.2 -j8 >/tmp/build.log 2>&1 || { tail -40 /tmp/build.log; exit 1; }; chown $(id -u):$(id -g) deepstream-test5-court-app *.o ../deepstream-app/*.o ../../common/src/*.o ../../common/src/deepstream-yaml/*.o ../../../utils/nvds_msgapi/common_src/*.o 2>/dev/null || true"
 docker run --rm -v "$ROOT/apps/jersey:/src" -w /src --entrypoint bash "$IMAGE" \
   -c "make -s 2>&1 | grep -v Winfinite-recursion | grep -E 'error' ; chown $(id -u):$(id -g) libnvdsinfer_jersey.so"
+docker run --rm -v "$ROOT/apps/yolox:/src" -w /src --entrypoint bash "$IMAGE" \
+  -c "make -s 2>&1 | grep -v Winfinite-recursion | grep -E 'error' ; chown $(id -u):$(id -g) libnvdsinfer_yolox.so"
 mkdir -p "$ROOT/external/bin"
-cp "$DST/deepstream-test5-court-app" "$ROOT/apps/jersey/libnvdsinfer_jersey.so" "$ROOT/external/bin/"
+cp "$DST/deepstream-test5-court-app" "$ROOT/apps/jersey/libnvdsinfer_jersey.so" "$ROOT/apps/yolox/libnvdsinfer_yolox.so" \
+  "$ROOT/external/bin/"
 echo "built external/bin/deepstream-test5-court-app, external/bin/libnvdsinfer_jersey.so"

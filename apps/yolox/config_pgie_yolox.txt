@@ -1,0 +1,30 @@
+[property]
+# YOLOX-m (Megvii, Apache-2.0, COCO) as the person detector (GitHub issue #10). scripts/run_mv3dt.sh with
+# DETECTOR_MODEL=YOLOX-m copies this template next to NVIDIA's detector templates and the model files into
+# models/YOLOX/: yolox_m_dyn.onnx (the released ONNX with a variable batch, tools/yolox_person.py) and labels.txt.
+# YOLOX takes BGR pixels 0-255, letterboxed; nvinfer pads with black at the bottom (the demo pads with 114).
+net-scale-factor=1.0
+offsets=0.0;0.0;0.0
+model-color-format=1
+labelfile-path=/workspace/models/YOLOX/labels.txt
+onnx-file=/workspace/models/YOLOX/yolox_m_dyn.onnx
+gie-unique-id=1
+network-type=0
+network-mode=1
+int8-calib-file=/workspace/models/YOLOX/yolox_m_int8_trt10.16.cache
+num-detected-classes=1
+infer-dims=3;640;640
+maintain-aspect-ratio=1
+# bilinear frame scaling: nvinfer's default (nearest-neighbour) aliases distant players when the frame is shrunk 3x
+# (yx_cal_r1: about 30 % fewer boxes on FL and FR than PeopleNet)
+scaling-filter=1
+symmetric-padding=0
+output-blob-names=output
+parse-bbox-func-name=NvDsInferParseCustomYoloX
+custom-lib-path=/workspace/bin/libnvdsinfer_yolox.so
+cluster-mode=2
+
+[class-attrs-all]
+pre-cluster-threshold=0.25
+nms-iou-threshold=0.45
+topk=20
