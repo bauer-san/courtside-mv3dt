@@ -286,8 +286,11 @@ supplies on its own; positions, speeds and distances, however, are averaged acro
 moments. Differences of 2-3 points are at the edge of the run-to-run spread, and the doubled-offset case is a single
 run. The three runs on the original clips didn't shut down at the end of the clips (DeepStream never handled NL's end
 of stream); they were stopped after their recordings were complete, so their speed isn't reported.</p>
-<p><strong>For a live system:</strong> the cameras need synchronised clocks (NTP or hardware sync), and DeepStream must batch the
-four streams by capture timestamp, not by arrival order.</p>
+<p><strong>How the pipeline aligns them now, and what a live system needs.</strong> Here the alignment comes entirely from the input
+files, cut with the measured offsets. DeepStream's muxer groups one frame per camera into each batch, but with file
+sources it simply takes the next frame of each file, without looking at capture time. Live cameras can't be pre-cut:
+they need synchronised clocks (NTP or hardware sync), and the muxer must pair frames by capture timestamp, not by
+arrival order. That hasn't been built or tested here (section 9).</p>
 <h2 id="3-pipeline">3. Pipeline</h2>
 <ol>
 <li>
@@ -1277,8 +1280,13 @@ pipeline and scored on newly labelled ground truth.</p>
 <p><strong>Measure on the target Jetson (AGX Orin 64 GB, or Orin Nano Super with fewer cameras or 15 fps).</strong></p>
 <ul>
 <li>Re-calibrate INT8 for its TensorRT version (<code>tools/int8_calibrate.py</code>) and re-measure the camera bias.</li>
-<li>Batch the camera streams by capture timestamp (section 2.4).</li>
-<li>Measure fps per camera without display, and DLA throughput (AGX Orin).</li>
+<li>
+<p>Build and test pairing the live camera streams by capture timestamp (section 2.4; the clips here were
+ pre-aligned).</p>
+</li>
+<li>
+<p>Measure fps per camera without display, and DLA throughput (AGX Orin).</p>
+</li>
 <li>
 <p>Measure the court tracker's worst-frame time in the pipeline; move the team model's re-clustering to a worker
  thread if it exceeds the frame period.</p>

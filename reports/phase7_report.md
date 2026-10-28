@@ -120,8 +120,11 @@ moments. Differences of 2-3 points are at the edge of the run-to-run spread, and
 run. The three runs on the original clips didn't shut down at the end of the clips (DeepStream never handled NL's end
 of stream); they were stopped after their recordings were complete, so their speed isn't reported.
 
-**For a live system:** the cameras need synchronised clocks (NTP or hardware sync), and DeepStream must batch the
-four streams by capture timestamp, not by arrival order.
+**How the pipeline aligns them now, and what a live system needs.** Here the alignment comes entirely from the input
+files, cut with the measured offsets. DeepStream's muxer groups one frame per camera into each batch, but with file
+sources it simply takes the next frame of each file, without looking at capture time. Live cameras can't be pre-cut:
+they need synchronised clocks (NTP or hardware sync), and the muxer must pair frames by capture timestamp, not by
+arrival order. That hasn't been built or tested here (section 9).
 
 ## 3. Pipeline
 
@@ -591,7 +594,8 @@ pipeline and scored on newly labelled ground truth.
 1. **INT8 accuracy** (issue #1): box placement and threshold settings, then an INT8 profile for the Jetson.
 2. **Measure on the target Jetson (AGX Orin 64 GB, or Orin Nano Super with fewer cameras or 15 fps).**
    - Re-calibrate INT8 for its TensorRT version (`tools/int8_calibrate.py`) and re-measure the camera bias.
-   - Batch the camera streams by capture timestamp (section 2.4).
+   - Build and test pairing the live camera streams by capture timestamp (section 2.4; the clips here were
+     pre-aligned).
    - Measure fps per camera without display, and DLA throughput (AGX Orin).
    - Measure the court tracker's worst-frame time in the pipeline; move the team model's re-clustering to a worker
      thread if it exceeds the frame period.
