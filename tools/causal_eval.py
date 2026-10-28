@@ -16,7 +16,7 @@ reference a live system can't have), and scored paired against the main configur
   offline_all   all offline inputs: whole-run bias, hand-named team model, spectator filter (the former default)
 The main configuration also runs with seeds 0-4 of the online model's first clustering; all rows use seed 0.
 
-  python -m tools.causal_eval mount_r1 mount_r2 mount_r3 [--jobs 8] [--md out.md]
+  python -m tools.causal_eval s_int8t10_r1 s_int8t10_r2 s_int8t10_r3 [--jobs 8] [--md out.md]
 """
 
 import argparse

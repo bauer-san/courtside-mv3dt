@@ -4,8 +4,8 @@ Labels are the identity output of the default court tracker (tools/world_tracker
 team; refs grey; tracks without an identity white with their track number. At the labelled ground-truth moments
 (gt/*) a strip shows how many labelled detections carry the right label, and wrong boxes are outlined in yellow.
 
-  python -m tools.render_labels mount_r1 [--start 0] [--end GAME_END] [--out experiments/mount_r1/labelled_game.mp4]
-  python -m tools.render_labels ct3_r1 --live     # what a COURTTRACK=1 run sent: per-frame Kafka messages
+  python -m tools.render_labels s_int8t10_r1 [--start 0] [--end GAME_END] [--out experiments/s_int8t10_r1/labelled_game.mp4]
+  python -m tools.render_labels cts_r1 --live     # what a COURTTRACK=1 run sent: per-frame Kafka messages
 
 --sanitize pixelates what could identify people or the venue: everything whose floor projection (calibration) lies
 outside the court lines (crowd, walls, signs), the centre logo and the lanes (floor lettering), and every person's

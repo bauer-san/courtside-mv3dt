@@ -3,13 +3,13 @@
 # Each run is followed by the jersey-read conversion and appearance extraction, so the Python reference can be run on
 # the same DeepStream run (tools/courttrack_export.py live).
 # DATASET: default gym_sync (the time-aligned clips).
-#   ./scripts/phase8_courttrack_live.sh [ct_r1 ct_r2 ct_r3]
+#   ./scripts/phase8_courttrack_live.sh [cts_r1 cts_r2 cts_r3]
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 PY="$HOME/.venvs/mv3dt/bin/python"
 DATASET="${DATASET:-gym_sync}"
-RUNS=("${@:-ct_r1 ct_r2 ct_r3}")
+RUNS=("${@:-cts_r1 cts_r2 cts_r3}")
 for r in ${RUNS[@]}; do
   echo "=== $r ($(date +%H:%M))"
   env DETECTOR_MODEL=PeopleNet2.6.3 COURT_FILTER=1 JERSEY=1 NEIGHBORS=all DISPLAY_OUT=0 COURTTRACK=1 \

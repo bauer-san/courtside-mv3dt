@@ -11,7 +11,7 @@ Each labelled detection is classified for the identity output (tools/world_track
   wrong number, other  any other wrong identity
   other                remaining (e.g. on an identity matched to another player while its own is unmatched)
 
-  python -m tools.loss_breakdown base_r1 base_r2 base_r3 [--md out.md]
+  python -m tools.loss_breakdown s_int8t10_r1 s_int8t10_r2 s_int8t10_r3 [--md out.md]
 """
 
 import argparse

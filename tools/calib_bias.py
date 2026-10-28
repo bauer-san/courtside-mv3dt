@@ -7,8 +7,8 @@ installation and stored in each camera's camInfo file as `courtTrackerBias_m: [x
 subtracts before tracking (the DeepStream probe and track_run(correct_bias="stored")). Re-measure whenever the
 calibration changes.
 
-  python -m tools.calib_bias mount_r1 mount_r2 mount_r3            # per-run and pooled values
-  python -m tools.calib_bias mount_r1 mount_r2 mount_r3 --write    # store the pooled values in camInfo
+  python -m tools.calib_bias s_int8cal_r1 s_int8cal_r2            # per-run and pooled values
+  python -m tools.calib_bias s_int8cal_r1 s_int8cal_r2 --write    # store the pooled values in camInfo
 """
 
 import argparse

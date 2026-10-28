@@ -9,7 +9,7 @@ For each variant run against a reference run (detector every frame), on the game
   label recall     share of hand-labelled people (gt/*, carried over by box overlap) the variant detects
 Two FP16 reference runs compared with each other give the noise floor (runs are not repeatable).
 
-  python -m tools.variant_eval --ref mount_r1 --runs mount_r2 int8_r1 int1_r1 [--md out.md]
+  python -m tools.variant_eval --ref s_int8_r1 --runs s_int8_r2 s_int8t10_r1 cts_r1 [--md out.md]
 """
 
 import argparse

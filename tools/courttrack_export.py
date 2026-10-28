@@ -1,12 +1,12 @@
 """Record the exact per-frame inputs of the court tracker for the C++ port (apps/courttrack), plus the Python
 outputs to compare against, and compare a C++ replay with them.
 
-  python -m tools.courttrack_export export mount_r1 OUT_DIR             # offline team model (as in the report)
-  python -m tools.courttrack_export export-online mount_r1 OUT_DIR    # main configuration (stored camera bias)
-  python -m tools.courttrack_export export-online mount_r1 OUT_DIR --bias-from mount_r2   # bias from another run
+  python -m tools.courttrack_export export s_int8t10_r1 OUT_DIR             # offline team model (as in the report)
+  python -m tools.courttrack_export export-online s_int8t10_r1 OUT_DIR    # main configuration (stored camera bias)
+  python -m tools.courttrack_export export-online s_int8t10_r1 OUT_DIR --bias-from s_int8t10_r2   # bias from another run
   apps/courttrack/ct_replay OUT_DIR/inputs.bin OUT_DIR/cpp_out.txt
-  python -m tools.courttrack_export compare mount_r1 OUT_DIR
-  python -m tools.courttrack_export live ct_r1 [ct_r2 ...]          # runs with the court tracker in DeepStream
+  python -m tools.courttrack_export compare s_int8t10_r1 OUT_DIR
+  python -m tools.courttrack_export live cts_r1 [cts_r2 ...]          # runs with the court tracker in DeepStream
 
 export         inputs as WorldTracker.step receives them inside track_run (online re-linking): ground-filtered,
                camera-bias-corrected floor positions, team labels from the offline team model, heights, jersey

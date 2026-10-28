@@ -7,7 +7,7 @@ a dataset cut with per-camera offsets (tools/make_clips --offsets) have each cam
 every detection key is mapped back to the original frame numbers, so that one labelled moment stays one moment (the
 switch count depends on it; IDF1 doesn't).
 
-  python -m tools.sync_eval mount_r1 mount_r2 mount_r3 sync_r1 sync_r2 sync_r3 [--md out.md]
+  python -m tools.sync_eval int8t10_r1 int8t10_r2 int8t10_r3 s_int8t10_r1 s_int8t10_r2 s_int8t10_r3 tol_2x_r1 [--md out.md]
 """
 
 import argparse

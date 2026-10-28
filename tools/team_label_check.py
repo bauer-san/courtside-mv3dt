@@ -6,7 +6,7 @@ p >= WTParams.team_min_p, as in the tracker), over the game (to 6:29, gt_eval.ga
 names are matched to colours by majority. Reported per period: crops of each colour given the other team's name,
 referee crops given a team name, and team names given to crops the offline model left unlabelled.
 
-  python -m tools.team_label_check mount_r1 mount_r2 mount_r3
+  python -m tools.team_label_check s_int8t10_r1 s_int8t10_r2 s_int8t10_r3
 """
 
 import argparse

@@ -17,7 +17,7 @@ Causal: the labels given to detections of frame f come from a model built from f
               the crop within its cluster's 80th-percentile radius
 Before `warmup` frames and `min_tracks` usable tracks there is no model and no labels.
 
-  python -m tools.online_teams mount_r1 [mount_r2 ...]     # identity IDF1 with online labels vs the offline model
+  python -m tools.online_teams s_int8t10_r1 [s_int8t10_r2 ...]     # identity IDF1 with online labels vs the offline model
 """
 
 import argparse

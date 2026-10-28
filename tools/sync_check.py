@@ -15,7 +15,7 @@ Offsets: the frame number at which each camera shows a given moment, minus NL's 
   python -m tools.sync_check timing
   python -m tools.sync_check shake [--end 11670]
   python -m tools.sync_check sheet FL left 8046 8099 out.jpg
-  python -m tools.sync_check agree mount_r1 [mount_r2 ...] --offsets FL=-13,NR=-22,FR=-26
+  python -m tools.sync_check agree int8t10_r1 [int8t10_r2 ...] --offsets FL=-13,NR=-22,FR=-26
 """
 
 import argparse

@@ -6,7 +6,7 @@ So every configuration is scored on each run x labelled minute; reported: mean, 
 default paired by run and minute (with how many of the pairs favour the configuration). Every configuration is the
 main, causal one (world_tracker.track_default: online team model, stored camera bias) with one change.
 
-  python -m tools.multi_eval base_r1 base_r2 base_r3 [--md out.md]
+  python -m tools.multi_eval s_int8t10_r1 s_int8t10_r2 s_int8t10_r3 [--md out.md]
 """
 
 import argparse
