@@ -15,9 +15,14 @@ NL=26, NL's clip starts at source frame start + 26. A camera that shows a moment
 the k-frame later start, so that frame n of every clip shows the same moment. The offsets are recorded in the
 manifest; tools.gt_eval shifts ground-truth labels accordingly.
 
+--step N keeps every Nth frame of each window and encodes at 30 / N fps (GitHub issue #5: a lower camera frame
+rate). Clip frame k shows source frame start + N k, the same moment on every camera; the step is recorded in the
+manifest (tools.frame_step maps a run's frames back to 30 fps numbering for scoring).
+
 Example:
   python -m tools.make_clips --start 3600 --seconds 60 --name gym_60s
   python -m tools.make_clips --start 0 --seconds 898 --offsets NL=26,FL=13,NR=4 --name gym_sync
+  python -m tools.make_clips --start 0 --seconds 898 --offsets NL=26,FL=13,NR=4 --step 2 --name gym_sync15
 """
 
 import argparse
@@ -36,12 +41,13 @@ SHARED = ["camInfo", "map.png", "transforms.yml"]
 PROBE_W, PROBE_H = 480, 270
 
 
-def encode_cmd(src: Path, dst: Path, start: int, count: int, crf: int = 18) -> list[str]:
+def encode_cmd(src: Path, dst: Path, start: int, count: int, crf: int = 18, step: int = 1) -> list[str]:
+    keep = f",select='not(mod(n,{step}))',setpts=N/({FPS}/{step})/TB" if step > 1 else ",setpts=PTS-STARTPTS"
     return [
         "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
         "-i", str(src),
-        "-vf", f"trim=start_frame={start}:end_frame={start + count},setpts=PTS-STARTPTS",
-        "-an", "-r", str(FPS), "-fps_mode", "cfr",
+        "-vf", f"trim=start_frame={start}:end_frame={start + count}{keep}",
+        "-an", "-r", f"{FPS / step:g}", "-fps_mode", "cfr",
         "-c:v", "libx264", "-preset", "medium", "-crf", str(crf), "-pix_fmt", "yuv420p",
         "-movflags", "+faststart",
         str(dst),
@@ -105,6 +111,7 @@ def main() -> None:
     ap.add_argument("--base", type=Path, default=DATASETS / "gym")
     ap.add_argument("--crf", type=int, default=18)
     ap.add_argument("--offsets", default="", help="per-camera extra start frames, e.g. FL=13,NR=22,FR=26")
+    ap.add_argument("--step", type=int, default=1, help="keep every Nth frame, encoded at 30 / N fps")
     args = ap.parse_args()
     offsets = {k: int(v) for k, v in (x.split("=") for x in args.offsets.split(",") if x)}
     if set(offsets) - {pos for _, pos, _ in CAMERAS} or any(v < 0 for v in offsets.values()):
@@ -117,15 +124,16 @@ def main() -> None:
     (out / "videos").mkdir(parents=True, exist_ok=True)
     link_shared(args.base, out)
 
-    manifest = {"start_frame": args.start, "frames": count, "fps": FPS, "crf": args.crf, "offsets": offsets,
-                "cameras": {}}
+    manifest = {"start_frame": args.start, "frames": count, "fps": FPS / args.step, "step": args.step,
+                "crf": args.crf, "offsets": offsets, "cameras": {}}
+    expected = -(-count // args.step)
     for cam_id, pos, _ in CAMERAS:
         name = f"{cam_id}_{pos}.mp4"
         src = (args.base / "videos" / name).resolve()
         dst = out / "videos" / name
         start = args.start + offsets.get(pos, 0)
         print(f"[{cam_id}] encoding frames {start}..{start + count - 1} -> {dst.relative_to(DATASETS)}", flush=True)
-        subprocess.run(encode_cmd(src, dst, start, count, args.crf), check=True)
+        subprocess.run(encode_cmd(src, dst, start, count, args.crf, args.step), check=True)
         n = count_frames(dst)
         sync = sync_check(src, dst, start)
         print(f"[{cam_id}] frames={n} sync={sync}", flush=True)
@@ -133,8 +141,8 @@ def main() -> None:
 
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     counts = {c["frames"] for c in manifest["cameras"].values()}
-    ok = counts == {count} and all(c["sync"]["ok"] for c in manifest["cameras"].values())
-    print(f"{args.name}: {'OK' if ok else 'FAILED'} (frame counts {sorted(counts)}, expected {count})")
+    ok = counts == {expected} and all(c["sync"]["ok"] for c in manifest["cameras"].values())
+    print(f"{args.name}: {'OK' if ok else 'FAILED'} (frame counts {sorted(counts)}, expected {expected})")
     if not ok:
         raise SystemExit(1)
 

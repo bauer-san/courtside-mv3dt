@@ -908,9 +908,16 @@ runs of section 6.1; the main runs, with bilinear jersey crops, measured 89-95 f
 </table></div>
 <p><strong>What this means:</strong></p>
 <ul>
-<li><strong>Orin Nano Super:</strong> four cameras at 30 fps don't look feasible. What remains:<ul>
+<li>
+<p><strong>Orin Nano Super:</strong> four cameras at 30 fps don't look feasible. What remains:</p>
+<ul>
 <li>two cameras</li>
-<li>or a lower camera frame rate. Running the cameras at 15 fps, with every frame detected, <strong>is untested</strong>.</li>
+<li>or a lower camera frame rate. <strong>15 fps was tested on the 3060 Ti</strong> (GitHub issue #5; 3 runs, every frame
+detected, frame-counted settings halved): identity accuracy 82.9 % and end-to-end 79.6 %, against 84.4 % and
+82.4 % at 30 fps (4 runs), with MV3DT's own IDs clearly worse (53 % vs 62 %). But each frame costs about 20 %
+more (74 fps per camera instead of about 90), because the jersey reader still reads each player every 0.2 s,
+i.e. on more of the frames. Scaled the same way, four 15 fps cameras would run at about 9-15 fps on the Orin Nano
+Super: not enough, unless the jersey reader reads less often (untested).</li>
 </ul>
 </li>
 <li>
@@ -945,8 +952,13 @@ Super's.</p>
 <p><strong>Recommendation.</strong></p>
 <ul>
 <li><strong>For four cameras at 30 fps (current or corner layout), choose the AGX Orin 64 GB.</strong></li>
-<li><strong>The Orin Nano Super would need fewer cameras or a lower frame rate,</strong> and a 15 fps test should come first.</li>
-<li><strong>Before buying, measure on the device:</strong><ul>
+<li>
+<p><strong>The Orin Nano Super doesn't look feasible for four cameras, even at 15 fps</strong> (estimate above). It would need
+    fewer cameras, or a 15 fps setup with a sparser jersey reader measured on the device.</p>
+</li>
+<li>
+<p><strong>Before buying, measure on the device:</strong></p>
+<ul>
 <li>fps per camera (INT8, no display)</li>
 <li>DLA throughput (AGX Orin)</li>
 <li>decode capacity</li>
@@ -1302,14 +1314,9 @@ pipeline and scored on newly labelled ground truth.</p>
 <li>
 <p>Re-score accuracy with <code>tools/multi_eval.py</code> and <code>tools/courttrack_export.py live</code>.</p>
 </li>
-<li><strong>Test a lower camera frame rate (15 fps) on the 3060 Ti</strong> (issue #5) if the Orin Nano Super stays in
-consideration. Every frame is detected, so MV3DT works as designed; it needs the same three-run evaluation as
-section 6.1.</li>
+<li><strong>Trial the corner layout (C) for one session</strong> (issue #9) with temporary mounts at about 4.5-5 m, label a minute
+and compare with the current layout, including the highlight framing of both baskets.</li>
 </ul>
-</li>
-<li>
-<p><strong>Trial the corner layout (C) for one session</strong> (issue #9) with temporary mounts at about 4.5-5 m, label a minute
-    and compare with the current layout, including the highlight framing of both baskets.</p>
 </li>
 <li>
 <p><strong>More reads per player where it matters</strong> (issue #8). Re-read tracks for a second or two after a close
@@ -1334,6 +1341,8 @@ DATASET=gym PREFIX=j_ ./scripts/phase7_deploy_variants.sh int8t10_r1 int8t10_r2 
 DATASET=gym_sync2x PREFIX=j2x_ ./scripts/phase7_deploy_variants.sh int8t10_r1                  # section 2.4, offsets doubled
 ./scripts/phase7_deploy_variants.sh int8_r1 int8_r2 int8_r3 int8t10_r1 int8t10_r2 int8t10_r3   # section 6.1 ¹
 JOBS=8 ./scripts/phase8_reevaluate.sh   # every court-tracker table and figure in this report
+python -m tools.make_clips --start 0 --seconds 898 --offsets NL=26,FL=13,NR=4 --step 2 --name gym_sync15
+./scripts/phase9_fps15.sh   # section 6.2, cameras at 15 fps (scored as in GitHub issue #5)
 ~/.venvs/mv3dt/bin/python -m tools.variant_eval --ref s_int8_r1 --runs s_int8_r2 s_int8_r3 s_int8t10_r1 s_int8t10_r2 \
   s_int8t10_r3 js_r1 js_r2 js_r3 ctj_r1 ctj_r2 ctj_r3 --md reports/deploy_variants_detection.md
 ~/.venvs/mv3dt/bin/python -m tools.camera_layout --validate js_r1 --occupancy js_r1 \

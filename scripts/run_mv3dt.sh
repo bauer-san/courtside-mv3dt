@@ -6,6 +6,7 @@
 #        NEIGHBORS=pairs ./scripts/run_mv3dt.sh ...   # camera neighbour topology (tools/pub_sub.py): all|pairs|pairs_centre
 #        JERSEY=1 ./scripts/run_mv3dt.sh ...          # jersey-number SGIEs (apps/jersey) + jersey_reads.csv
 #        JERSEY_SCALING=1 (with JERSEY=1)              # bilinear crop scaling for the jersey SGIEs (default: nvinfer's)
+#        JERSEY_REINFER=n (with JERSEY=1)              # frames skipped between reads of one player (default 6)
 #        DETECTOR_MODEL=PeopleNet2.6.3 ./scripts/run_mv3dt.sh gym_60s c60_pn263
 #        ./scripts/run_mv3dt.sh gym_60s c60_nopose PoseEstimator.poseEstimatorType=0
 #
@@ -120,6 +121,9 @@ if [[ "${JERSEY:-0}" == 1 ]]; then
   if [[ -n "${JERSEY_SCALING:-}" ]]; then   # nvinfer scaling-filter for the torso and text crops (1 = bilinear)
     "$PY" -m tools.ds_config ini "$OUT/config_sgie_textdet.txt" property.scaling-filter="$JERSEY_SCALING"
     "$PY" -m tools.ds_config ini "$OUT/config_sgie_textrec.txt" property.scaling-filter="$JERSEY_SCALING"
+  fi
+  if [[ -n "${JERSEY_REINFER:-}" ]]; then   # frames skipped between reads of one player (default 6: every 7th frame)
+    "$PY" -m tools.ds_config ini "$OUT/config_sgie_textdet.txt" property.secondary-reinfer-interval="$JERSEY_REINFER"
   fi
   "$PY" -m tools.ds_config ini "$OUT/config_deepstream.txt" \
     secondary-gie0.enable=1 secondary-gie0.gpu-id=0 secondary-gie0.gie-unique-id=2 secondary-gie0.operate-on-gie-id=1 \

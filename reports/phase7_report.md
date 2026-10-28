@@ -422,7 +422,12 @@ runs of section 6.1; the main runs, with bilinear jersey crops, measured 89-95 f
 **What this means:**
 - **Orin Nano Super:** four cameras at 30 fps don't look feasible. What remains:
   - two cameras
-  - or a lower camera frame rate. Running the cameras at 15 fps, with every frame detected, **is untested**.
+  - or a lower camera frame rate. **15 fps was tested on the 3060 Ti** (GitHub issue #5; 3 runs, every frame
+    detected, frame-counted settings halved): identity accuracy 82.9 % and end-to-end 79.6 %, against 84.4 % and
+    82.4 % at 30 fps (4 runs), with MV3DT's own IDs clearly worse (53 % vs 62 %). But each frame costs about 20 %
+    more (74 fps per camera instead of about 90), because the jersey reader still reads each player every 0.2 s,
+    i.e. on more of the frames. Scaled the same way, four 15 fps cameras would run at about 9-15 fps on the Orin Nano
+    Super: not enough, unless the jersey reader reads less often (untested).
 - **AGX Orin 64 GB:** four cameras at 30 fps look borderline to feasible.
   - **Six cameras at 30 fps** don't look feasible on the GPU alone.
   - **Its two DLAs** could take the INT8 detector off the GPU (DeepStream supports this), but their throughput for
@@ -440,7 +445,8 @@ runs of section 6.1; the main runs, with bilinear jersey crops, measured 89-95 f
 
 **Recommendation.**
 - **For four cameras at 30 fps (current or corner layout), choose the AGX Orin 64 GB.**
-- **The Orin Nano Super would need fewer cameras or a lower frame rate,** and a 15 fps test should come first.
+- **The Orin Nano Super doesn't look feasible for four cameras, even at 15 fps** (estimate above). It would need
+  fewer cameras, or a 15 fps setup with a sparser jersey reader measured on the device.
 - **Before buying, measure on the device:**
   - fps per camera (INT8, no display)
   - DLA throughput (AGX Orin)
@@ -606,15 +612,12 @@ pipeline and scored on newly labelled ground truth.
    - Check that the pipeline shuts down at end of stream (section 2.4: it didn't on the original clips here; issue
      #7).
    - Re-score accuracy with `tools/multi_eval.py` and `tools/courttrack_export.py live`.
-2. **Test a lower camera frame rate (15 fps) on the 3060 Ti** (issue #5) if the Orin Nano Super stays in
-   consideration. Every frame is detected, so MV3DT works as designed; it needs the same three-run evaluation as
-   section 6.1.
-3. **Trial the corner layout (C) for one session** (issue #9) with temporary mounts at about 4.5-5 m, label a minute
+2. **Trial the corner layout (C) for one session** (issue #9) with temporary mounts at about 4.5-5 m, label a minute
    and compare with the current layout, including the highlight framing of both baskets.
-4. **More reads per player where it matters** (issue #8). Re-read tracks for a second or two after a close
+3. **More reads per player where it matters** (issue #8). Re-read tracks for a second or two after a close
    encounter, and tracks without an identity.
-5. **Label a third minute** (5:00-6:00 is still unused) for a clean held-out score before any final claims.
-6. **Use the official roster** (numbers per team, available for real games): reject reads of numbers on neither
+4. **Label a third minute** (5:00-6:00 is still unused) for a clean held-out score before any final claims.
+5. **Use the official roster** (numbers per team, available for real games): reject reads of numbers on neither
    roster, and settle the team of a number only one team wears. The roster can't say which colour is which team, but
    the tracker can learn that from which numbers each colour cluster is read with. This also targets the wrong-team
    errors on shared numbers.
@@ -632,6 +635,8 @@ DATASET=gym PREFIX=j_ ./scripts/phase7_deploy_variants.sh int8t10_r1 int8t10_r2 
 DATASET=gym_sync2x PREFIX=j2x_ ./scripts/phase7_deploy_variants.sh int8t10_r1                  # section 2.4, offsets doubled
 ./scripts/phase7_deploy_variants.sh int8_r1 int8_r2 int8_r3 int8t10_r1 int8t10_r2 int8t10_r3   # section 6.1 ¹
 JOBS=8 ./scripts/phase8_reevaluate.sh   # every court-tracker table and figure in this report
+python -m tools.make_clips --start 0 --seconds 898 --offsets NL=26,FL=13,NR=4 --step 2 --name gym_sync15
+./scripts/phase9_fps15.sh   # section 6.2, cameras at 15 fps (scored as in GitHub issue #5)
 ~/.venvs/mv3dt/bin/python -m tools.variant_eval --ref s_int8_r1 --runs s_int8_r2 s_int8_r3 s_int8t10_r1 s_int8t10_r2 \
   s_int8t10_r3 js_r1 js_r2 js_r3 ctj_r1 ctj_r2 ctj_r3 --md reports/deploy_variants_detection.md
 ~/.venvs/mv3dt/bin/python -m tools.camera_layout --validate js_r1 --occupancy js_r1 \

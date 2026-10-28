@@ -47,6 +47,13 @@ def frame_offsets(run: Path) -> dict:
     return json.loads(m.read_text()).get("offsets", {}) if m.exists() else {}
 
 
+def frame_step(run: Path) -> int:
+    """Frames of the 30 fps source per clip frame (tools/make_clips --step; 1 for full frame rate)."""
+    from tools.appearance import run_dataset
+    m = run_dataset(run) / "manifest.json"
+    return json.loads(m.read_text()).get("step", 1) if m.exists() else 1
+
+
 def game_end(run: Path) -> int:
     """Last game frame of the run's clips (tools.GAME_END is in the original NL frames; a time-aligned dataset's clips
     start later by their NL offset)."""
@@ -56,8 +63,12 @@ def game_end(run: Path) -> int:
 
 def remap(gt: dict, src: Path, dst: Path, step: int = 60, min_iou: float = 0.6) -> dict:
     """Carry labels made on run `src`'s detections over to run `dst` (other MV3DT ids): same moment and camera (the
-    frame shifted by the datasets' per-camera offsets, if any), best box overlap >= min_iou."""
+    frame shifted by the datasets' per-camera offsets, if any), best box overlap >= min_iou. On a reduced-frame-rate
+    dataset (frames renumbered by tools/frame_step), a moment that falls on a dropped frame uses the nearest kept
+    frame (the earlier one on a tie); remap.last_shifted counts those labels."""
     off_src, off_dst = frame_offsets(src), frame_offsets(dst)
+    n = frame_step(dst)
+    remap.last_shifted = 0
     a = _boxes(src, step)
     b = _boxes(dst, 1 if off_src != off_dst else step)
     out = {}
@@ -66,6 +77,9 @@ def remap(gt: dict, src: Path, dst: Path, step: int = 60, min_iou: float = 0.6) 
         if box is None:
             continue
         fr_dst = fr + off_src.get(cam, 0) - off_dst.get(cam, 0)
+        if fr_dst % n:
+            fr_dst -= fr_dst % n if fr_dst % n <= n // 2 else fr_dst % n - n
+            remap.last_shifted += 1
         best, best_iou = None, min_iou
         for g2, l, t, r, bb in b.get((cam, fr_dst), []):
             iw = min(r, box[2]) - max(l, box[0])
