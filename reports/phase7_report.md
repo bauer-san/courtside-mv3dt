@@ -598,15 +598,17 @@ pipeline and scored on newly labelled ground truth.
      pre-aligned).
    - Measure fps per camera without display, and DLA throughput (AGX Orin; issue #4).
    - Measure the court tracker's worst-frame time in the pipeline; move the team model's re-clustering to a worker
-     thread if it exceeds the frame period.
-   - Check that the pipeline shuts down at end of stream (section 2.4: it didn't on the original clips here).
+     thread if it exceeds the frame period (issue #6).
+   - Check that the pipeline shuts down at end of stream (section 2.4: it didn't on the original clips here; issue
+     #7).
    - Re-score accuracy with `tools/multi_eval.py` and `tools/courttrack_export.py live`.
-3. **Test a lower camera frame rate (15 fps) on the 3060 Ti** if the Orin Nano Super stays in consideration. Every
-   frame is detected, so MV3DT works as designed; it needs the same three-run evaluation as section 6.1.
-4. **Trial the corner layout (C) for one session** with temporary mounts at about 4.5-5 m, label a minute and compare
-   with the current layout, including the highlight framing of both baskets.
-5. **More reads per player where it matters.** Re-read tracks for a second or two after a close encounter, and tracks
-   without an identity.
+3. **Test a lower camera frame rate (15 fps) on the 3060 Ti** (issue #5) if the Orin Nano Super stays in
+   consideration. Every frame is detected, so MV3DT works as designed; it needs the same three-run evaluation as
+   section 6.1.
+4. **Trial the corner layout (C) for one session** (issue #9) with temporary mounts at about 4.5-5 m, label a minute
+   and compare with the current layout, including the highlight framing of both baskets.
+5. **More reads per player where it matters** (issue #8). Re-read tracks for a second or two after a close
+   encounter, and tracks without an identity.
 6. **Label a third minute** (5:00-6:00 is still unused) for a clean held-out score before any final claims.
 7. **Use the official roster** (numbers per team, available for real games): reject reads of numbers on neither
    roster, and settle the team of a number only one team wears. The roster can't say which colour is which team, but

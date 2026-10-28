@@ -1289,23 +1289,27 @@ pipeline and scored on newly labelled ground truth.</p>
 </li>
 <li>
 <p>Measure the court tracker's worst-frame time in the pipeline; move the team model's re-clustering to a worker
- thread if it exceeds the frame period.</p>
+ thread if it exceeds the frame period (issue #6).</p>
 </li>
 <li>
-<p>Check that the pipeline shuts down at end of stream (section 2.4: it didn't on the original clips here).</p>
+<p>Check that the pipeline shuts down at end of stream (section 2.4: it didn't on the original clips here; issue
+ #7).</p>
 </li>
-<li>Re-score accuracy with <code>tools/multi_eval.py</code> and <code>tools/courttrack_export.py live</code>.</li>
-<li><strong>Test a lower camera frame rate (15 fps) on the 3060 Ti</strong> if the Orin Nano Super stays in consideration. Every
-frame is detected, so MV3DT works as designed; it needs the same three-run evaluation as section 6.1.</li>
+<li>
+<p>Re-score accuracy with <code>tools/multi_eval.py</code> and <code>tools/courttrack_export.py live</code>.</p>
+</li>
+<li><strong>Test a lower camera frame rate (15 fps) on the 3060 Ti</strong> (issue #5) if the Orin Nano Super stays in
+consideration. Every frame is detected, so MV3DT works as designed; it needs the same three-run evaluation as
+section 6.1.</li>
 </ul>
 </li>
 <li>
-<p><strong>Trial the corner layout (C) for one session</strong> with temporary mounts at about 4.5-5 m, label a minute and compare
-    with the current layout, including the highlight framing of both baskets.</p>
+<p><strong>Trial the corner layout (C) for one session</strong> (issue #9) with temporary mounts at about 4.5-5 m, label a minute
+    and compare with the current layout, including the highlight framing of both baskets.</p>
 </li>
 <li>
-<p><strong>More reads per player where it matters.</strong> Re-read tracks for a second or two after a close encounter, and tracks
-    without an identity.</p>
+<p><strong>More reads per player where it matters</strong> (issue #8). Re-read tracks for a second or two after a close
+    encounter, and tracks without an identity.</p>
 </li>
 <li>
 <p><strong>Label a third minute</strong> (5:00-6:00 is still unused) for a clean held-out score before any final claims.</p>
