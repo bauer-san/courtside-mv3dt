@@ -410,8 +410,8 @@ spec sheets before buying.
   - **Six cameras at 30 fps** don't look feasible on the GPU alone.
   - **Its two DLAs** could take the INT8 detector off the GPU (DeepStream supports this), but their throughput for
     this model must be measured.
-  - **4K decoding:** four 4K streams for jersey reading or highlight clips (section 7) are within its decoder, not
-    the Orin Nano Super's.
+  - **4K decoding:** four 4K streams for highlight clips (section 7) are within its decoder, not the Orin Nano
+    Super's.
 - **Court tracker:** inside the pipeline on the 3060 Ti PC it takes 0.9 ms per frame on average, with p99 about 9 ms
   and occasional frames up to 63 ms (the team model's re-clustering; section 4.6). The Orin's cores are slower, so
   the worst frames could exceed a 33 ms frame period. That doesn't drop frames by itself, but it needs measuring on
@@ -515,15 +515,15 @@ In layout C, every height keeps both baskets framed from a sideline view (128-14
   same read budget.
 - **Inter-camera tracker messages** (MQTT) grow with the number of camera pairs. Six cameras is modest.
 - **The cameras already record 4K;** this pipeline uses a 1080p transcode. The detector runs at 960 × 544 either way.
-  Feeding the 4K streams costs mainly decoding (about 4× the decode work), while the jersey reader would get torso
-  crops with twice the pixels and highlight clips full resolution.
-  - **What it wouldn't change:** with the current cameras, the simulator shows readable coverage unchanged (94 % of
-    the court by at least one camera). Wherever a camera sees a player at all, the player is already at least 150 px
-    tall at 1080p.
-  - **What it could change:** read reliability (more reads and fewer misreads on sharp crops), which would shorten
-    the wrong-identity periods after swaps (section 4.2; GitHub issue #2).
-  - **Lighter variant if decode is the limit:** a 1080p stream for detection and tracking plus 4K recorded for clips
-    and read at 5-10 fps for jerseys.
+  Feeding the 4K streams costs mainly decoding (about 4× the decode work); highlight clips need the 4K recordings,
+  jersey reading doesn't.
+  - **Coverage:** with the current cameras, the simulator shows readable coverage unchanged (94 % of the court by at
+    least one camera). Wherever a camera sees a player at all, the player is already at least 150 px tall at 1080p.
+  - **Reads (measured offline, GitHub issue #2):** the jersey reader was replayed outside DeepStream on the main
+    runs' own boxes, with torsos cut once from the 1080p frames and once from the matching 4K frames at twice the
+    resolution (`tools/hires_jersey.py`). With the same smooth scaling for both, the 4K crops gave 6 % fewer reads at
+    the same share of misreads, and a lower court-tracker identity score (79.2 % vs 84.0 %, 3 runs × 2 minutes).
+    Reading jerseys from 4K is therefore not pursued.
 
 ### 7.4 Proposal
 1. **Same compute as today (4 streams): move to layout C, four corner cameras at about 4.5-5 m.**
@@ -579,9 +579,13 @@ pipeline and scored on newly labelled ground truth.
 
 ## 9. Next steps (prioritised)
 
-1. **Read jerseys from the native 4K frames** (GitHub issue #2): detect and track on 1080p as now, cut torso crops
-   from the 4K frames. Offline experiment first; it targets the largest error (wrong identities after swaps) through
-   more reliable reads.
+1. **Scale the jersey reader's inputs smoothly.** DeepStream scales torso and text crops to the reader's input with
+   its default filter. An offline replay of the reader on the main runs' boxes reproduces DeepStream's reads with
+   nearest-neighbour scaling (5,507 vs 5,409 reads in the game, identity 80.4 % vs 79.9 %) and, with bilinear scaling
+   instead, gives 19 % more reads at a slightly higher misread share (6.9 % vs 5.6 % of reads near labels) and
+   identity 84.0 % (better or equal in all 6 run-minutes). Confirm with DeepStream runs (`scaling-filter=1` in the
+   two jersey configs). Reading from the 4K frames (issue #2) was tested the same way and doesn't help (section
+   7.3).
 2. **INT8 accuracy** (issue #1): box placement and threshold settings, then an INT8 profile for the Jetson.
 3. **Measure on the target Jetson (AGX Orin 64 GB, or Orin Nano Super with fewer cameras or 15 fps).**
    - Re-calibrate INT8 for its TensorRT version (`tools/int8_calibrate.py`) and re-measure the camera bias.
@@ -620,6 +624,11 @@ JOBS=8 ./scripts/phase8_reevaluate.sh   # every court-tracker table and figure i
   s_int8t10_r3 cts_r1 cts_r2 cts_r3 --md reports/deploy_variants_detection.md
 ~/.venvs/mv3dt/bin/python -m tools.camera_layout --validate s_int8t10_r1 --occupancy s_int8t10_r1 \
   --md reports/camera_layouts.md --heights 4.5,5,6,7 --heights-md reports/camera_layouts_height.md
+~/.venvs/mv3dt/bin/python -m tools.hires_jersey read s_int8t10_r1 s_int8t10_r2 s_int8t10_r3 --interp area --tag _area
+~/.venvs/mv3dt/bin/python -m tools.hires_jersey read s_int8t10_r1 s_int8t10_r2 s_int8t10_r3 --interp nearest --tag _nearest --min-h 150
+~/.venvs/mv3dt/bin/python -m tools.hires_jersey score s_int8t10_r1 s_int8t10_r2 s_int8t10_r3 \
+  --files jersey.npz,jersey_1080p_h150_nearest.npz,jersey_1080p_h150_area.npz,jersey_4k_h150_area.npz \
+  --md reports/hires_jersey.md   # sections 7.3 and 9 (offline reader replay)
 python3 reports/build_page.py   # web page version
 ```
 
