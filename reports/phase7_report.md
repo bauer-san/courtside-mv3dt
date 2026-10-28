@@ -90,7 +90,7 @@ a full identity, across about 10 people per minute (players from both teams, inc
 The clips used in this report are time-aligned: frame n of every camera shows the same moment. The four cameras were
 recorded over RTSP into separate files, and the original recordings started up to 0.87 s apart.
 
-**How the offsets were measured** (`tools/sync_check.py`):
+**How the offsets were measured** (`tools/sync_check.py`, GitHub issue #3):
 - **Camera shake:** a ball hitting a backboard shakes both cameras on that mount at the same moment. The global image
   shift between consecutive frames, cross-correlated between the two cameras on a mount, gives NL-FR 26 frames (two
   hits) and NR-FL 9 frames (two hits).
@@ -103,8 +103,11 @@ recorded over RTSP into separate files, and the original recordings started up t
 
 **Why it matters.** MV3DT associates people across cameras by comparing their positions at the same frame number,
 and the court tracker fuses the cameras' floor positions frame by frame. With the streams out of step, both compare
-different moments. The same INT8 pipeline was run on the original clips, on the aligned ones, and on clips with the
-offsets doubled (`tools/sync_eval.py`, `reports/sync_eval.md`):
+different moments. Players move at a median 0.8 m/s (2.1 m/s at the 90th percentile; court-tracker positions of
+js_r1), so 433 ms apart puts the same player a median 0.36 m apart in two cameras (0.92 m at the 90th percentile).
+The court tracker merges two tracks fed by different cameras only if they stay within 0.9 m. The same INT8 pipeline
+was run on the original clips, on the aligned ones, and on clips with the offsets doubled (`tools/sync_eval.py`,
+`reports/sync_eval.md`):
 
 | Clips | Largest offset between cameras with overlapping views | Runs | Court tracker identity IDF1 | End-to-end | MV3DT's own IDs | Foot-point distance, same person and frame (NL-FR / FL-FR / NL-FL) |
 |---|---|---|---|---|---|---|
