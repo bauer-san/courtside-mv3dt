@@ -522,7 +522,7 @@ In layout C, every height keeps both baskets framed from a sideline view (128-14
 - **Basis:** the measured INT8 runs (about 95 fps per camera at 88-89 % GPU use, section 6.1). The estimates assume
   the AGX Orin 64 GB is 2.5-3.5 times slower and the Orin Nano Super 5-8 times slower. Neither assumption has been
   measured.
-- **DLAs:** on the AGX Orin, running the detector on its DLAs would free GPU time; not measured.
+- **DLAs:** on the AGX Orin, running the detector on its DLAs would free GPU time; not measured yet (GitHub issue #4).
 - **Jersey reading** scales with the number of readable players rather than cameras. More cameras can be held to the
   same read budget.
 - **Inter-camera tracker messages** (MQTT) grow with the number of camera pairs. Six cameras is modest.
@@ -596,7 +596,7 @@ pipeline and scored on newly labelled ground truth.
    - Re-calibrate INT8 for its TensorRT version (`tools/int8_calibrate.py`) and re-measure the camera bias.
    - Build and test pairing the live camera streams by capture timestamp (section 2.4; the clips here were
      pre-aligned).
-   - Measure fps per camera without display, and DLA throughput (AGX Orin).
+   - Measure fps per camera without display, and DLA throughput (AGX Orin; issue #4).
    - Measure the court tracker's worst-frame time in the pipeline; move the team model's re-clustering to a worker
      thread if it exceeds the frame period.
    - Check that the pipeline shuts down at end of stream (section 2.4: it didn't on the original clips here).
