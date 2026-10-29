@@ -610,8 +610,8 @@ live</code>):</p>
 <td>90.7-91.4 fps per camera, with the evaluation logs written to this PC's hard disk</td>
 </tr>
 <tr>
-<td>Court tracker + team model, in the pipeline</td>
-<td>0.91-0.94 ms mean, about 9.5 ms p99, 54-66 ms max per frame</td>
+<td>Court tracker + team model, in the pipeline ¹</td>
+<td>0.21-0.22 ms mean, 1.8-2.0 ms p99, 13-16 ms max per frame</td>
 </tr>
 <tr>
 <td>Torso histograms, in the pipeline</td>
@@ -631,14 +631,16 @@ live</code>):</p>
 </li>
 <li>
 <p><strong>Duplicate ids:</strong> MV3DT occasionally gives two different people the same object id in one camera and frame.
-    Everything downstream is keyed by (frame, camera, id), so only the first is kept.</p>
+    Everything downstream is keyed by (frame, camera, id), so only the first is kept.
+¹ Measured on two later live runs (<code>ctO2_r1</code>, <code>ctpr_r1</code>): the three runs above had the app compiled without
+optimisation (NVIDIA's sample Makefile sets none) and took 0.91-0.94 ms mean, about 9.5 ms p99 and 54-66 ms max.
+Both later runs' identities are again reproduced exactly by the C++ and Python replays.</p>
 </li>
 <li>
-<p><strong>Speed in the pipeline:</strong> the same computation takes 0.08 ms per frame when replayed alone, against 0.9 ms in the
-    pipeline, presumably because it shares the CPU with DeepStream's threads (not investigated). The slowest frames
-    are the team model's re-clustering, which runs on the probe's streaming thread. On a Jetson, this is the part to
-    watch: it can be moved to a worker thread with its result applied a fixed number of frames later, which keeps the
-    output reproducible.</p>
+<p><strong>Speed in the pipeline:</strong> 0.2 ms per frame against 0.08 ms replayed alone (CPU shared with DeepStream's threads).
+    The slowest frames are the team model's re-clustering (every 5 s, on the probe's streaming thread). Time per frame
+    follows the number of people: highest in the warm-up after the game. Finished tracks that no re-link can pick are
+    dropped as the game goes (<code>Tracker::prune</code>, identities unchanged), so memory stays bounded.</p>
 </li>
 <li>
 <p><strong>Logging:</strong> the evaluation logs are written to this PC's hard disk, which stalls at times; they would be off in
@@ -936,11 +938,16 @@ Super's.</p>
 </ul>
 </li>
 <li>
-<p><strong>Court tracker:</strong> inside the pipeline on the 3060 Ti PC it takes 0.9 ms per frame on average, with p99 about 9 ms
-    and occasional frames up to 63 ms (the team model's re-clustering; section 4.6). The Orin's cores are slower, so
-    the worst frames could exceed a 33 ms frame period. That doesn't drop frames by itself, but it needs measuring on
-    the device; moving the re-clustering to a worker thread is the fix if needed. Finished tracks also need pruning to
-    the relink window (memory and time grow over a game).</p>
+<p><strong>Court tracker:</strong> inside the pipeline on the 3060 Ti PC it takes 0.2 ms per frame on average, with p99 about 2 ms
+    and occasional frames up to 16 ms (the team model's re-clustering; section 4.6). The Orin's cores are slower, so
+    the worst frames need measuring on the device (GitHub issue #6); moving the re-clustering to a worker thread is the
+    fix if they approach the 33 ms frame period.</p>
+</li>
+<li>
+<p><strong>Software:</strong> DeepStream 9.1, which this pipeline uses, needs JetPack 7.2 on Orin. MV3DT first appeared in
+    DeepStream 8.0, and the newest DeepStream for JetPack 6 is 7.1, so a JetPack 6 device can't run the pipeline. On
+    this PC, with MV3DT's multi-view association off (single-view 3D tracking only, as DeepStream 7.1 would offer),
+    end-to-end accuracy fell from 82.4 % to 74.0 % (3 runs).</p>
 </li>
 <li>
 <p><strong>Brokers:</strong> MV3DT exchanges messages over MQTT between its per-camera trackers; on a single device the broker runs
@@ -958,8 +965,9 @@ Super's.</p>
     fewer cameras, or the extra per-frame cost at 15 fps explained and removed (GitHub issue #5).</p>
 </li>
 <li>
-<p><strong>Before buying, measure on the device:</strong></p>
-<ul>
+<p><strong>Buy or borrow with JetPack 7.2</strong> (DeepStream 9.1), as above.</p>
+</li>
+<li><strong>Before buying, measure on the device:</strong><ul>
 <li>fps per camera (INT8, no display)</li>
 <li>DLA throughput (AGX Orin)</li>
 <li>decode capacity</li>

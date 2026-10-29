@@ -295,7 +295,7 @@ The court tracker runs live in the pipeline (`scripts/run_mv3dt.sh` with `COURTT
 | Identity IDF1, live | **83.1 %** (67-96 %); end-to-end 81.2 % (97.6 % of labelled people detected) |
 | Python reference on the same runs (Kafka output, OpenCV histograms) | 82.6 % |
 | Pipeline speed with the court tracker | 90.7-91.4 fps per camera, with the evaluation logs written to this PC's hard disk |
-| Court tracker + team model, in the pipeline | 0.91-0.94 ms mean, about 9.5 ms p99, 54-66 ms max per frame |
+| Court tracker + team model, in the pipeline ¹ | 0.21-0.22 ms mean, 1.8-2.0 ms p99, 13-16 ms max per frame |
 | Torso histograms, in the pipeline | 1.7 ms mean per four-camera batch (every 3rd frame) |
 | Kafka messages | 26,935 per run, none failed |
 
@@ -304,11 +304,14 @@ The court tracker runs live in the pipeline (`scripts/run_mv3dt.sh` with `COURTT
   scaled to small tiles, against OpenCV on full-resolution frames); the team model learns from whichever it gets.
 - **Duplicate ids:** MV3DT occasionally gives two different people the same object id in one camera and frame.
   Everything downstream is keyed by (frame, camera, id), so only the first is kept.
-- **Speed in the pipeline:** the same computation takes 0.08 ms per frame when replayed alone, against 0.9 ms in the
-  pipeline, presumably because it shares the CPU with DeepStream's threads (not investigated). The slowest frames
-  are the team model's re-clustering, which runs on the probe's streaming thread. On a Jetson, this is the part to
-  watch: it can be moved to a worker thread with its result applied a fixed number of frames later, which keeps the
-  output reproducible.
+¹ Measured on two later live runs (`ctO2_r1`, `ctpr_r1`): the three runs above had the app compiled without
+optimisation (NVIDIA's sample Makefile sets none) and took 0.91-0.94 ms mean, about 9.5 ms p99 and 54-66 ms max.
+Both later runs' identities are again reproduced exactly by the C++ and Python replays.
+
+- **Speed in the pipeline:** 0.2 ms per frame against 0.08 ms replayed alone (CPU shared with DeepStream's threads).
+  The slowest frames are the team model's re-clustering (every 5 s, on the probe's streaming thread). Time per frame
+  follows the number of people: highest in the warm-up after the game. Finished tracks that no re-link can pick are
+  dropped as the game goes (`Tracker::prune`, identities unchanged), so memory stays bounded.
 - **Logging:** the evaluation logs are written to this PC's hard disk, which stalls at times; they would be off in
   deployment.
 
@@ -435,11 +438,14 @@ runs of section 6.1; the main runs, with bilinear jersey crops, measured 89-95 f
     this model must be measured.
   - **4K decoding:** four 4K streams for highlight clips (section 7) are within its decoder, not the Orin Nano
     Super's.
-- **Court tracker:** inside the pipeline on the 3060 Ti PC it takes 0.9 ms per frame on average, with p99 about 9 ms
-  and occasional frames up to 63 ms (the team model's re-clustering; section 4.6). The Orin's cores are slower, so
-  the worst frames could exceed a 33 ms frame period. That doesn't drop frames by itself, but it needs measuring on
-  the device; moving the re-clustering to a worker thread is the fix if needed. Finished tracks also need pruning to
-  the relink window (memory and time grow over a game).
+- **Court tracker:** inside the pipeline on the 3060 Ti PC it takes 0.2 ms per frame on average, with p99 about 2 ms
+  and occasional frames up to 16 ms (the team model's re-clustering; section 4.6). The Orin's cores are slower, so
+  the worst frames need measuring on the device (GitHub issue #6); moving the re-clustering to a worker thread is the
+  fix if they approach the 33 ms frame period.
+- **Software:** DeepStream 9.1, which this pipeline uses, needs JetPack 7.2 on Orin. MV3DT first appeared in
+  DeepStream 8.0, and the newest DeepStream for JetPack 6 is 7.1, so a JetPack 6 device can't run the pipeline. On
+  this PC, with MV3DT's multi-view association off (single-view 3D tracking only, as DeepStream 7.1 would offer),
+  end-to-end accuracy fell from 82.4 % to 74.0 % (3 runs).
 - **Brokers:** MV3DT exchanges messages over MQTT between its per-camera trackers; on a single device the broker runs
   locally. Kafka is only needed if metadata leaves the device.
 - **Time alignment:** the streams must be batched by capture timestamp (section 2.4).
@@ -448,6 +454,7 @@ runs of section 6.1; the main runs, with bilinear jersey crops, measured 89-95 f
 - **For four cameras at 30 fps (current or corner layout), choose the AGX Orin 64 GB.**
 - **The Orin Nano Super doesn't look feasible for four cameras, even at 15 fps** (estimate above). It would need
   fewer cameras, or the extra per-frame cost at 15 fps explained and removed (GitHub issue #5).
+- **Buy or borrow with JetPack 7.2** (DeepStream 9.1), as above.
 - **Before buying, measure on the device:**
   - fps per camera (INT8, no display)
   - DLA throughput (AGX Orin)
