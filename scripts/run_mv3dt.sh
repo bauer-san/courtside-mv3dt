@@ -7,6 +7,7 @@
 #        JERSEY=1 ./scripts/run_mv3dt.sh ...          # jersey-number SGIEs (apps/jersey) + jersey_reads.csv
 #        JERSEY_SCALING=1 (with JERSEY=1)              # bilinear crop scaling for the jersey SGIEs (default: nvinfer's)
 #        JERSEY_REINFER=n (with JERSEY=1)              # frames skipped between reads of one player (default 6)
+#        DET_LOG=1 (with COURT_FILTER=1)               # detections.csv: the tracker's input detections
 #        DETECTOR_MODEL=PeopleNet2.6.3 ./scripts/run_mv3dt.sh gym_60s c60_pn263
 #        ./scripts/run_mv3dt.sh gym_60s c60_nopose PoseEstimator.poseEstimatorType=0
 #
@@ -140,6 +141,8 @@ if [[ "${COURT_FILTER:-0}" == 1 ]]; then
   "$PY" -m tools.court_filter_config "$OUT/camInfo_used" "$OUT/court_filter.txt" --margin "${COURT_MARGIN:-0.75}"
   APP_BIN=/workspace/bin/deepstream-test5-court-app
   ENVS=(-e COURT_FILTER_CONFIG=/workspace/experiments/court_filter.txt)
+  # DET_LOG=1: detections.csv, every detection the court filter keeps (the tracker's input) with its confidence
+  [[ "${DET_LOG:-0}" == 1 ]] && ENVS+=(-e DET_LOG=/workspace/experiments/detections.csv)
 fi
 
 # Optional jersey-number reading in DeepStream: torso objects (gie 4, apps/court_filter/torso_objects.c) ->

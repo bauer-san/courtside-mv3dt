@@ -44,6 +44,9 @@ them, score 61.2 % (53-72 %) on runs `js_r1`-`r3`.
   player or no player. Most of that is a *wrong* identity (about 10 %), not a missing one (about 4 %; section 4.2).
 - **Results vary from run to run.** Repeated DeepStream runs of the same configuration give different MV3DT IDs and
   jersey reads. Per-minute identity IDF1 ranges from 72 % to 96 %, so every number here is an average over three runs.
+- **MV3DT against a plain 2D tracker (section 4.8):** with ByteTrack per camera in its place, on the same detections
+  and with the same court tracker, end-to-end identity accuracy fell from 83.6 % to 78.6 % (held-out minute: 82.2 % to
+  73.7 %), mostly because ByteTrack drops 4 % of the people MV3DT keeps.
 - **Detector threshold (section 6.1):** INT8 with a detection threshold of 0.1 instead of nvinfer's default 0.2
   detects 97.2 % of labelled people instead of 94.2 %, for 77.5 % end-to-end identity accuracy instead of 74.6 %
   (measured with the jersey reader's previous crop scaling).
@@ -366,6 +369,44 @@ spectators in the front-row seats, seen by FR (310 of the 338), which looks acro
 
 The rule's thresholds were set on this venue's front row and should be checked at other venues.
 
+### 4.8 MV3DT against a 2D per-camera tracker (ByteTrack)
+
+How much of the result is MV3DT's doing? A widely used alternative is a 2D tracker per camera, such as ByteTrack
+(usually paired with a YOLO detector; YOLOX-m INT8 scored lower than PeopleNet here, issue #10). It does detection
+association within one camera only: no 3D body model, no cross-camera fusion, no jersey reading or identities. To
+compare the trackers alone, ByteTrack (`tools/bytetrack.py`, re-implemented from the authors' code with their default
+settings) replaced MV3DT on the same detections: runs `bt_r1`-`r3` (default configuration) logged every PeopleNet box
+the court filter passed to MV3DT. Each camera's ByteTrack boxes went to the court tracker with their bottom centre
+projected onto the floor as the foot point. Jersey reads, made by DeepStream on MV3DT's boxes, were attached to the
+ByteTrack box overlapping each read box (96 % of read attempts found one). Torso colours were taken from the
+ByteTrack boxes. Everything else is the default configuration (issue #12).
+
+| 3 runs, same detections | MV3DT + court tracker | ByteTrack + court tracker |
+|---|---|---|
+| Identity IDF1, tuning minutes (2:00-3:00; 4:00-5:00) | **85.3 %** (96, 96, 93; 77, 73, 76 %) | 83.4 % (86, 87, 87; 79, 79, 83 %) |
+| End-to-end, tuning minutes | **83.6 %**; 98.0 % of labelled people detected | 78.6 %; 94.2 % detected |
+| Identity switches per labelled minute | 32 | 52 |
+| Held-out minute 5:00-6:00, identity IDF1 | **83.9 %** (86, 84, 82 %) | 79.1 % (81, 78, 78 %) |
+| Held-out minute, end-to-end | **82.2 %**; 98.0 % detected | 73.7 %; 93.2 % detected |
+
+- **MV3DT is worth about 5 points end-to-end on the tuning minutes and 8 on the held-out minute.** Most of it is
+  people with no box: every labelled person on these runs had a PeopleNet detection, but ByteTrack output no box for
+  4.4 % of them. It starts tracks only from detections above 0.6 and drops tracks that lose their detections; MV3DT most likely keeps
+  them through the other cameras' views and its own predictions.
+- **ByteTrack's per-camera tracks break more often** (2,800 tracks over the four cameras), which the court tracker
+  partly absorbs. On the busy minute 4:00-5:00 its identity IDF1 was higher than MV3DT's in all three runs, so the
+  court tracker, not MV3DT, does most of the identity work there.
+- **ByteTrack's own threshold:** 0.4 and 0.3 (PeopleNet's scores run lower than YOLOX's) scored 81.4 % and 79.3 %
+  identity IDF1 on the tuning minutes, against 83.4 % at the default 0.5: more short tracks on spectators.
+- **What it lacks besides accuracy:** no 3D foot point, so people whose feet are cut off by the image edge (6.6 % of
+  its boxes) are placed too far from the camera, and the seated-spectator rule (section 4.7), which compares MV3DT's
+  3D foot point with the box bottom, can't work.
+- **Where it matters:** a JetPack 6 device can run DeepStream 7.1 at most, without MV3DT (section 6.2). A per-camera
+  tracker with this court tracker on top is the option there, at about the accuracy above. ByteTrack itself is cheap
+  (under 0.5 ms per camera frame in Python on this PC).
+- **Caveat:** the labels sit on MV3DT boxes of run `js_r1`, carried to each run by box overlap; MV3DT's held-out score
+  on these three runs (83.9 %) is lower than on `ctj_r1`-`r3` (88.4 %), which is run-to-run variation.
+
 ## 5. Calibration
 
 The final calibration places each camera where it physically is: the pairs on their backboard apparatus.
@@ -673,6 +714,9 @@ DATASET=gym_sync2x PREFIX=j2x_ ./scripts/phase7_deploy_variants.sh int8t10_r1   
 ./scripts/phase7_deploy_variants.sh int8_r1 int8_r2 int8_r3 int8t10_r1 int8t10_r2 int8t10_r3   # section 6.1 ¹
 JOBS=8 ./scripts/phase8_reevaluate.sh   # every court-tracker table and figure in this report
 python -m tools.make_clips --start 0 --seconds 898 --offsets NL=26,FL=13,NR=4 --step 2 --name gym_sync15
+for r in bt_r1 bt_r2 bt_r3; do DET_LOG=1 COURTTRACK=1 ./scripts/run_default.sh $r; \
+  ~/.venvs/mv3dt/bin/python -m tools.bytetrack build $r; done   # section 4.8 (runs <run>_bt)
+~/.venvs/mv3dt/bin/python -m tools.id_explore base --runs bt_r1 bt_r2 bt_r3        # and bt_r1_bt ..., --minutes game_5to6
 ./scripts/phase9_fps15.sh   # section 6.2, cameras at 15 fps (scored as in GitHub issue #5)
 ~/.venvs/mv3dt/bin/python -m tools.variant_eval --ref s_int8_r1 --runs s_int8_r2 s_int8_r3 s_int8t10_r1 s_int8t10_r2 \
   s_int8t10_r3 js_r1 js_r2 js_r3 ctj_r1 ctj_r2 ctj_r3 --md reports/deploy_variants_detection.md

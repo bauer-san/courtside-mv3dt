@@ -6,6 +6,9 @@
  *   <source_id> p00 p01 ... p23             one line per source: 3x4 world->pixel matrix, row-major
  * Pixel coordinates are those of the streammux output (rect_params); the matrices must be valid at
  * that resolution (1920x1080 for the court cameras).
+ *
+ * $DET_LOG (if set): CSV path. One line per detection the filter keeps: frame, source, left, top, width, height,
+ * detector confidence (the tracker's input; used to compare other trackers on the same detections).
  */
 #include <math.h>
 #include <stdio.h>
@@ -25,6 +28,7 @@ typedef struct
 static CourtCam cams[CF_MAX_SOURCES];
 static double xmin, xmax, ymin, ymax, frame_h;
 static guint64 n_seen, n_removed;
+static FILE *det_log;
 
 static gboolean
 invert3 (const double m[9], double out[9])
@@ -113,18 +117,24 @@ court_filter_probe (GstPad * pad, GstPadProbeInfo * info, gpointer data)
       n_seen++;
       double u = obj->rect_params.left + obj->rect_params.width / 2.0;
       double v = obj->rect_params.top + obj->rect_params.height;
-      if (v >= frame_h - 5)
-        continue;               /* feet below the image edge: keep */
-      if (!on_court (&cams[frame->source_id], u, v)) {
+      /* feet below the image edge: keep */
+      if (v < frame_h - 5 && !on_court (&cams[frame->source_id], u, v)) {
         nvds_remove_obj_meta_from_frame (frame, obj);
         n_removed++;
+        continue;
       }
+      if (det_log)
+        fprintf (det_log, "%u,%u,%.2f,%.2f,%.2f,%.2f,%.4f\n", frame->frame_num, frame->source_id,
+            obj->rect_params.left, obj->rect_params.top, obj->rect_params.width, obj->rect_params.height,
+            obj->confidence);
     }
     if (frame->source_id == 0 && frame->frame_num % 900 == 0 && frame->frame_num > 0)
       g_print ("court_filter: frame %u, removed %" G_GUINT64_FORMAT " of %" G_GUINT64_FORMAT
           " detections (%.1f%%)\n", frame->frame_num, n_removed, n_seen,
           n_seen ? 100.0 * n_removed / n_seen : 0.0);
   }
+  if (det_log)
+    fflush (det_log);           /* the container may be stopped rather than exit cleanly */
   return GST_PAD_PROBE_OK;
 }
 
@@ -136,6 +146,9 @@ court_filter_attach (GstPad * pad)
     return FALSE;
   if (!load_config (path))
     return FALSE;
+  const char *log = g_getenv ("DET_LOG");
+  if (log && *log && !(det_log = fopen (log, "w")))
+    g_printerr ("court_filter: cannot write %s\n", log);
   gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, court_filter_probe, NULL, NULL);
   return TRUE;
 }
