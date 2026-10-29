@@ -1,6 +1,8 @@
 /* Replays recorded court-tracker inputs (tools/courttrack_export.py) through the C++ tracker and writes its output
  * for comparison with the Python version.
- *   ct_replay inputs.bin cpp_out.txt
+ *   ct_replay inputs.bin cpp_out.txt [--prune]
+ * --prune drops finished tracks that no later re-link can pick every second, as in the live pipeline: the detection
+ * identities (D lines) stay the same; the track list at the end then lacks the dropped tracks.
  * CTIN1 inputs carry team labels and colour features (offline team model); CTIN2 inputs carry torso histograms, and
  * the online team model (online_teams.cpp) labels them, as in the deployed pipeline.
  * SPDX-License-Identifier: Apache-2.0
@@ -38,10 +40,12 @@ struct Reader {
 }  // namespace
 
 int main(int argc, char **argv) {
-  if (argc != 3) {
-    std::cerr << "usage: ct_replay inputs.bin cpp_out.txt\n";
+  bool prune = argc == 4 && std::strcmp(argv[3], "--prune") == 0;
+  if (argc != 3 && !prune) {
+    std::cerr << "usage: ct_replay inputs.bin cpp_out.txt [--prune]\n";
     return 2;
   }
+  size_t kept = 0;
   Reader r{std::ifstream(argv[1], std::ios::binary)};
   char magic[5];
   r.in.read(magic, 5);
@@ -124,6 +128,7 @@ int main(int argc, char **argv) {
         }
     }
     auto ids = tracker.step(frame, cams);
+    if (prune && frame % 30 == 0) kept = tracker.prune(frame);
     if (online)
       for (auto &di : ids) {
         const Colour &col = colour[di.key];
@@ -152,5 +157,6 @@ int main(int argc, char **argv) {
   std::cerr << "\n";
   std::cerr << frames << " frames, " << ndets << " detections, " << res.size() << " confirmed tracks; tracker "
             << 1000 * busy / frames << " ms/frame\n";
+  if (prune) std::cerr << "finished tracks kept at the end (--prune): " << kept << "\n";
   return 0;
 }

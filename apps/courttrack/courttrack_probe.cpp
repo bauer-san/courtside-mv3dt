@@ -394,6 +394,7 @@ void step_frame(int frame, PendingFrame &pf) {
       }
     }
   auto ids = tracker->step(frame, pf.cams);
+  if (frame % 30 == 0) tracker->prune(frame);   // finished tracks no re-link can pick: bounded memory over a game
   for (auto &di : ids) {
     const Colour &col = colour[di.key];
     teams->observe_track(di.tid, frame, di.key.cam, col.has ? &col.s : nullptr, col.read);

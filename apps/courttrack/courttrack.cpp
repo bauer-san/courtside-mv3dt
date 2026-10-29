@@ -593,6 +593,32 @@ struct Tracker::Impl {
     id_relink(nt);
   }
 
+  /* prune: a finished track can only be picked by relink (at a track's confirmation) or id_relink (when a track's
+   * identity completes), and only if it ended at most stitch_gap_team / id_gap frames before the picking track's first
+   * frame. Tracks that may still pick: unconfirmed and not yet identity-linked live tracks, new tracks (born later, or
+   * split off a live track from up to num_switch_window frames back), and finished confirmed tracks not yet identity-linked that a re-link may revive (closure). Unconfirmed
+   * finished tracks are never picked. */
+  size_t prune(int frame) {
+    const int g = std::max({p.stitch_gap, p.stitch_gap_team, p.id_gap});
+    int m = frame - p.num_switch_window;   // a split's new track starts up to num_switch_window frames back
+    for (auto &tp : tracks)
+      if ((!tp->confirmed || !tp->id_linked) && !tp->out.empty()) m = std::min(m, tp->out.front().frame);
+    for (bool changed = true; changed;) {
+      changed = false;
+      for (auto &tp : finished)
+        if (tp->confirmed && !tp->id_linked && !tp->out.empty() && tp->out.back().frame >= m - g &&
+            tp->out.front().frame < m) {
+          m = tp->out.front().frame;
+          changed = true;
+        }
+    }
+    std::vector<TrackP> keep;
+    for (auto &tp : finished)
+      if (tp->confirmed && !tp->out.empty() && tp->out.back().frame >= m - g) keep.push_back(tp);
+    finished.swap(keep);
+    return finished.size();
+  }
+
   /* _id_relink: re-link to the last lost track with the same identity (team + number) */
   void id_relink(TrackP tp) {
     Track &t = *tp;
@@ -1027,6 +1053,8 @@ std::vector<DetIdentity> Tracker::step(int frame, const std::vector<CameraFrame>
   impl_->step(frame, cams);
   return impl_->frame_out;
 }
+
+size_t Tracker::prune(int frame) { return impl_->prune(frame); }
 
 std::vector<Tracker::TrackView> Tracker::result() const {
   std::vector<TrackView> out;

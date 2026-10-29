@@ -117,6 +117,9 @@ class Tracker {
     const std::vector<DetKey> *dets;
   };
   std::vector<TrackView> result() const;
+  /* Drop finished tracks that no later re-link can pick (live use: memory and time per frame stay bounded over a
+   * game). Doesn't change anything step() returns; result() then lacks the dropped tracks. Returns how many remain. */
+  size_t prune(int frame);
   /* Confirmed live tracks after the last step(). */
   std::vector<LiveTrack> live() const;
   /* Roster inferred so far: number -> team -> tracks that established it. */
