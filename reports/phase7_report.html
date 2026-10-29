@@ -84,13 +84,14 @@ Time-aligned streams, INT8 detector, cameras calibrated on their physical mounts
 <p>This report describes the pipeline's default configuration: INT8 detector, no display, time-aligned camera streams
 (section 2.4). It is causal, as it runs live: every input is available while the game is played, and nothing needs an
 operator. All results come from DeepStream runs on the final calibration, which places every camera on its physical
-mount (section 5): three runs (<code>js_r1</code>-<code>r3</code>) for the main results, three more with the court tracker running inside
-DeepStream (<code>ctj_r1</code>-<code>r3</code>, section 4.6). All court-tracker figures are regenerated with the final code by
-<code>scripts/phase8_reevaluate.sh</code>.</p>
+mount (section 5). The main results come from three runs with the court tracker running live inside DeepStream, in
+C++ (<code>ctj_r1</code>-<code>r3</code>, section 4.5). Three more runs (<code>js_r1</code>-<code>r3</code>) ran the same pipeline without it; the court tracker's
+Python reference was run on their output for the detailed analyses (sections 4.2-4.4). All court-tracker figures
+are regenerated with the final code by <code>scripts/phase8_reevaluate.sh</code>.</p>
 <h2 id="1-summary">1. Summary</h2>
 <p><strong>Recommendation.</strong> Use DeepStream for detection, per-camera tracking and jersey reading, on time-aligned camera
-streams. Then run the <em>court tracker</em> developed here on its output and report each player by identity (team + jersey
-number), not by track ID.</p>
+streams. Run the <em>court tracker</em> developed here inside the same pipeline (C++ probe after the jersey reader) and
+report each player by identity (team + jersey number), not by track ID.</p>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -100,31 +101,35 @@ number), not by track ID.</p>
 </thead>
 <tbody>
 <tr>
-<td><strong>Court tracker, player identities</strong> (Python reference)</td>
-<td><strong>85.3 % (74-96 %)</strong></td>
+<td><strong>Player identities, live from DeepStream</strong> (court tracker in C++ inside the pipeline, section 4.5)</td>
+<td><strong>83.1 % (67-96 %)</strong></td>
 </tr>
 <tr>
-<td>The same, running live inside DeepStream in C++ (3 further runs, section 4.6)</td>
-<td>83.1 % (67-96 %)</td>
+<td>The same on the held-out minute 5:00-6:00 (used for no setting)</td>
+<td>88.0 % (87-89 %)</td>
+</tr>
+<tr>
+<td>Court tracker's Python reference on the output of 3 other DeepStream runs (section 4.2)</td>
+<td>85.3 % (74-96 %)</td>
 </tr>
 </tbody>
 </table></div>
 <p>IDF1 here is the share of labelled detections that end up on the output unit matched to the right player. It's
 measured on hand-labelled ground truth (section 2.3). For reference, MV3DT's own global IDs, as DeepStream delivers
-them, score 61.2 % (53-72 %) on the same runs.</p>
+them, score 61.2 % (53-72 %) on runs <code>js_r1</code>-<code>r3</code>.</p>
 <ul>
 <li>
-<p><strong>Speed on the 3060 Ti:</strong> the pipeline with jersey reading runs at 89-95 fps per camera (real time is 30), and at
-    91 fps with the court tracker inside it and its evaluation logs. The court tracker itself takes about 0.08 ms per
-    frame in its C++ port (2.1 ms in Python), with identical output (section 4.5).</p>
+<p><strong>Speed on the 3060 Ti:</strong> the full pipeline, court tracker included, runs at 91 fps per camera with its evaluation
+    logs (real time is 30); 89-95 fps without the court tracker. Inside the pipeline the court tracker takes 0.2 ms per
+    frame (section 4.5); its C++ and Python versions give identical output (section 4.6).</p>
 </li>
 <li>
-<p><strong>Running live inside DeepStream (section 4.6):</strong> the C++ court tracker and the automatic team model send one Kafka
+<p><strong>Running live inside DeepStream (section 4.5):</strong> the C++ court tracker and the automatic team model send one Kafka
     message per frame with every player's identity and court position.</p>
 </li>
 <li>
 <p><strong>The camera streams must be time-aligned (section 2.4).</strong> The recordings started up to 0.87 s apart. Aligning them
-    raised identity accuracy from 80.9 % to 85.3 % and MV3DT's own from 55.4 % to 61.2 %; with the offsets doubled the
+    raised identity accuracy (Python reference) from 80.9 % to 85.3 % and MV3DT's own from 55.4 % to 61.2 %; with the offsets doubled the
     court tracker fell to 78.0 %. A live system must align the streams by timestamp.</p>
 </li>
 <li>
@@ -373,7 +378,7 @@ arrival order. That hasn't been built or tested here (section 9).</p>
 <p>everything outside the two team clusters, referees included, gets no team label</p>
 </li>
 <li>per-camera colour correction is learned as the game runs</li>
-<li><strong>Output:</strong> one JSON message per frame on Kafka (section 4.6).</li>
+<li><strong>Output:</strong> one JSON message per frame on Kafka (section 4.5).</li>
 </ul>
 </li>
 </ol>
@@ -410,41 +415,54 @@ arrival order. That hasn't been built or tested here (section 9).</p>
 </tbody>
 </table></div>
 <p>No display or annotated video (<code>reports/deploy_variants_detection.md</code>). With the court tracker running inside the
-pipeline and its evaluation logs written to this PC's hard disk: 90.7-91.4 fps per camera (section 4.6).</p>
+pipeline and its evaluation logs written to this PC's hard disk: 90.7-91.4 fps per camera (section 4.5).</p>
 <ul>
 <li><strong>Jersey reader, per crop:</strong> text detector 0.36 ms, recogniser 0.16 ms (TensorRT FP16).</li>
-<li><strong>Court tracker:</strong> 2.1 ms per frame on one core of an i7-13700 (Python). The C++ port takes 0.08 ms per frame on
-    the same inputs (section 4.5).</li>
+<li><strong>Court tracker:</strong> 0.21-0.22 ms mean per frame inside the pipeline, in C++ (section 4.5); 0.08 ms replayed alone
+    on one core of an i7-13700, and 2.1 ms for the Python reference (section 4.6).</li>
 </ul>
 <h3 id="42-accuracy">4.2 Accuracy</h3>
 <div class="tbl"><table>
 <thead>
 <tr>
-<th></th>
-<th>Result (3 runs x 2 labelled minutes)</th>
+<th>3 runs x 2 labelled minutes</th>
+<th>Live in DeepStream (C++, <code>ctj_r1</code>-<code>r3</code>)</th>
+<th>Python reference (<code>js_r1</code>-<code>r3</code>)</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Identity IDF1</td>
-<td><strong>85.3 %</strong> (mean); per run and minute 95, 74, 93, 80, 96, 74 %</td>
+<td><strong>83.1 %</strong>; per run and minute 94, 73, 96, 73, 95, 68 %</td>
+<td>85.3 %; 95, 74, 93, 80, 96, 74 %</td>
 </tr>
 <tr>
 <td>End-to-end (correctly identified / all labelled detections)</td>
-<td>83.2 %; 97.5 % of labelled people detected</td>
+<td>81.2 %; 97.6 % of labelled people detected</td>
+<td>83.2 %; 97.5 % detected</td>
 </tr>
 <tr>
-<td>Identity switches</td>
-<td>21 per labelled minute (mean)</td>
+<td>Identity switches per labelled minute (mean)</td>
+<td>32</td>
+<td>21</td>
 </tr>
 <tr>
-<td>Held-out minute 5:00-6:00 (same 3 runs)</td>
-<td>identity IDF1 <strong>88.6 %</strong> (89, 89, 88 %); end-to-end 87.7 %; 98.9 % of labelled people detected¹</td>
+<td><strong>Held-out minute 5:00-6:00</strong>, identity IDF1</td>
+<td><strong>88.0 %</strong> (87, 89, 88 %)</td>
+<td>88.6 % (89, 89, 88 %)</td>
+</tr>
+<tr>
+<td>Held-out minute, end-to-end</td>
+<td>86.9 %; 98.7 % detected</td>
+<td>87.7 %; 98.9 % detected¹</td>
 </tr>
 </tbody>
 </table></div>
-<p>¹ The held-out labels were made on run js_r1's detections, so that run detects 100 % of them by construction; the
-other two runs detect 98.1 % and 98.6 %. The held-out minute was not used for any setting in this report.</p>
+<p>The two columns are different DeepStream runs, so their gap is within the run-to-run variation (below). The held-out
+minute was labelled after all settings in this report were chosen and was used for none of them.</p>
+<p>¹ The held-out labels were made on run <code>js_r1</code>'s detections, so that run detects 100 % of them by construction; the
+other two detect 98.1 % and 98.6 %.</p>
+<p>The loss breakdown below is for the Python reference runs.</p>
 <figure class="fig"><svg class="chart" viewBox="0 0 760 280" role="img" aria-label="Where identity IDF1 is still lost"><line class="grid" x1="330.0" y1="4" x2="330.0" y2="252"/><text class="tick" x="330.0" y="268" text-anchor="middle">0</text><line class="grid" x1="402.0" y1="4" x2="402.0" y2="252"/><text class="tick" x="402.0" y="268" text-anchor="middle">2</text><line class="grid" x1="474.0" y1="4" x2="474.0" y2="252"/><text class="tick" x="474.0" y="268" text-anchor="middle">4</text><line class="grid" x1="546.0" y1="4" x2="546.0" y2="252"/><text class="tick" x="546.0" y="268" text-anchor="middle">6</text><line class="grid" x1="618.0" y1="4" x2="618.0" y2="252"/><text class="tick" x="618.0" y="268" text-anchor="middle">8</text><line class="grid" x1="690.0" y1="4" x2="690.0" y2="252"/><text class="tick" x="690.0" y="268" text-anchor="middle">10</text><g class="row hl"><title>wrong number, other: 5.3%</title><rect class="hit" x="0" y="8" width="760" height="34"/><text class="lab" x="318" y="29.0" text-anchor="end">wrong number, other</text><rect class="bar" x="330" y="16" width="190.8" height="18" rx="3"/><text class="val" x="528.8" y="29.0">5.3%</text></g><g class="row hl"><title>wrong number, carried from another player: 4.3%</title><rect class="hit" x="0" y="42" width="760" height="34"/><text class="lab" x="318" y="63.0" text-anchor="end">wrong number, carried from another player</text><rect class="bar" x="330" y="50" width="154.8" height="18" rx="3"/><text class="val" x="492.8" y="63.0">4.3%</text></g><g class="row hl"><title>unidentified: readable crops and reads, identity not established: 3.0%</title><rect class="hit" x="0" y="76" width="760" height="34"/><text class="lab" x="318" y="97.0" text-anchor="end">unidentified: readable crops and reads, identity not established</text><rect class="bar" x="330" y="84" width="108.0" height="18" rx="3"/><text class="val" x="446.0" y="97.0">3.0%</text></g><g class="row hl"><title>wrong team (right number): 1.2%</title><rect class="hit" x="0" y="110" width="760" height="34"/><text class="lab" x="318" y="131.0" text-anchor="end">wrong team (right number)</text><rect class="bar" x="330" y="118" width="43.2" height="18" rx="3"/><text class="val" x="381.2" y="131.0">1.2%</text></g><g class="row hl"><title>missed: 0.5%</title><rect class="hit" x="0" y="144" width="760" height="34"/><text class="lab" x="318" y="165.0" text-anchor="end">missed</text><rect class="bar" x="330" y="152" width="18.0" height="18" rx="3"/><text class="val" x="356.0" y="165.0">0.5%</text></g><g class="row hl"><title>unidentified: readable crops, no usable reads: 0.3%</title><rect class="hit" x="0" y="178" width="760" height="34"/><text class="lab" x="318" y="199.0" text-anchor="end">unidentified: readable crops, no usable reads</text><rect class="bar" x="330" y="186" width="10.8" height="18" rx="3"/><text class="val" x="348.8" y="199.0">0.3%</text></g><g class="row hl"><title>unidentified: no readable crops: 0.1%</title><rect class="hit" x="0" y="212" width="760" height="34"/><text class="lab" x="318" y="233.0" text-anchor="end">unidentified: no readable crops</text><rect class="bar" x="330" y="220" width="3.6" height="18" rx="3"/><text class="val" x="341.6" y="233.0">0.1%</text></g></svg><figcaption>Share of labelled detections not credited to the right player (%), mean of 3 runs × 2 minutes. The remaining 85.2 % are correct.</figcaption></figure>
 <ul>
 <li><strong>Wrong number, other (5.3 %):</strong> misreads, and identities established from too few reads.</li>
@@ -547,25 +565,7 @@ colour clustering of the whole game with clusters named by hand, used only for t
     didn't move a team name.</p>
 </li>
 </ul>
-<h3 id="45-c-port-of-the-court-tracker">4.5 C++ port of the court tracker</h3>
-<p><code>apps/courttrack</code> is a C++ port of the court tracker (<code>courttrack.cpp</code>) and of the online team model
-(<code>online_teams.cpp</code>), for use inside the DeepStream pipeline. Both were checked by replaying the exact per-frame
-inputs recorded in the live runs (<code>apps/courttrack/ct_replay</code> and the Python reference, <code>tools/courttrack_export.py
-live</code>):</p>
-<ul>
-<li>
-<p><strong>Same output:</strong> on <code>ctj_r1</code>-<code>r3</code>, the C++ and the Python replays reproduce all of about 528,000-529,000 live
-    detection identities per run (the whole recording). This needs the colour statistics summed in a fixed order, fused
-    multiply-add disabled in the C++ builds (<code>-ffp-contract=off</code>, which matters on the Jetson's ARM CPU) and NumPy's
-    percentile formula matched exactly.</p>
-</li>
-<li>
-<p><strong>Speed:</strong> 0.08 ms per frame on one core of the i7 (replay of <code>cts_r1</code>, an earlier live run), against 2.1 ms for
-    the Python version.
-    The slowest frames, 3.5-4.8 ms, are the team model's re-clustering every 5 s.</p>
-</li>
-</ul>
-<h3 id="46-running-inside-deepstream">4.6 Running inside DeepStream</h3>
+<h3 id="45-running-inside-deepstream">4.5 Running inside DeepStream</h3>
 <p>The court tracker runs live in the pipeline (<code>scripts/run_mv3dt.sh</code> with <code>COURTTRACK=1</code>; probe
 <code>apps/courttrack/courttrack_probe.cpp</code>, after the jersey reader):</p>
 <ul>
@@ -652,6 +652,24 @@ Both later runs' identities are again reproduced exactly by the C++ and Python r
 <li>
 <p><strong>Logging:</strong> the evaluation logs are written to this PC's hard disk, which stalls at times; they would be off in
     deployment.</p>
+</li>
+</ul>
+<h3 id="46-c-port-of-the-court-tracker-replay-check">4.6 C++ port of the court tracker: replay check</h3>
+<p><code>apps/courttrack</code> is a C++ port of the court tracker (<code>courttrack.cpp</code>) and of the online team model
+(<code>online_teams.cpp</code>), for use inside the DeepStream pipeline. Both were checked by replaying the exact per-frame
+inputs recorded in the live runs (<code>apps/courttrack/ct_replay</code> and the Python reference, <code>tools/courttrack_export.py
+live</code>):</p>
+<ul>
+<li>
+<p><strong>Same output:</strong> on <code>ctj_r1</code>-<code>r3</code>, the C++ and the Python replays reproduce all of about 528,000-529,000 live
+    detection identities per run (the whole recording). This needs the colour statistics summed in a fixed order, fused
+    multiply-add disabled in the C++ builds (<code>-ffp-contract=off</code>, which matters on the Jetson's ARM CPU) and NumPy's
+    percentile formula matched exactly.</p>
+</li>
+<li>
+<p><strong>Speed:</strong> 0.08 ms per frame on one core of the i7 (replay of <code>cts_r1</code>, an earlier live run), against 2.1 ms for
+    the Python version.
+    The slowest frames, 3.5-4.8 ms, are the team model's re-clustering every 5 s.</p>
 </li>
 </ul>
 <h3 id="47-seated-spectators">4.7 Seated spectators</h3>
@@ -946,7 +964,7 @@ Super's.</p>
 </li>
 <li>
 <p><strong>Court tracker:</strong> inside the pipeline on the 3060 Ti PC it takes 0.2 ms per frame on average, with p99 about 2 ms
-    and occasional frames up to 16 ms (the team model's re-clustering; section 4.6). The Orin's cores are slower, so
+    and occasional frames up to 16 ms (the team model's re-clustering; section 4.5). The Orin's cores are slower, so
     the worst frames need measuring on the device (GitHub issue #6); moving the re-clustering to a worker thread is the
     fix if they approach the 33 ms frame period.</p>
 </li>
@@ -1283,7 +1301,7 @@ pipeline and scored on newly labelled ground truth.</p>
 <li><strong>Small ground truth:</strong> two minutes of one game on one court, with 10 players and refs not scored.</li>
 <li>
 <p><strong>Held-out data is one minute:</strong> both tuning minutes informed development decisions, including the online team
-    model's settings. The held-out minute 5:00-6:00 (88.6 % identity IDF1) is untouched by tuning but is a single
+    model's settings. The held-out minute 5:00-6:00 (88.0 % identity IDF1 live) is untouched by tuning but is a single
     minute of the same game.</p>
 </li>
 <li>
@@ -1353,7 +1371,7 @@ python -m tools.make_clips --start 0 --seconds 898 --offsets NL=26,FL=13,NR=4 --
 for r in s_int8cal_r1 s_int8cal_r2; do ./scripts/run_default.sh $r; done   # camera bias (not scored)
 ~/.venvs/mv3dt/bin/python -m tools.calib_bias s_int8cal_r1 s_int8cal_r2 --write
 for r in js_r1 js_r2 js_r3; do ./scripts/run_default.sh $r; done             # main runs ²
-PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1 ./scripts/phase8_courttrack_live.sh ctj_r1 ctj_r2 ctj_r3   # section 4.6
+PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1 ./scripts/phase8_courttrack_live.sh ctj_r1 ctj_r2 ctj_r3   # section 4.5
 DATASET=gym PREFIX=j_ ./scripts/phase7_deploy_variants.sh int8t10_r1 int8t10_r2 int8t10_r3   # section 2.4, original clips
 DATASET=gym_sync2x PREFIX=j2x_ ./scripts/phase7_deploy_variants.sh int8t10_r1                  # section 2.4, offsets doubled
 ./scripts/phase7_deploy_variants.sh int8_r1 int8_r2 int8_r3 int8t10_r1 int8t10_r2 int8t10_r3   # section 6.1 ¹

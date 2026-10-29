@@ -6,32 +6,34 @@ Four-camera basketball court, NVIDIA DeepStream 9.1 Multi-View 3D Tracking (MV3D
 This report describes the pipeline's default configuration: INT8 detector, no display, time-aligned camera streams
 (section 2.4). It is causal, as it runs live: every input is available while the game is played, and nothing needs an
 operator. All results come from DeepStream runs on the final calibration, which places every camera on its physical
-mount (section 5): three runs (`js_r1`-`r3`) for the main results, three more with the court tracker running inside
-DeepStream (`ctj_r1`-`r3`, section 4.6). All court-tracker figures are regenerated with the final code by
-`scripts/phase8_reevaluate.sh`.
+mount (section 5). The main results come from three runs with the court tracker running live inside DeepStream, in
+C++ (`ctj_r1`-`r3`, section 4.5). Three more runs (`js_r1`-`r3`) ran the same pipeline without it; the court tracker's
+Python reference was run on their output for the detailed analyses (sections 4.2-4.4). All court-tracker figures
+are regenerated with the final code by `scripts/phase8_reevaluate.sh`.
 
 ## 1. Summary
 
 **Recommendation.** Use DeepStream for detection, per-camera tracking and jersey reading, on time-aligned camera
-streams. Then run the *court tracker* developed here on its output and report each player by identity (team + jersey
-number), not by track ID.
+streams. Run the *court tracker* developed here inside the same pipeline (C++ probe after the jersey reader) and
+report each player by identity (team + jersey number), not by track ID.
 
 | What is reported | Identity IDF1 (3 DeepStream runs x 2 labelled minutes) |
 |---|---|
-| **Court tracker, player identities** (Python reference) | **85.3 % (74-96 %)** |
-| The same, running live inside DeepStream in C++ (3 further runs, section 4.6) | 83.1 % (67-96 %) |
+| **Player identities, live from DeepStream** (court tracker in C++ inside the pipeline, section 4.5) | **83.1 % (67-96 %)** |
+| The same on the held-out minute 5:00-6:00 (used for no setting) | 88.0 % (87-89 %) |
+| Court tracker's Python reference on the output of 3 other DeepStream runs (section 4.2) | 85.3 % (74-96 %) |
 
 IDF1 here is the share of labelled detections that end up on the output unit matched to the right player. It's
 measured on hand-labelled ground truth (section 2.3). For reference, MV3DT's own global IDs, as DeepStream delivers
-them, score 61.2 % (53-72 %) on the same runs.
+them, score 61.2 % (53-72 %) on runs `js_r1`-`r3`.
 
-- **Speed on the 3060 Ti:** the pipeline with jersey reading runs at 89-95 fps per camera (real time is 30), and at
-  91 fps with the court tracker inside it and its evaluation logs. The court tracker itself takes about 0.08 ms per
-  frame in its C++ port (2.1 ms in Python), with identical output (section 4.5).
-- **Running live inside DeepStream (section 4.6):** the C++ court tracker and the automatic team model send one Kafka
+- **Speed on the 3060 Ti:** the full pipeline, court tracker included, runs at 91 fps per camera with its evaluation
+  logs (real time is 30); 89-95 fps without the court tracker. Inside the pipeline the court tracker takes 0.2 ms per
+  frame (section 4.5); its C++ and Python versions give identical output (section 4.6).
+- **Running live inside DeepStream (section 4.5):** the C++ court tracker and the automatic team model send one Kafka
   message per frame with every player's identity and court position.
 - **The camera streams must be time-aligned (section 2.4).** The recordings started up to 0.87 s apart. Aligning them
-  raised identity accuracy from 80.9 % to 85.3 % and MV3DT's own from 55.4 % to 61.2 %; with the offsets doubled the
+  raised identity accuracy (Python reference) from 80.9 % to 85.3 % and MV3DT's own from 55.4 % to 61.2 %; with the offsets doubled the
   court tracker fell to 78.0 %. A live system must align the streams by timestamp.
 - **No operator:** the two teams are found automatically from torso colour as the game runs and named A and B. From
   2:00 to the end of the game, no crop got the other team's name in any of six runs (section 4.4). Each camera's
@@ -174,7 +176,7 @@ arrival order. That hasn't been built or tested here (section 9).
      game) can't move a team name to another cluster.
    - everything outside the two team clusters, referees included, gets no team label
    - per-camera colour correction is learned as the game runs
-7. **Output:** one JSON message per frame on Kafka (section 4.6).
+7. **Output:** one JSON message per frame on Kafka (section 4.5).
 
 ## 4. Results
 
@@ -187,22 +189,28 @@ arrival order. That hasn't been built or tested here (section 9).
 | js_r3 | 94.8 | 90 % | 2.34 GB |
 
 No display or annotated video (`reports/deploy_variants_detection.md`). With the court tracker running inside the
-pipeline and its evaluation logs written to this PC's hard disk: 90.7-91.4 fps per camera (section 4.6).
+pipeline and its evaluation logs written to this PC's hard disk: 90.7-91.4 fps per camera (section 4.5).
 - **Jersey reader, per crop:** text detector 0.36 ms, recogniser 0.16 ms (TensorRT FP16).
-- **Court tracker:** 2.1 ms per frame on one core of an i7-13700 (Python). The C++ port takes 0.08 ms per frame on
-  the same inputs (section 4.5).
+- **Court tracker:** 0.21-0.22 ms mean per frame inside the pipeline, in C++ (section 4.5); 0.08 ms replayed alone
+  on one core of an i7-13700, and 2.1 ms for the Python reference (section 4.6).
 
 ### 4.2 Accuracy
 
-| | Result (3 runs x 2 labelled minutes) |
-|---|---|
-| Identity IDF1 | **85.3 %** (mean); per run and minute 95, 74, 93, 80, 96, 74 % |
-| End-to-end (correctly identified / all labelled detections) | 83.2 %; 97.5 % of labelled people detected |
-| Identity switches | 21 per labelled minute (mean) |
-| Held-out minute 5:00-6:00 (same 3 runs) | identity IDF1 **88.6 %** (89, 89, 88 %); end-to-end 87.7 %; 98.9 % of labelled people detected¹ |
+| 3 runs x 2 labelled minutes | Live in DeepStream (C++, `ctj_r1`-`r3`) | Python reference (`js_r1`-`r3`) |
+|---|---|---|
+| Identity IDF1 | **83.1 %**; per run and minute 94, 73, 96, 73, 95, 68 % | 85.3 %; 95, 74, 93, 80, 96, 74 % |
+| End-to-end (correctly identified / all labelled detections) | 81.2 %; 97.6 % of labelled people detected | 83.2 %; 97.5 % detected |
+| Identity switches per labelled minute (mean) | 32 | 21 |
+| **Held-out minute 5:00-6:00**, identity IDF1 | **88.0 %** (87, 89, 88 %) | 88.6 % (89, 89, 88 %) |
+| Held-out minute, end-to-end | 86.9 %; 98.7 % detected | 87.7 %; 98.9 % detected¹ |
 
-¹ The held-out labels were made on run js_r1's detections, so that run detects 100 % of them by construction; the
-other two runs detect 98.1 % and 98.6 %. The held-out minute was not used for any setting in this report.
+The two columns are different DeepStream runs, so their gap is within the run-to-run variation (below). The held-out
+minute was labelled after all settings in this report were chosen and was used for none of them.
+
+¹ The held-out labels were made on run `js_r1`'s detections, so that run detects 100 % of them by construction; the
+other two detect 98.1 % and 98.6 %.
+
+The loss breakdown below is for the Python reference runs.
 
 ![Where identity IDF1 is lost](figures/loss_breakdown.png)
 
@@ -258,22 +266,7 @@ colour clustering of the whole game with clusters named by hand, used only for t
   (3.0-3.3 %) briefly exceeded a team cluster's lowest; the rule isn't applied again after the first model, so this
   didn't move a team name.
 
-### 4.5 C++ port of the court tracker
-
-`apps/courttrack` is a C++ port of the court tracker (`courttrack.cpp`) and of the online team model
-(`online_teams.cpp`), for use inside the DeepStream pipeline. Both were checked by replaying the exact per-frame
-inputs recorded in the live runs (`apps/courttrack/ct_replay` and the Python reference, `tools/courttrack_export.py
-live`):
-
-- **Same output:** on `ctj_r1`-`r3`, the C++ and the Python replays reproduce all of about 528,000-529,000 live
-  detection identities per run (the whole recording). This needs the colour statistics summed in a fixed order, fused
-  multiply-add disabled in the C++ builds (`-ffp-contract=off`, which matters on the Jetson's ARM CPU) and NumPy's
-  percentile formula matched exactly.
-- **Speed:** 0.08 ms per frame on one core of the i7 (replay of `cts_r1`, an earlier live run), against 2.1 ms for
-  the Python version.
-  The slowest frames, 3.5-4.8 ms, are the team model's re-clustering every 5 s.
-
-### 4.6 Running inside DeepStream
+### 4.5 Running inside DeepStream
 
 The court tracker runs live in the pipeline (`scripts/run_mv3dt.sh` with `COURTTRACK=1`; probe
 `apps/courttrack/courttrack_probe.cpp`, after the jersey reader):
@@ -319,6 +312,21 @@ Both later runs' identities are again reproduced exactly by the C++ and Python r
   dropped as the game goes (`Tracker::prune`, identities unchanged), so memory stays bounded.
 - **Logging:** the evaluation logs are written to this PC's hard disk, which stalls at times; they would be off in
   deployment.
+
+### 4.6 C++ port of the court tracker: replay check
+
+`apps/courttrack` is a C++ port of the court tracker (`courttrack.cpp`) and of the online team model
+(`online_teams.cpp`), for use inside the DeepStream pipeline. Both were checked by replaying the exact per-frame
+inputs recorded in the live runs (`apps/courttrack/ct_replay` and the Python reference, `tools/courttrack_export.py
+live`):
+
+- **Same output:** on `ctj_r1`-`r3`, the C++ and the Python replays reproduce all of about 528,000-529,000 live
+  detection identities per run (the whole recording). This needs the colour statistics summed in a fixed order, fused
+  multiply-add disabled in the C++ builds (`-ffp-contract=off`, which matters on the Jetson's ARM CPU) and NumPy's
+  percentile formula matched exactly.
+- **Speed:** 0.08 ms per frame on one core of the i7 (replay of `cts_r1`, an earlier live run), against 2.1 ms for
+  the Python version.
+  The slowest frames, 3.5-4.8 ms, are the team model's re-clustering every 5 s.
 
 ### 4.7 Seated spectators
 
@@ -444,7 +452,7 @@ runs of section 6.1; the main runs, with bilinear jersey crops, measured 89-95 f
   - **4K decoding:** four 4K streams for highlight clips (section 7) are within its decoder, not the Orin Nano
     Super's.
 - **Court tracker:** inside the pipeline on the 3060 Ti PC it takes 0.2 ms per frame on average, with p99 about 2 ms
-  and occasional frames up to 16 ms (the team model's re-clustering; section 4.6). The Orin's cores are slower, so
+  and occasional frames up to 16 ms (the team model's re-clustering; section 4.5). The Orin's cores are slower, so
   the worst frames need measuring on the device (GitHub issue #6); moving the re-clustering to a worker thread is the
   fix if they approach the 33 ms frame period.
 - **Software:** DeepStream 9.1, which this pipeline uses, needs JetPack 7.2 on Orin. MV3DT first appeared in
@@ -601,7 +609,7 @@ pipeline and scored on newly labelled ground truth.
 
 - **Small ground truth:** two minutes of one game on one court, with 10 players and refs not scored.
 - **Held-out data is one minute:** both tuning minutes informed development decisions, including the online team
-  model's settings. The held-out minute 5:00-6:00 (88.6 % identity IDF1) is untouched by tuning but is a single
+  model's settings. The held-out minute 5:00-6:00 (88.0 % identity IDF1 live) is untouched by tuning but is a single
   minute of the same game.
 - **Run-to-run variation:** per-minute identity IDF1 ranges from 74 % to 96 % across DeepStream runs. Three runs
   narrow it, but differences under about 2 points aren't reliable.
@@ -644,7 +652,7 @@ python -m tools.make_clips --start 0 --seconds 898 --offsets NL=26,FL=13,NR=4 --
 for r in s_int8cal_r1 s_int8cal_r2; do ./scripts/run_default.sh $r; done   # camera bias (not scored)
 ~/.venvs/mv3dt/bin/python -m tools.calib_bias s_int8cal_r1 s_int8cal_r2 --write
 for r in js_r1 js_r2 js_r3; do ./scripts/run_default.sh $r; done             # main runs ²
-PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1 ./scripts/phase8_courttrack_live.sh ctj_r1 ctj_r2 ctj_r3   # section 4.6
+PGIE_PRECISION=int8 PGIE_THRESHOLD=0.1 ./scripts/phase8_courttrack_live.sh ctj_r1 ctj_r2 ctj_r3   # section 4.5
 DATASET=gym PREFIX=j_ ./scripts/phase7_deploy_variants.sh int8t10_r1 int8t10_r2 int8t10_r3   # section 2.4, original clips
 DATASET=gym_sync2x PREFIX=j2x_ ./scripts/phase7_deploy_variants.sh int8t10_r1                  # section 2.4, offsets doubled
 ./scripts/phase7_deploy_variants.sh int8_r1 int8_r2 int8_r3 int8t10_r1 int8t10_r2 int8t10_r3   # section 6.1 ¹
