@@ -86,8 +86,8 @@ cache is for TensorRT 10.16), which doesn't change the speed. A PC check of what
    team model); copy it over and `tar -xf` it in the repository root.
 3. **Build:** `./scripts/build_court_app.sh` (the CUDA version is taken from the container).
 4. **INT8:** first try the PC's calibration cache (third-party JetPack 7.2 guides list TensorRT 10.16, as here): the
-   first run builds the engine; check `console.log` for layers falling back to higher precision. If the cache doesn't fit,
-   make one on the device ("INT8 on a new device" above) and set `PGIE_INT8_CALIB`.
+   first run builds the engine; check `console.log` for layers falling back to higher precision. If the cache doesn't
+   fit, make one on the device ("INT8 on a new device" above) and set `PGIE_INT8_CALIB`.
 5. **Runs:** `./scripts/brokers.sh start`, then `./scripts/jetson_bench.sh bias gpu dla live` (camera bias, three
    default runs on the GPU, the detector on each DLA core with `PGIE_DLA_CORE`, and one run with the court tracker
    inside the pipeline). GPU load and shared memory come from `tegrastats` (`tegrastats.log`; there is no
