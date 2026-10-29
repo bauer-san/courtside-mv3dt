@@ -40,6 +40,15 @@ case "$DETECTOR_MODEL" in
   *) DETECTOR_CONFIG=config_pgie.txt ;;
 esac
 [[ -d "$DS/videos" ]] || { echo "no dataset $DS"; exit 1; }
+# Clips of unequal length hang at end of stream: MV3DT waits for the other cameras' frames for the longest clip's last
+# frames, so its EOS never reaches the muxer and the app never exits (GitHub issue #7). Cut them with tools/make_clips.
+if command -v ffprobe >/dev/null; then
+  counts=$(for v in "$DS"/videos/*.mp4; do
+    ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames -of csv=p=0 "$v"; done | sort -u)
+  [[ $(wc -l <<< "$counts") == 1 ]] || {
+    echo "clips in $DS/videos differ in frame count ($(echo $counts)); use frame-identical clips (tools/make_clips.py)"
+    exit 1; }
+fi
 [[ -e "$OUT" ]] && { echo "$OUT exists; choose a new run name"; exit 1; }
 mkdir -p "$OUT"/{outVideos,bev,track_dump}
 

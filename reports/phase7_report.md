@@ -123,8 +123,11 @@ of identity accuracy and MV3DT about 6; at about 0.9 s the court tracker lost ab
 offsets better than MV3DT because identities rest mostly on jersey numbers and team colour, which each camera
 supplies on its own; positions, speeds and distances, however, are averaged across cameras that show different
 moments. Differences of 2-3 points are at the edge of the run-to-run spread, and the doubled-offset case is a single
-run. The three runs on the original clips didn't shut down at the end of the clips (DeepStream never handled NL's end
-of stream); they were stopped after their recordings were complete, so their speed isn't reported.
+run. The three runs on the original clips didn't shut down at the end of the clips: those clips differ in length (NL
+26,997 frames, FR 26,970), and MV3DT waits for the other cameras' frames for NL's last frames, so NL's end of stream
+never arrived (issue #7). All frames of the game were processed; the runs were stopped after their recordings were
+complete, so their speed isn't reported. The aligned clips are cut to the same length (26,940 frames each) and the
+run script now refuses clips of unequal length.
 
 **How the pipeline aligns them now, and what a live system needs.** Here the alignment comes entirely from the input
 files, cut with the measured offsets. DeepStream's muxer groups one frame per camera into each batch, but with file
@@ -643,8 +646,8 @@ pipeline and scored on newly labelled ground truth.
    - Measure fps per camera without display, and DLA throughput (AGX Orin; issue #4).
    - Measure the court tracker's worst-frame time in the pipeline; move the team model's re-clustering to a worker
      thread if it exceeds the frame period (issue #6).
-   - Check that the pipeline shuts down at end of stream (section 2.4: it didn't on the original clips here; issue
-     #7).
+   - Live streams don't end together like files: check what MV3DT does when one camera stops sending (section 2.4:
+     with files of unequal length, it waits for that camera's frames indefinitely; issue #7).
    - Re-score accuracy with `tools/multi_eval.py` and `tools/courttrack_export.py live`.
 2. **Trial the corner layout (C) for one session** (issue #9) with temporary mounts at about 4.5-5 m, label a minute
    and compare with the current layout, including the highlight framing of both baskets.
