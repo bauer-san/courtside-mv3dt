@@ -166,11 +166,11 @@ class WTParams:
                                   # can wear the same number)
     # read scheduling (deployment budget): reading attempts per second over all players (None = every
     # available crop); tracks without a number first, identified tracks re-checked every reconfirm_s
-    # identity logic (GitHub issue #11; all off by default)
-    team_recent: int | None = None   # frames: the identity's team from the track's colour labels of this window
+    # identity logic (GitHub issue #11; held-out minute 5:00-6:00: +0.8 points identity IDF1, 6 of 7 runs better)
+    team_recent: int | None = 90     # frames: the identity's team from the track's colour labels of this window
                                      # (team_votes labels, team_firm_share agreeing), else from all its labels
-    read_low_score: float = 0.0      # in recent_number, a read below this recogniser score ...
-    read_low_w: float = 1.0          # ... counts this much
+    read_low_score: float = 0.8      # in recent_number, a read below this recogniser score (74 % correct, the
+    read_low_w: float = 0.25         # rest 96-100 %) counts this much
     split_close: bool = False        # after a close encounter (doubt_dist, doubt_frames) and before a read
                                      # supports the identity again, split_close_reads matching reads suffice
     split_close_reads: int = 2

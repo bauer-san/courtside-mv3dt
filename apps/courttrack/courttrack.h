@@ -43,6 +43,8 @@ struct Params {                          // defaults = tools/world_tracker.py WT
   int app_recent = 90, app_min_samples = 3, proto_min = 20;
   int id_window = 300;
   double id_tau = 150.0;
+  int team_recent = 90;                  // 0 = off
+  double read_low_score = 0.8, read_low_w = 0.25;
 };
 
 /* Scale the rules that count detections in frame windows when detections arrive every `stride` frames. */

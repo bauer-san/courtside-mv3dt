@@ -19,9 +19,9 @@ report each player by identity (team + jersey number), not by track ID.
 
 | What is reported | Identity IDF1 (3 DeepStream runs x 2 labelled minutes) |
 |---|---|
-| **Player identities, live from DeepStream** (court tracker in C++ inside the pipeline, section 4.5) | **83.1 % (67-96 %)** |
-| The same on the held-out minute 5:00-6:00 (used for no setting) | 88.0 % (87-89 %) |
-| Court tracker's Python reference on the output of 3 other DeepStream runs (section 4.2) | 85.3 % (74-96 %) |
+| **Player identities, live from DeepStream** (court tracker in C++ inside the pipeline, section 4.5) | **84.4 % (72-96 %)** |
+| The same on the held-out minute 5:00-6:00 (used for no setting) | 88.4 % (86-90 %) |
+| Court tracker's Python reference on the output of 3 other DeepStream runs (section 4.2) | 85.6 % (73-96 %) |
 
 IDF1 here is the share of labelled detections that end up on the output unit matched to the right player. It's
 measured on hand-labelled ground truth (section 2.3). For reference, MV3DT's own global IDs, as DeepStream delivers
@@ -33,19 +33,19 @@ them, score 61.2 % (53-72 %) on runs `js_r1`-`r3`.
 - **Running live inside DeepStream (section 4.5):** the C++ court tracker and the automatic team model send one Kafka
   message per frame with every player's identity and court position.
 - **The camera streams must be time-aligned (section 2.4).** The recordings started up to 0.87 s apart. Aligning them
-  raised identity accuracy (Python reference) from 80.9 % to 85.3 % and MV3DT's own from 55.4 % to 61.2 %; with the offsets doubled the
-  court tracker fell to 78.0 %. A live system must align the streams by timestamp.
+  raised identity accuracy (Python reference) from 80.5 % to 85.6 % and MV3DT's own from 55.4 % to 61.2 %; with the
+  offsets doubled the court tracker fell to 77.7 %. A live system must align the streams by timestamp.
 - **No operator:** the two teams are found automatically from torso colour as the game runs and named A and B. From
   2:00 to the end of the game, no crop got the other team's name in any of six runs (section 4.4). Each camera's
   position correction is measured once at installation.
 - **Seated spectators are dropped before tracking (section 4.7):** 6-8 % of their detections reach the output, at
   most 2 % with an identity, while all but 0.5 % of player detections do.
-- **Still not good enough for reliable per-player statistics.** About 15 % of player time is credited to the wrong
-  player or no player. Most of that is a *wrong* identity (about 11 %), not a missing one (about 4 %; section 4.2).
+- **Still not good enough for reliable per-player statistics.** About 14 % of player time is credited to the wrong
+  player or no player. Most of that is a *wrong* identity (about 10 %), not a missing one (about 4 %; section 4.2).
 - **Results vary from run to run.** Repeated DeepStream runs of the same configuration give different MV3DT IDs and
-  jersey reads. Per-minute identity IDF1 ranges from 74 % to 96 %, so every number here is an average over three runs.
+  jersey reads. Per-minute identity IDF1 ranges from 72 % to 96 %, so every number here is an average over three runs.
 - **Detector threshold (section 6.1):** INT8 with a detection threshold of 0.1 instead of nvinfer's default 0.2
-  detects 97.2 % of labelled people instead of 94.2 %, for 77.7 % end-to-end identity accuracy instead of 74.2 %
+  detects 97.2 % of labelled people instead of 94.2 %, for 77.5 % end-to-end identity accuracy instead of 74.6 %
   (measured with the jersey reader's previous crop scaling).
 - **Jetson (estimated from these measurements, section 6.2):** four cameras at 30 fps look borderline to feasible on
   an AGX Orin 64 GB, and not feasible on an Orin Nano Super.
@@ -114,9 +114,9 @@ was run on the original clips, on the aligned ones, and on clips with the offset
 
 | Clips | Largest offset between cameras with overlapping views | Runs | Court tracker identity IDF1 | End-to-end | MV3DT's own IDs | Foot-point distance, same person and frame (NL-FR / FL-FR / NL-FL) |
 |---|---|---|---|---|---|---|
-| **Aligned** (default) | 0 | 3 | **85.3 %** (74-96 %) | **83.2 %** | 61.2 % | 0.21 / 0.27 / 0.45 m |
-| Original | 433 ms (NL-FL, FL-FR) | 3 | 80.9 % (70-88 %) | 79.0 % | 55.4 % | 0.64 / 0.45 / 0.60 m |
-| Offsets doubled | 867 ms (NL-FL, FL-FR) | 1 | 78.0 % (72-84 %) | 76.0 % | 54.9 % | 0.61 / 0.62 / 0.70 m |
+| **Aligned** (default) | 0 | 3 | **85.6 %** (73-96 %) | **83.6 %** | 61.2 % | 0.21 / 0.27 / 0.45 m |
+| Original | 433 ms (NL-FL, FL-FR) | 3 | 80.5 % (70-88 %) | 78.6 % | 55.4 % | 0.64 / 0.45 / 0.60 m |
+| Offsets doubled | 867 ms (NL-FL, FL-FR) | 1 | 77.7 % (72-84 %) | 75.7 % | 54.9 % | 0.61 / 0.62 / 0.70 m |
 
 **Tolerance.** With up to about 0.4 s between cameras that see the same area, the court tracker lost about 4 points
 of identity accuracy and MV3DT about 6; at about 0.9 s the court tracker lost about 7. The court tracker tolerates
@@ -198,14 +198,26 @@ pipeline and its evaluation logs written to this PC's hard disk: 90.7-91.4 fps p
 
 | 3 runs x 2 labelled minutes | Live in DeepStream (C++, `ctj_r1`-`r3`) | Python reference (`js_r1`-`r3`) |
 |---|---|---|
-| Identity IDF1 | **83.1 %**; per run and minute 94, 73, 96, 73, 95, 68 % | 85.3 %; 95, 74, 93, 80, 96, 74 % |
-| End-to-end (correctly identified / all labelled detections) | 81.2 %; 97.6 % of labelled people detected | 83.2 %; 97.5 % detected |
-| Identity switches per labelled minute (mean) | 32 | 21 |
-| **Held-out minute 5:00-6:00**, identity IDF1 | **88.0 %** (87, 89, 88 %) | 88.6 % (89, 89, 88 %) |
-| Held-out minute, end-to-end | 86.9 %; 98.7 % detected | 87.7 %; 98.9 % detected¹ |
+| Identity IDF1 | **84.4 %**; per run and minute 96, 75, 96, 74, 94, 72 % | 85.6 %; 95, 73, 93, 84, 96, 73 % |
+| End-to-end (correctly identified / all labelled detections) | 82.4 %; 97.6 % of labelled people detected | 83.6 %; 97.5 % detected |
+| Identity switches per labelled minute (mean) | 30 | 22 |
+| **Held-out minute 5:00-6:00**, identity IDF1 | **88.4 %** (89, 90, 86 %) | 89.2 % (89, 90, 89 %) |
+| Held-out minute, end-to-end | 87.2 %; 98.7 % detected | 88.2 %; 98.9 % detected¹ |
 
-The two columns are different DeepStream runs, so their gap is within the run-to-run variation (below). The held-out
-minute was labelled after all settings in this report were chosen and was used for none of them.
+The two columns are different DeepStream runs, so their gap is within the run-to-run variation (below). The live
+column uses the current court tracker: its C++ code replayed on the inputs the `ctj` runs recorded, which reproduces
+the pipeline's output exactly (section 4.6); the live output as recorded, with the court tracker before the identity
+rules below, scored 83.1 % (held out 88.0 %).
+
+**Identity rules (issue #11).** Two rules decide a track's identity: jersey reads with a recogniser score below 0.8
+count a quarter (on the labelled moments they are 74 % correct, the others 96-100 %), and the identity's team comes
+from the track's colour labels of the last 3 s, so a swap with a player of the other team shows within seconds. They
+were chosen on the two tuning minutes over 7 DeepStream runs (+1.6 points identity IDF1, 8 run-minutes better, 2
+worse; `tools/id_explore.py`) and then checked once on the held-out minute: +0.8 points, 6 of 7 runs better. Faster
+read decay, other split rules, a stricter roster, doubting identities after close encounters and the encounter
+swap check all scored the same or worse.
+
+The held-out minute was labelled after all other settings in this report were chosen and was used for none of them.
 
 ¹ The held-out labels were made on run `js_r1`'s detections, so that run detects 100 % of them by construction; the
 other two detect 98.1 % and 98.6 %.
@@ -214,12 +226,12 @@ The loss breakdown below is for the Python reference runs.
 
 ![Where identity IDF1 is lost](figures/loss_breakdown.png)
 
-- **Wrong number, other (5.3 %):** misreads, and identities established from too few reads.
-- **Wrong number carried over from another player (4.3 %):** a track swaps players and keeps the old identity until
+- **Wrong number, other (5.4 %):** misreads, and identities established from too few reads.
+- **Wrong number carried over from another player (3.8 %):** a track swaps players and keeps the old identity until
   enough new reads arrive. Reads are sparse: a given player is read only every few seconds.
-- **Unidentified (3.4 %):** almost all of it (3.0 %) on tracks with readable crops and reads that never reached an
+- **Unidentified (3.8 %):** almost all of it (3.4 %) on tracks with readable crops and reads that never reached an
   identity.
-- **Wrong team with the right number (1.2 %):** on the numbers both teams wear (1 and 3).
+- **Wrong team with the right number (0.9 %):** on the numbers both teams wear (1 and 3).
 - **Missed by the tracker (0.5 %):** small; part of it is the seated-spectator rule (section 4.7). Detection and court
   filtering aren't the bottleneck.
 
@@ -289,16 +301,16 @@ The court tracker runs live in the pipeline (`scripts/run_mv3dt.sh` with `COURTT
 
 | | Result |
 |---|---|
-| C++ and Python replays of the recorded inputs | identical to the live output (all of about 528,000-529,000 detection identities per run) |
-| Identity IDF1, live | **83.1 %** (67-96 %); end-to-end 81.2 % (97.6 % of labelled people detected) |
-| Python reference on the same runs (Kafka output, OpenCV histograms) | 82.6 % |
+| C++ and Python replays of the recorded inputs | identical to each other, and with the court tracker of the recording to the live output (all of about 528,000-529,000 detection identities per run) |
+| Identity IDF1, current court tracker (C++ replay of the recorded inputs) | **84.4 %** (72-96 %); end-to-end 82.4 % (97.6 % of labelled people detected) |
+| Identity IDF1, live as recorded (before the issue #11 identity rules) | 83.1 % (67-96 %) |
+| Python reference on the same runs (Kafka output, OpenCV histograms) | 85.4 % |
 | Pipeline speed with the court tracker | 90.7-91.4 fps per camera, with the evaluation logs written to this PC's hard disk |
 | Court tracker + team model, in the pipeline ¹ | 0.21-0.22 ms mean, 1.8-2.0 ms p99, 13-16 ms max per frame |
 | Torso histograms, in the pipeline | 1.7 ms mean per four-camera batch (every 3rd frame) |
 | Kafka messages | 26,935 per run, none failed |
 
-- **Live vs Python reference:** about the same score (83.1 % against 82.6 %; 3 run-minutes better by 1-3 points, 1
-  worse by 3, 2 within half a point). The live pipeline computes the torso histograms differently (NV12 frames
+- **Live vs Python reference:** 84.4 % against 85.4 %; 4 run-minutes within 1 point, 2 worse by 2 and 6 points. The live pipeline computes the torso histograms differently (NV12 frames
   scaled to small tiles, against OpenCV on full-resolution frames); the team model learns from whichever it gets.
 - **Duplicate ids:** MV3DT occasionally gives two different people the same object id in one camera and frame.
   Everything downstream is keyed by (frame, camera, id), so only the first is kept.
@@ -396,8 +408,8 @@ results; the comparison is about detection, which the jersey reader doesn't affe
 
 | INT8 detector | fps per camera | GPU use | Labelled people detected | Identity IDF1 (detected) | End-to-end identity |
 |---|---|---|---|---|---|
-| threshold 0.2 (nvinfer default) | 95.6-96.2 | 88-89 % | 94.2 % | 78.5 % | 74.2 % (57-88 %) |
-| **threshold 0.1 (default here)** | 93.8-96.9 | 88-89 % | 97.2 % | 79.9 % | **77.7 %** (67-88 %) |
+| threshold 0.2 (nvinfer default) | 95.6-96.2 | 88-89 % | 94.2 % | 78.9 % | 74.6 % (56-89 %) |
+| **threshold 0.1 (default here)** | 93.8-96.9 | 88-89 % | 97.2 % | 79.6 % | **77.5 %** (67-86 %) |
 
 - **The lower threshold** finds more of the labelled people at the same speed, and the people it adds are identified
   about as well as the rest, so the end-to-end gain (3.5 points) comes mostly from detection.
@@ -609,9 +621,9 @@ pipeline and scored on newly labelled ground truth.
 
 - **Small ground truth:** two minutes of one game on one court, with 10 players and refs not scored.
 - **Held-out data is one minute:** both tuning minutes informed development decisions, including the online team
-  model's settings. The held-out minute 5:00-6:00 (88.0 % identity IDF1 live) is untouched by tuning but is a single
+  model's settings. The held-out minute 5:00-6:00 (88.4 % identity IDF1 live) is untouched by tuning but is a single
   minute of the same game.
-- **Run-to-run variation:** per-minute identity IDF1 ranges from 74 % to 96 % across DeepStream runs. Three runs
+- **Run-to-run variation:** per-minute identity IDF1 ranges from 72 % to 96 % across DeepStream runs. Three runs
   narrow it, but differences under about 2 points aren't reliable.
 - **Sensitivity:** tracking decisions amplify tiny input changes (a few centimetres of camera bias, a few hundred
   duplicate detections in a game), which shows up as run-to-run spread.
@@ -636,10 +648,10 @@ pipeline and scored on newly labelled ground truth.
    - Re-score accuracy with `tools/multi_eval.py` and `tools/courttrack_export.py live`.
 2. **Trial the corner layout (C) for one session** (issue #9) with temporary mounts at about 4.5-5 m, label a minute
    and compare with the current layout, including the highlight framing of both baskets.
-3. **More reads per player where it matters** (issue #8). Re-read tracks for a second or two after a close
-   encounter, and tracks without an identity.
-4. **Label a third minute** (5:00-6:00 is still unused) for a clean held-out score before any final claims.
-5. **Use the official roster** (numbers per team, available for real games): reject reads of numbers on neither
+3. **Identity logic** (issue #11). The largest remaining loss is a wrong number on the same team when the true
+   number hasn't been read for 10 s (about 5 % of labelled detections); colour can't separate those players. More
+   reads don't help (issue #8: reading every frame scored the same).
+4. **Use the official roster** (numbers per team, available for real games): reject reads of numbers on neither
    roster, and settle the team of a number only one team wears. The roster can't say which colour is which team, but
    the tracker can learn that from which numbers each colour cluster is read with. This also targets the wrong-team
    errors on shared numbers.

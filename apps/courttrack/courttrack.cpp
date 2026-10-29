@@ -871,13 +871,30 @@ struct Tracker::Impl {
     for (auto it = t.reads.rbegin(); it != t.reads.rend(); ++it) {
       if (it->frame < frame - p.id_window) break;
       if (it->frame <= frame) {
-        w.add(it->number, std::exp(-(frame - it->frame) / p.id_tau));
+        double low = it->score < p.read_low_score ? p.read_low_w : 1.0;   // low-confidence reads count less
+        w.add(it->number, std::exp(-(frame - it->frame) / p.id_tau) * low);
         ++n;
       }
     }
     if (n < p.num_min_reads) return "";
     auto *mc = w.most_common();
-    return mc->second / w.total() >= p.num_share ? mc->first : "";
+    double tot = w.total();
+    return tot > 0 && mc->second / tot >= p.num_share ? mc->first : "";
+  }
+
+  /* identity team from the colour labels of the last team_recent frames (Python: labels[-4 * team_recent:]) */
+  std::string recent_team(const Track &t, int frame, std::string team) const {
+    if (p.team_recent <= 0) return team;
+    OCounter<std::string> c;
+    size_t from = t.labels.size() > size_t(4 * p.team_recent) ? t.labels.size() - 4 * p.team_recent : 0;
+    for (size_t i = from; i < t.labels.size(); ++i)
+      if (frame - p.team_recent < t.labels[i].first && t.labels[i].first <= frame) c.add(t.labels[i].second);
+    double n = c.total();
+    if (n >= p.team_votes) {
+      auto *mc = c.most_common();
+      if (mc->second / n >= p.team_firm_share) team = mc->first;
+    }
+    return team;
   }
 
   const Proto *proto_for(const std::string &ident, const std::string &team) const {
@@ -919,7 +936,7 @@ struct Tracker::Impl {
   std::string identity(const Track &t, int frame) const {
     std::string num = recent_number(t, frame);
     if (num.empty() || !t.confirmed) return "";
-    std::string team = t.firm_team(p);
+    std::string team = recent_team(t, frame, t.firm_team(p));
     static const char *dbg = getenv("CT_DEBUG_FRAME");   // debugging: identity decisions at one frame
     if (dbg && atoi(dbg) == frame) {
       auto ts = roster_teams(num);

@@ -199,6 +199,9 @@ def compare(run: Path, out: Path) -> None:
               f"switches {sp['switches']} / {sc['switches']}")
 
 
+HELD_OUT = ("game_5to6",)     # labelled after the settings were chosen (GitHub issue #11); never tuned on
+
+
 def live(runs: list[Path]) -> None:
     import csv
     import subprocess
@@ -206,7 +209,7 @@ def live(runs: list[Path]) -> None:
     from tools.gt_eval import load_gt
     from tools.gt_eval import score as gt_score
     from tools.online_teams import replay_inputs, track_run_online
-    N = {n: len(load_gt(n)) for n in ("game_2to3", "game_4to5")}
+    N = {n: len(load_gt(n)) for n in ("game_2to3", "game_4to5") + HELD_OUT}
     rows = []
     for run in runs:
         lv = {(int(r["frame"]), r["sensor"], r["object_id"]): (r["identity"] or None)
@@ -226,22 +229,33 @@ def live(runs: list[Path]) -> None:
             kp = [k for k in set(lv) | set(py) if k[0] <= last]
             same_c = sum(lv.get(k, "?") == cpp.get(k, "?") for k in kc)
             same_p = sum(lv.get(k, "?") == py.get(k, "?") for k in kp)
+            kb = [k for k in set(cpp) | set(py) if k[0] <= last]
+            same_b = sum(cpp.get(k, "?") == py.get(k, "?") for k in kb)
             print(f"{run.name} ({scope}): live identities {sum(k[0] <= last for k in lv)}; C++ replay identical "
-                  f"{same_c}/{len(kc)}, Python replay identical {same_p}/{len(kp)}")
+                  f"{same_c}/{len(kc)}, Python replay identical {same_p}/{len(kp)}; C++ and Python replays "
+                  f"identical {same_b}/{len(kb)}")
+        # the recorded live identities come from the code at recording time; the C++ replay of the recorded inputs is
+        # what the pipeline gives with the current code
         G_live = identity_tracks(T, lv)
+        G_cpp = identity_tracks(T, cpp)
         T_ref = track_run_online(run, correct_bias="stored", post=False)
         G_ref = identity_tracks(T_ref, track_run.last_det_ident)
         for n in N:
             gt = load_gt(n, run)
-            a, b = gt_score(G_live, gt), gt_score(G_ref, gt)
+            a, b, c = gt_score(G_live, gt), gt_score(G_ref, gt), gt_score(G_cpp, gt)
             det = len(gt) / N[n]
-            rows.append((run.name, n, a["idf1"], b["idf1"], det))
-            print(f"  {n}: identity IDF1 live {a['idf1']:.1%} (end-to-end {a['idf1'] * det:.1%}), "
-                  f"Python on Kafka + OpenCV histograms {b['idf1']:.1%}; switches {a['switches']} / {b['switches']}")
-    if rows:
-        m = lambda i: np.mean([r[i] for r in rows])
-        print(f"mean over {len(rows)} run-minutes: live {m(2):.1%} (range {min(r[2] for r in rows):.0%}-"
-              f"{max(r[2] for r in rows):.0%}), end-to-end {np.mean([r[2] * r[4] for r in rows]):.1%}; "
+            rows.append((run.name, n, a["idf1"], b["idf1"], det, c["idf1"], c["switches"]))
+            print(f"  {n}: identity IDF1 C++ replay {c['idf1']:.1%} (end-to-end {c['idf1'] * det:.1%}), "
+                  f"live as recorded {a['idf1']:.1%}, Python on Kafka + OpenCV histograms {b['idf1']:.1%}; "
+                  f"switches {c['switches']} / {a['switches']} / {b['switches']}")
+    for held in (True, False):
+        rs = [r for r in rows if (r[1] in HELD_OUT) == held]
+        if not rs:
+            continue
+        m = lambda i: np.mean([r[i] for r in rs])
+        print(f"mean over {len(rs)} run-minutes{' (held out)' if held else ''}: C++ replay {m(5):.1%} (range "
+              f"{min(r[5] for r in rs):.0%}-{max(r[5] for r in rs):.0%}), end-to-end "
+              f"{np.mean([r[5] * r[4] for r in rs]):.1%}, switches {m(6):.1f}; live as recorded {m(2):.1%}; "
               f"Python reference {m(3):.1%}; labelled people detected {m(4):.1%}")
 
 
