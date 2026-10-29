@@ -207,8 +207,9 @@ a full identity, across about 10 people per minute (players from both teams, inc
 <li>
 <p><strong>Refs:</strong> both referees were labelled only as "ref", so referees aren't scored.</p>
 </li>
-<li><strong>Limit:</strong> both minutes have been used for development decisions, so there is no untouched held-out data left
-    (section 8).</li>
+<li><strong>Limit:</strong> both minutes have been used for development decisions.</li>
+<li><strong>Held-out minute:</strong> 5:00-6:00 was labelled afterwards the same way (30 moments, 424 detections with a full
+    identity, 8 people) and is used only to check results, never to tune (section 4.2).</li>
 </ul>
 <h3 id="24-time-alignment-of-the-camera-streams">2.4 Time alignment of the camera streams</h3>
 <p>The clips used in this report are time-aligned: frame n of every camera shows the same moment. The four cameras were
@@ -436,8 +437,14 @@ pipeline and its evaluation logs written to this PC's hard disk: 90.7-91.4 fps p
 <td>Identity switches</td>
 <td>21 per labelled minute (mean)</td>
 </tr>
+<tr>
+<td>Held-out minute 5:00-6:00 (same 3 runs)</td>
+<td>identity IDF1 <strong>88.6 %</strong> (89, 89, 88 %); end-to-end 87.7 %; 98.9 % of labelled people detected¹</td>
+</tr>
 </tbody>
 </table></div>
+<p>¹ The held-out labels were made on run js_r1's detections, so that run detects 100 % of them by construction; the
+other two runs detect 98.1 % and 98.6 %. The held-out minute was not used for any setting in this report.</p>
 <figure class="fig"><svg class="chart" viewBox="0 0 760 280" role="img" aria-label="Where identity IDF1 is still lost"><line class="grid" x1="330.0" y1="4" x2="330.0" y2="252"/><text class="tick" x="330.0" y="268" text-anchor="middle">0</text><line class="grid" x1="402.0" y1="4" x2="402.0" y2="252"/><text class="tick" x="402.0" y="268" text-anchor="middle">2</text><line class="grid" x1="474.0" y1="4" x2="474.0" y2="252"/><text class="tick" x="474.0" y="268" text-anchor="middle">4</text><line class="grid" x1="546.0" y1="4" x2="546.0" y2="252"/><text class="tick" x="546.0" y="268" text-anchor="middle">6</text><line class="grid" x1="618.0" y1="4" x2="618.0" y2="252"/><text class="tick" x="618.0" y="268" text-anchor="middle">8</text><line class="grid" x1="690.0" y1="4" x2="690.0" y2="252"/><text class="tick" x="690.0" y="268" text-anchor="middle">10</text><g class="row hl"><title>wrong number, other: 5.3%</title><rect class="hit" x="0" y="8" width="760" height="34"/><text class="lab" x="318" y="29.0" text-anchor="end">wrong number, other</text><rect class="bar" x="330" y="16" width="190.8" height="18" rx="3"/><text class="val" x="528.8" y="29.0">5.3%</text></g><g class="row hl"><title>wrong number, carried from another player: 4.3%</title><rect class="hit" x="0" y="42" width="760" height="34"/><text class="lab" x="318" y="63.0" text-anchor="end">wrong number, carried from another player</text><rect class="bar" x="330" y="50" width="154.8" height="18" rx="3"/><text class="val" x="492.8" y="63.0">4.3%</text></g><g class="row hl"><title>unidentified: readable crops and reads, identity not established: 3.0%</title><rect class="hit" x="0" y="76" width="760" height="34"/><text class="lab" x="318" y="97.0" text-anchor="end">unidentified: readable crops and reads, identity not established</text><rect class="bar" x="330" y="84" width="108.0" height="18" rx="3"/><text class="val" x="446.0" y="97.0">3.0%</text></g><g class="row hl"><title>wrong team (right number): 1.2%</title><rect class="hit" x="0" y="110" width="760" height="34"/><text class="lab" x="318" y="131.0" text-anchor="end">wrong team (right number)</text><rect class="bar" x="330" y="118" width="43.2" height="18" rx="3"/><text class="val" x="381.2" y="131.0">1.2%</text></g><g class="row hl"><title>missed: 0.5%</title><rect class="hit" x="0" y="144" width="760" height="34"/><text class="lab" x="318" y="165.0" text-anchor="end">missed</text><rect class="bar" x="330" y="152" width="18.0" height="18" rx="3"/><text class="val" x="356.0" y="165.0">0.5%</text></g><g class="row hl"><title>unidentified: readable crops, no usable reads: 0.3%</title><rect class="hit" x="0" y="178" width="760" height="34"/><text class="lab" x="318" y="199.0" text-anchor="end">unidentified: readable crops, no usable reads</text><rect class="bar" x="330" y="186" width="10.8" height="18" rx="3"/><text class="val" x="348.8" y="199.0">0.3%</text></g><g class="row hl"><title>unidentified: no readable crops: 0.1%</title><rect class="hit" x="0" y="212" width="760" height="34"/><text class="lab" x="318" y="233.0" text-anchor="end">unidentified: no readable crops</text><rect class="bar" x="330" y="220" width="3.6" height="18" rx="3"/><text class="val" x="341.6" y="233.0">0.1%</text></g></svg><figcaption>Share of labelled detections not credited to the right player (%), mean of 3 runs × 2 minutes. The remaining 85.2 % are correct.</figcaption></figure>
 <ul>
 <li><strong>Wrong number, other (5.3 %):</strong> misreads, and identities established from too few reads.</li>
@@ -1275,8 +1282,9 @@ pipeline and scored on newly labelled ground truth.</p>
 <ul>
 <li><strong>Small ground truth:</strong> two minutes of one game on one court, with 10 players and refs not scored.</li>
 <li>
-<p><strong>No clean held-out data:</strong> both labelled minutes informed development decisions, including the online team
-    model's settings. A third labelled minute would give an unbiased final number.</p>
+<p><strong>Held-out data is one minute:</strong> both tuning minutes informed development decisions, including the online team
+    model's settings. The held-out minute 5:00-6:00 (88.6 % identity IDF1) is untouched by tuning but is a single
+    minute of the same game.</p>
 </li>
 <li>
 <p><strong>Run-to-run variation:</strong> per-minute identity IDF1 ranges from 74 % to 96 % across DeepStream runs. Three runs
@@ -1373,7 +1381,7 @@ gave the same boxes.</p>
 <ul>
 <li><strong>Calibration:</strong> <code>tools/court_refine.py &lt;run&gt; &lt;cam&gt;</code> (line traces), then <code>tools/calib_mount.py --write</code>.</li>
 <li>
-<p><strong>Ground truth:</strong> <code>gt/game_2to3</code>, <code>gt/game_4to5</code> (labels in <code>labels/</code>; the labelling pages are private claude.ai
+<p><strong>Ground truth:</strong> <code>gt/game_2to3</code>, <code>gt/game_4to5</code>, held-out <code>gt/game_5to6</code> (labels in <code>labels/</code>; the labelling pages are private claude.ai
     artifacts).</p>
 </li>
 <li>

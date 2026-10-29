@@ -82,8 +82,9 @@ a full identity, across about 10 people per minute (players from both teams, inc
   be scored. They carry over to new DeepStream runs by box overlap, with each camera's frame offset applied
   (`tools/gt_eval.py`).
 - **Refs:** both referees were labelled only as "ref", so referees aren't scored.
-- **Limit:** both minutes have been used for development decisions, so there is no untouched held-out data left
-  (section 8).
+- **Limit:** both minutes have been used for development decisions.
+- **Held-out minute:** 5:00-6:00 was labelled afterwards the same way (30 moments, 424 detections with a full
+  identity, 8 people) and is used only to check results, never to tune (section 4.2).
 
 ### 2.4 Time alignment of the camera streams
 
@@ -198,6 +199,10 @@ pipeline and its evaluation logs written to this PC's hard disk: 90.7-91.4 fps p
 | Identity IDF1 | **85.3 %** (mean); per run and minute 95, 74, 93, 80, 96, 74 % |
 | End-to-end (correctly identified / all labelled detections) | 83.2 %; 97.5 % of labelled people detected |
 | Identity switches | 21 per labelled minute (mean) |
+| Held-out minute 5:00-6:00 (same 3 runs) | identity IDF1 **88.6 %** (89, 89, 88 %); end-to-end 87.7 %; 98.9 % of labelled people detected¹ |
+
+¹ The held-out labels were made on run js_r1's detections, so that run detects 100 % of them by construction; the
+other two runs detect 98.1 % and 98.6 %. The held-out minute was not used for any setting in this report.
 
 ![Where identity IDF1 is lost](figures/loss_breakdown.png)
 
@@ -595,8 +600,9 @@ pipeline and scored on newly labelled ground truth.
 ## 8. Limitations
 
 - **Small ground truth:** two minutes of one game on one court, with 10 players and refs not scored.
-- **No clean held-out data:** both labelled minutes informed development decisions, including the online team
-  model's settings. A third labelled minute would give an unbiased final number.
+- **Held-out data is one minute:** both tuning minutes informed development decisions, including the online team
+  model's settings. The held-out minute 5:00-6:00 (88.6 % identity IDF1) is untouched by tuning but is a single
+  minute of the same game.
 - **Run-to-run variation:** per-minute identity IDF1 ranges from 74 % to 96 % across DeepStream runs. Three runs
   narrow it, but differences under about 2 points aren't reliable.
 - **Sensitivity:** tracking decisions amplify tiny input changes (a few centimetres of camera bias, a few hundred
@@ -666,6 +672,6 @@ nvinfer's implicit NMS fallback (IoU 0.5, top 20) instead of the same settings w
 gave the same boxes.
 
 - **Calibration:** `tools/court_refine.py <run> <cam>` (line traces), then `tools/calib_mount.py --write`.
-- **Ground truth:** `gt/game_2to3`, `gt/game_4to5` (labels in `labels/`; the labelling pages are private claude.ai
+- **Ground truth:** `gt/game_2to3`, `gt/game_4to5`, held-out `gt/game_5to6` (labels in `labels/`; the labelling pages are private claude.ai
   artifacts).
 - **Unit tests:** `~/.venvs/mv3dt/bin/python -m pytest -q` (58 pass).
