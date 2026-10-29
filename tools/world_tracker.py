@@ -166,6 +166,14 @@ class WTParams:
                                   # can wear the same number)
     # read scheduling (deployment budget): reading attempts per second over all players (None = every
     # available crop); tracks without a number first, identified tracks re-checked every reconfirm_s
+    # identity logic (GitHub issue #11; all off by default)
+    team_recent: int | None = None   # frames: the identity's team from the track's colour labels of this window
+                                     # (team_votes labels, team_firm_share agreeing), else from all its labels
+    read_low_score: float = 0.0      # in recent_number, a read below this recogniser score ...
+    read_low_w: float = 1.0          # ... counts this much
+    split_close: bool = False        # after a close encounter (doubt_dist, doubt_frames) and before a read
+                                     # supports the identity again, split_close_reads matching reads suffice
+    split_close_reads: int = 2
     read_budget: float | None = None
     reconfirm_s: float = 3.0
     risk_dist: float | None = None   # m: if set, tracks this close are re-read unthrottled for 2 s after
@@ -556,7 +564,10 @@ class WorldTracker:
             return
         if p.split_majority:
             win = [r for r in t.reads if frame - p.num_switch_window < r[0] <= frame]
-            if len(win) >= p.num_switch_reads:
+            need = p.num_switch_reads
+            if p.split_close and t.last_close > t.last_support:
+                need = p.split_close_reads
+            if len(win) >= need:
                 n, k = collections.Counter(x for _, x, _ in win).most_common(1)[0]
                 if n != prev_num and k / len(win) >= p.split_share:
                     self._split(t, min(g for g, x, _ in win if x == n))
@@ -626,16 +637,17 @@ class WorldTracker:
         p = self.p
         w = collections.Counter()
         n = 0
-        for g, x, _ in reversed(t.reads):
+        for g, x, s in reversed(t.reads):
             if g < frame - p.id_window:
                 break
             if g <= frame:
-                w[x] += np.exp(-(frame - g) / p.id_tau)
+                w[x] += np.exp(-(frame - g) / p.id_tau) * (p.read_low_w if s < p.read_low_score else 1.0)
                 n += 1
         if n < p.num_min_reads:
             return None
         x, k = w.most_common(1)[0]
-        return x if k / sum(w.values()) >= p.num_share else None
+        tot = sum(w.values())
+        return x if tot > 0 and k / tot >= p.num_share else None
 
     def identity(self, t: WTrack, frame: int | None = None) -> str | None:
         """The player a track is identified as now: team:number, or number alone if the roster makes it unique."""
@@ -644,6 +656,14 @@ class WorldTracker:
         if num is None or not t.confirmed:
             return None
         team = t.firm_team(p)
+        if p.team_recent and frame is not None:
+            c = collections.Counter(lab for g, lab in t.labels[-4 * p.team_recent:]
+                                    if frame - p.team_recent < g <= frame)
+            n = sum(c.values())
+            if n >= p.team_votes:
+                lab, k = c.most_common(1)[0]
+                if k / n >= p.team_firm_share:
+                    team = lab
         teams = self.roster_teams(num)
         if p.player_appearance and len(teams) > 1:
             by_look = self._closest_player(t, num, teams)
@@ -681,7 +701,7 @@ class WorldTracker:
 
     def _label_identities(self, frame: int) -> None:
         p = self.p
-        if p.id_doubt:
+        if p.id_doubt or p.split_close:
             live = [t for t in self.tracks if t.confirmed and t.last_hit == frame]
             if len(live) > 1:
                 X = np.array([t.x[:2] for t in live])

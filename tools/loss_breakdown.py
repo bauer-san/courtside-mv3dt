@@ -38,7 +38,11 @@ def readable_keys(run: Path) -> set:
 
 def breakdown(run: Path, gts: dict) -> dict:
     T = track_default(run)
-    di = track_run.last_det_ident
+    return classify(run, T, track_run.last_det_ident, gts)
+
+
+def classify(run: Path, T: list, di: dict, gts: dict) -> dict:
+    """{minute: (Counter of categories, number of labelled detections)} for tracks T with identities di."""
     readable = readable_keys(run)
     owner, label = {}, {}
     for t in T:
