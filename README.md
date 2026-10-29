@@ -57,8 +57,26 @@ Videos, model weights and TensorRT engines are never committed (see `.gitignore`
 ## Jetson AGX Orin
 
 DeepStream 9.1 supports Jetson Orin with **JetPack 7.2 (L4T r39.2)**, and the `deepstream` container repository
-serves Jetson and PC from 9.1 on (the image used here has an arm64 variant). Runs happen on the device; scoring stays
-on the PC. Steps (GitHub issues #4 and #6):
+serves Jetson and PC from 9.1 on (the image used here has an arm64 variant). MV3DT first appeared in DeepStream 8.0,
+so on **JetPack 6** (newest DeepStream: 7.1) the full pipeline can't run.
+
+**JetPack 6 (component measurements, everything in Docker).** On the PC, `./scripts/jetson_bundle.sh <file>.tar
+components` (models, the 60 s clips, a live run's recorded court-tracker inputs, ~350 MB). On the device, in a clone
+of this repository: `tar -xf <file>.tar`, then `./scripts/agx_components.sh`. It builds a small image on top of one
+already on the device (`bauersan/jetson-ndi-yolo`, DeepStream 7.1 for Jetson; else NVIDIA's L4T JetPack image),
+adding only what's missing (`trtexec`, `g++`, GStreamer tools), and measures in one container:
+- the detector (PeopleNet INT8, batch 4) on the GPU, on DLA 0, on DLA 1 and on both DLAs at once;
+- the jersey models;
+- the court tracker replayed on recorded inputs (`ct_replay`);
+- four 1080p streams through the hardware decoder.
+
+Results land in `experiments/agx_components_<time>/summary.txt`. INT8 scales are placeholders (the PC's calibration
+cache is for TensorRT 10.16), which doesn't change the speed. A PC check of what DeepStream 7.1 could offer instead
+(MV3DT's multi-view association off, single-view 3D tracking only; `nomv_r1`-`r3`) gave 74.0 % end-to-end against
+82.4 % with MV3DT: fewer detections reach the output.
+
+**JetPack 7.2 (full pipeline).** Runs happen on the device; scoring stays on the PC. Steps (GitHub issues #4 and
+#6):
 
 1. **Device:** JetPack 7.2 flashed, Docker with the NVIDIA runtime, `mosquitto` running (with
    `set_tcp_nodelay true`, as on the PC), Python 3.12 venv support.
