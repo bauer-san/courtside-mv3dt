@@ -46,10 +46,10 @@ log "== jersey reader"
 trt ocr_det --onnx="$M/OCR/ch_PP-OCRv4_det_infer.onnx" --shapes=x:16x3x480x384 --int8 --fp16
 trt ocr_rec --onnx="$M/OCR/ch_PP-OCRv4_rec_infer.onnx" --shapes=x:32x3x48x64 --int8 --fp16
 
-log "== court tracker (replay of experiments/ctO2_r1)"
+log "== court tracker (replay of experiments/npct_r1)"
 if g++ -std=c++17 -O2 -ffp-contract=off -o "$OUT/ct_replay" apps/courttrack/ct_replay.cpp apps/courttrack/courttrack.cpp \
      apps/courttrack/online_teams.cpp 2> "$OUT/ct_build.log"; then
-  "$OUT/ct_replay" experiments/ctO2_r1/courttrack_inputs.bin "$OUT/ct_out.txt" > "$OUT/ct_replay.log" 2>&1
+  "$OUT/ct_replay" experiments/npct_r1/courttrack_inputs.bin "$OUT/ct_out.txt" > "$OUT/ct_replay.log" 2>&1
   tail -2 "$OUT/ct_replay.log" | tee -a "$OUT/summary.txt"
 else
   log "ct_replay build failed (see ct_build.log)"

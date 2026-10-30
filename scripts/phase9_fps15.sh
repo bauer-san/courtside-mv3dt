@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Cameras at 15 fps (GitHub issue #5): the default configuration on datasets/gym_sync15 (every 2nd frame of the
 # time-aligned clips, make_clips --step 2), with the settings that count frames halved so they last the same time:
-# MV3DT shadow tracking 162 -> 81 frames, recently-active age 178 -> 89, pose every 30 -> 15 frames; the jersey reader
+# MV3DT shadow tracking 162 -> 81 frames, recently-active age 178 -> 89, pose every 30 -> 15 frames (only with POSE=1;
+# the pose model is off by default since issue #5); the jersey reader
 # re-reads a player every 3rd frame (0.2 s; at 30 fps every 7th, 0.23 s); torso colours from every 2nd frame
 # (0.13 s; at 30 fps every 3rd, 0.1 s). probationAge and earlyTerminationAge count detections and stay.
 # Each run is then renumbered to 30 fps frames (tools/frame_step.py) for scoring with the usual tools.

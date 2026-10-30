@@ -18,7 +18,7 @@ import numpy as np
 
 from tools import ROOT
 
-RUNS = ["js_r1", "js_r2", "js_r3", "dflt_r1", "ctj_r1", "ctj_r2", "ctj_r3"]
+RUNS = ["np_r1", "np_r2", "np_r3", "npct_r1", "npct_r2", "npct_r3"]
 OUT = ROOT / "experiments" / "id_explore"
 
 

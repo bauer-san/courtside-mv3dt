@@ -9,13 +9,17 @@
 #        JERSEY_REINFER=n (with JERSEY=1)              # frames skipped between reads of one player (default 6)
 #        DET_LOG=1 (with COURT_FILTER=1)               # detections.csv: the tracker's input detections
 #        DETECTOR_MODEL=PeopleNet2.6.3 ./scripts/run_mv3dt.sh gym_60s c60_pn263
-#        ./scripts/run_mv3dt.sh gym_60s c60_nopose PoseEstimator.poseEstimatorType=0
+#        POSE=1 ./scripts/run_mv3dt.sh ...               # MV3DT's 3D pose model on (default off, see below)
 #
 # Configs come from NVIDIA's auto-configurator (their templates + override_tracker_4cam.yml, all 3 other
 # cameras as vision neighbours, streammux/tracker at the 1920x1080 video resolution), then patched:
 #   tracker: foot location + visibility output, terminated-track dumps (foot world/image position per stream)
 #            (maxTrajectoryBufferLength must be > 0 with terminated-track output: -1 crashes with std::bad_alloc)
 #   pipeline: MP4 file sink (hardware encoder) instead of the on-screen display
+#   pose:     MV3DT's 3D pose model (BodyPose3DNet, per-person height) off unless POSE=1: without it MV3DT uses a
+#             fixed-height body model. Off, the pipeline ran 1.6 times as fast (141-144 instead of 89-91 fps per
+#             camera at 30 fps) with the same or better accuracy, and the seated-spectator rule kept working
+#             (GitHub issue #5, 3 runs each at 30 and 15 fps)
 # Extra Section.key=value arguments patch config_tracker.yml (used by the Phase 6 variants).
 #
 # Outputs in experiments/<run-name>/:
@@ -80,7 +84,8 @@ fi
 "$PY" -m tools.ds_config tracker "$OUT/config_tracker.yml" \
   ObjectModelProjection.outputFootLocation=1 ObjectModelProjection.outputVisibility=1 \
   TargetManagement.outputTerminatedTracks=1 TargetManagement.maxTrajectoryBufferLength=1000 \
-  TargetManagement.terminatedTrackFilename=/workspace/experiments/track_dump/track_dump "$@"
+  TargetManagement.terminatedTrackFilename=/workspace/experiments/track_dump/track_dump \
+  PoseEstimator.poseEstimatorType="${POSE:-0}" "$@"
 "$PY" -m tools.ds_config ini "$OUT/config_deepstream.txt" sink2.output-file=outVideos/osd.mp4
 # DISPLAY=0: no on-screen display and no annotated video (embedded deployment); Kafka/BEV output unchanged
 if [[ "${DISPLAY_OUT:-1}" == 0 ]]; then
@@ -222,7 +227,7 @@ if [[ $rc -ne 0 ]]; then kill $REC_PID $BEV_PID $CT_PID 2>/dev/null; fi
 echo "waiting for Kafka recorder / BEV renderer to finish..."
 wait $REC_PID; wait $BEV_PID; [[ -n "$CT_PID" ]] && wait $CT_PID
 {
-  echo "dataset=$DATASET detector=$DETECTOR_MODEL court_filter=${COURT_FILTER:-0} neighbors=${NEIGHBORS:-all} jersey=${JERSEY:-0} display=${DISPLAY_OUT:-1} pgie_interval=${PGIE_INTERVAL:-0} pgie_precision=$([[ "$DETECTOR_MODEL" == YOLOX-m ]] && echo int8 || echo "${PGIE_PRECISION:-fp16}") pgie_threshold=${PGIE_THRESHOLD:-default} courttrack=${COURTTRACK:-0} dla=${PGIE_DLA_CORE:-none} extra=$*"
+  echo "dataset=$DATASET detector=$DETECTOR_MODEL court_filter=${COURT_FILTER:-0} neighbors=${NEIGHBORS:-all} jersey=${JERSEY:-0} display=${DISPLAY_OUT:-1} pgie_interval=${PGIE_INTERVAL:-0} pgie_precision=$([[ "$DETECTOR_MODEL" == YOLOX-m ]] && echo int8 || echo "${PGIE_PRECISION:-fp16}") pgie_threshold=${PGIE_THRESHOLD:-default} courttrack=${COURTTRACK:-0} dla=${PGIE_DLA_CORE:-none} pose=${POSE:-0} extra=$*"
   echo "pipeline_exit=$rc pipeline_elapsed_s=$elapsed"
   grep -E "^\*\*PERF:\s+[0-9]" "$OUT/console.log" | tail -1 | sed 's/^/last_perf=/'
 } | tee "$OUT/run.txt"

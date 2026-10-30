@@ -1,0 +1,38 @@
+tracker per-camera bias (m): {np.str_('FL'): (0.07, 0.02), np.str_('FR'): (-0.07, -0.03), np.str_('NL'): (-0.25, 0.02), np.str_('NR'): (0.25, -0.01)}
+413 labelled detections, 140 person-moments seen by 2+ cameras
+
+[mv3dt] pairwise distance between cameras: median 0.31 m, share > 0.9 m (merge distance) 9%, n=174
+   FL-FR: n= 48  median 0.24  p75 0.48  >0.9 m 12%
+   FL-NL: n= 20  median 0.24  p75 0.35  >0.9 m 0%
+   FL-NR: n= 12  median 0.15  p75 0.24  >0.9 m 0%
+   FR-NL: n=  4  median 0.14  p75 0.28  >0.9 m 0%
+   FR-NR: n= 90  median 0.37  p75 0.61  >0.9 m 11%
+   per camera, error vs other cameras (radial + = farther from the camera than the others say):
+     FL: n= 65  radial mean -0.24 (sd 0.60)  tangential mean +0.02 (sd 0.11)  corr(radial, distance) -0.05  cut boxes 23
+     FR: n=126  radial mean -0.23 (sd 0.58)  tangential mean +0.02 (sd 0.23)  corr(radial, distance) -0.04  cut boxes 14
+     NL: n= 20  radial mean -0.12 (sd 0.26)  tangential mean +0.06 (sd 0.14)  corr(radial, distance) +0.40  cut boxes 0
+     NR: n= 88  radial mean -0.20 (sd 0.47)  tangential mean +0.01 (sd 0.28)  corr(radial, distance) +0.37  cut boxes 0
+
+[mv3dt_raw] pairwise distance between cameras: median 0.43 m, share > 0.9 m (merge distance) 17%, n=174
+   FL-FR: n= 48  median 0.26  p75 0.54  >0.9 m 12%
+   FL-NL: n= 20  median 0.43  p75 0.53  >0.9 m 5%
+   FL-NR: n= 12  median 0.32  p75 0.38  >0.9 m 0%
+   FR-NL: n=  4  median 0.16  p75 0.35  >0.9 m 0%
+   FR-NR: n= 90  median 0.56  p75 0.91  >0.9 m 26%
+   per camera, error vs other cameras (radial + = farther from the camera than the others say):
+     FL: n= 65  radial mean -0.39 (sd 0.62)  tangential mean -0.00 (sd 0.12)  corr(radial, distance) -0.22  cut boxes 23
+     FR: n=126  radial mean -0.47 (sd 0.58)  tangential mean -0.00 (sd 0.23)  corr(radial, distance) -0.17  cut boxes 14
+     NL: n= 20  radial mean -0.40 (sd 0.27)  tangential mean +0.02 (sd 0.21)  corr(radial, distance) +0.38  cut boxes 0
+     NR: n= 88  radial mean -0.46 (sd 0.49)  tangential mean -0.01 (sd 0.29)  corr(radial, distance) +0.33  cut boxes 0
+
+[bottom] pairwise distance between cameras: median 0.73 m, share > 0.9 m (merge distance) 40%, n=174
+   FL-FR: n= 48  median 0.65  p75 1.70  >0.9 m 46%
+   FL-NL: n= 20  median 0.63  p75 0.92  >0.9 m 30%
+   FL-NR: n= 12  median 2.81  p75 3.36  >0.9 m 92%
+   FR-NL: n=  4  median 2.47  p75 2.75  >0.9 m 100%
+   FR-NR: n= 90  median 0.70  p75 0.93  >0.9 m 29%
+   per camera, error vs other cameras (radial + = farther from the camera than the others say):
+     FL: n= 65  radial mean +0.59 (sd 1.21)  tangential mean -0.06 (sd 0.25)  corr(radial, distance) -0.71  cut boxes 23
+     FR: n=126  radial mean -0.14 (sd 0.85)  tangential mean -0.13 (sd 0.32)  corr(radial, distance) -0.69  cut boxes 14
+     NL: n= 20  radial mean -0.39 (sd 0.71)  tangential mean -0.10 (sd 0.49)  corr(radial, distance) -0.67  cut boxes 0
+     NR: n= 88  radial mean -0.50 (sd 0.70)  tangential mean -0.07 (sd 0.54)  corr(radial, distance) -0.26  cut boxes 0

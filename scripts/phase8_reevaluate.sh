@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 # Regenerate every court-tracker result the Phase 7 report quotes, with the current code (CPU only; run while no
 # DeepStream run is measuring speed). All runs are on the time-aligned clips (datasets/gym_sync), INT8 detector with
-# threshold 0.1, no display, except the alignment comparison (UNALIGNED: the original clips; DOUBLED: the offsets
-# doubled).
+# threshold 0.1, MV3DT's pose model off, no display. The alignment comparison (section 2.4) uses earlier runs made with
+# the pose model on, all three of its run sets alike: ALIGNED (time-aligned clips), UNALIGNED (the original clips),
+# DOUBLED (the offsets doubled).
 #   JOBS=8 ./scripts/phase8_reevaluate.sh
-#   MAIN="..." LIVE="..." UNALIGNED="..." DOUBLED="..." JOBS=8 ./scripts/phase8_reevaluate.sh
+#   MAIN="..." LIVE="..." ALIGNED="..." UNALIGNED="..." DOUBLED="..." JOBS=8 ./scripts/phase8_reevaluate.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 PY="$HOME/.venvs/mv3dt/bin/python"
 J="${JOBS:-8}"
-read -r -a MAIN <<< "${MAIN:-js_r1 js_r2 js_r3}"
-read -r -a LIVE <<< "${LIVE:-ctj_r1 ctj_r2 ctj_r3}"
+read -r -a MAIN <<< "${MAIN:-np_r1 np_r2 np_r3}"
+read -r -a LIVE <<< "${LIVE:-npct_r1 npct_r2 npct_r3}"
+read -r -a ALIGNED <<< "${ALIGNED:-js_r1 js_r2 js_r3}"
 read -r -a UNALIGNED <<< "${UNALIGNED:-j_int8t10_r1 j_int8t10_r2 j_int8t10_r3}"
 read -r -a DOUBLED <<< "${DOUBLED:-j2x_int8t10_r1}"
 step() { echo "=== $* ($(date +%H:%M))"; }
@@ -34,7 +36,7 @@ done; done
 step "detection thresholds (section 6.1)"
 "$PY" -m tools.deploy_eval --jobs "$J" --md reports/deploy_end_to_end.md > /dev/null
 step "time alignment (section 2.4)"
-"$PY" -m tools.sync_eval "${UNALIGNED[@]}" "${MAIN[@]}" "${DOUBLED[@]}" --md reports/sync_eval.md 2>/dev/null > /dev/null
+"$PY" -m tools.sync_eval "${UNALIGNED[@]}" "${ALIGNED[@]}" "${DOUBLED[@]}" --md reports/sync_eval.md 2>/dev/null > /dev/null
 step "figures"
 "$PY" reports/make_figures.py > /dev/null
 step "done"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One run of the pipeline's default configuration (reports/phase7_report.md): PeopleNet 2.6.3 in INT8 at detection
 # threshold 0.1 (NMS, top 20 boxes per frame), court filter, jersey reading (bilinear crops), all camera neighbours,
-# no display, on the time-aligned clips. Followed by the jersey-read conversion and appearance extraction, so the run
+# MV3DT's pose model off, no display, on the time-aligned clips. Followed by the jersey-read conversion and appearance extraction, so the run
 # can be scored right away (tools/multi_eval.py).
 # The INT8 calibration cache must match the TensorRT version of the device it runs on: on a new device, make one with
 # tools/int8_calibrate.py and point PGIE_INT8_CALIB at it (README, "INT8 on a new device").

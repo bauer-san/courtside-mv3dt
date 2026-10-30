@@ -13,7 +13,7 @@ OUTTAR="${1:?output tar path}"
 M=external/DeepStream/src/apps/reference_apps/deepstream-tracker-3d-multi-view/models
 if [[ "${2:-}" == components ]]; then   # JetPack 6 component benchmarks only (scripts/agx_components.sh), ~350 MB
   FILES=("$M/PeopleNet2.6.3/resnet34_peoplenet.onnx" "$M/OCR/ch_PP-OCRv4_det_infer.onnx"
-         "$M/OCR/ch_PP-OCRv4_rec_infer.onnx" experiments/ctO2_r1/courttrack_inputs.bin datasets/gym_60s/videos)
+         "$M/OCR/ch_PP-OCRv4_rec_infer.onnx" experiments/npct_r1/courttrack_inputs.bin datasets/gym_60s/videos)
 else
 FILES=(
   "$M/PeopleNet2.6.3/resnet34_peoplenet.onnx" "$M/PeopleNet2.6.3/detector_labels.txt"

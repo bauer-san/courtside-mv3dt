@@ -95,7 +95,7 @@ cache is for TensorRT 10.16), which doesn't change the speed. A PC check of what
 6. **Scoring, on the PC:** copy the `experiments/agx_*` folders back, then
    `python -m tools.calib_bias agx_cal_r1 agx_cal_r2 --into agx_r1 agx_r2 agx_r3 agx_dla0_r1 agx_dla1_r1` (the
    device's camera bias), `python -m tools.multi_eval agx_r1 agx_r2 agx_r3`, `python -m tools.variant_eval --ref
-   js_r1 --runs agx_r1 ...` (fps, GPU load, boxes against the PC), and `python -m tools.courttrack_export live
+   np_r1 --runs agx_r1 ...` (fps, GPU load, boxes against the PC), and `python -m tools.courttrack_export live
    agx_ct_r1` (live court tracker timing and replay check).
 
 Untested until the device is here: the arm64 container and build, the tegrastats log format, the DLA engines.
@@ -164,7 +164,7 @@ Hand-labelled identity ground truth for two minutes of the game is in `gt/game_2
 `labels/`; the labelling pages are private claude.ai artifacts). DeepStream runs are not repeatable, so results are
 averaged over several runs:
 
-- `python -m tools.multi_eval js_r1 js_r2 js_r3 [--jobs 8]`: identity accuracy per run and minute
+- `python -m tools.multi_eval np_r1 np_r2 np_r3 [--jobs 8]`: identity accuracy per run and minute
 - `python -m tools.loss_breakdown ...`: where identity accuracy is lost
 - `python -m tools.sync_eval <runs>`: aligned vs unaligned clips (MV3DT and court tracker, cross-camera distances)
 - `python -m tools.team_label_check <runs>`: the online team labels crop by crop over the whole game
