@@ -73,22 +73,24 @@ svg.chart .row:hover .hit { fill: var(--accent-soft); }
 <div class="meta">Four cameras, DeepStream 9.1 MV3DT, RTX 3060 Ti; target device Jetson AGX Orin 64 GB or Orin Nano Super.
 Time-aligned streams, INT8 detector, MV3DT's pose model off, cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
 <div class="board">
-<div class="hl"><b>84.3%</b><span>identity IDF1, live from DeepStream (players reported by team + number)</span></div>
+<div class="hl"><b>88.6%</b><span>identity IDF1, live from DeepStream (players reported by team + number)</span></div>
 <div><b>59.6%</b><span>identity IDF1, MV3DT global IDs as delivered</span></div>
 <div><b>157-162 fps</b><span>per camera on the 3060 Ti with jersey reading, INT8 (30 needed)</span></div>
-<div><b>74-94%</b><span>range of identity IDF1 per run and labelled minute (identical DeepStream runs)</span></div>
+<div><b>79-96%</b><span>range of identity IDF1 per run and labelled minute (identical DeepStream runs)</span></div>
 </div>
 <nav class="toc" aria-label="Sections"><a href="#1-summary">1. Summary</a><a href="#2-setup">2. Setup</a><a href="#3-pipeline">3. Pipeline</a><a href="#4-results">4. Results</a><a href="#5-calibration">5. Calibration</a><a href="#6-deployment-options-measured-on-the-3060-ti-estimated-for-jetson">6. Deployment options: measured on the 3060 Ti, estimated for Jetson</a><a href="#7-camera-placement-and-quantity">7. Camera placement and quantity</a><a href="#8-limitations">8. Limitations</a><a href="#9-next-steps-prioritised">9. Next steps (prioritised)</a><a href="#10-how-to-reproduce">10. How to reproduce</a></nav>
 </header><main class="doc"><p>Four-camera basketball court, NVIDIA DeepStream 9.1 Multi-View 3D Tracking (MV3DT), evaluated on a Dell XPS 8960
-(RTX 3060 Ti 8 GB) with deployment on a Jetson (AGX Orin 64 GB or Orin Nano Super) in mind. Date: 2026-10-29.</p>
-<p>This report describes the pipeline's default configuration: INT8 detector, MV3DT's pose model off (section 3), no
-display, time-aligned camera streams (section 2.4). It is causal, as it runs live: every input is available while the game is played, and nothing needs an
+(RTX 3060 Ti 8 GB) with deployment on a Jetson (AGX Orin 64 GB or Orin Nano Super) in mind. Date: 2026-10-30.</p>
+<p>This report describes the pipeline's default configuration: INT8 detector, MV3DT's pose model off (section 3), jersey
+crops rotated upright (section 4.9), no display, time-aligned camera streams (section 2.4). It is causal, as it runs live: every input is available while the game is played, and nothing needs an
 operator. All results come from DeepStream runs on the final calibration, which places every camera on its physical
 mount (section 5). The main results come from three runs with the court tracker running live inside DeepStream, in
-C++ (<code>npct_r1</code>-<code>r3</code>, section 4.5). Three more runs (<code>np_r1</code>-<code>r3</code>) ran the same pipeline without it; the court
-tracker's Python reference was run on their output for the detailed analyses (sections 4.2-4.4). All court-tracker
-figures are regenerated with the final code by <code>scripts/phase8_reevaluate.sh</code>. Comparisons made before the pose model
-was turned off (sections 2.4, 4.8, 6.1) keep their earlier runs, and say so.</p>
+C++ (<code>up_r1</code>-<code>r3</code>, section 4.5). Three earlier live runs with the jersey crops axis-aligned (<code>npct_r1</code>-<code>r3</code>) are the
+comparison for upright crops (section 4.9). Three more runs (<code>np_r1</code>-<code>r3</code>, axis-aligned crops) ran the pipeline
+without the court tracker; the court tracker's Python reference was run on their output for the detailed analyses
+(sections 4.2 loss breakdown, 4.3, 5). All court-tracker figures are regenerated with the final code by
+<code>scripts/phase8_reevaluate.sh</code>. Comparisons made before the pose model was turned off (sections 2.4, 4.8, 6.1) keep
+their earlier runs, and say so.</p>
 <h2 id="1-summary">1. Summary</h2>
 <p><strong>Recommendation.</strong> Use DeepStream for detection, per-camera tracking and jersey reading, on time-aligned camera
 streams. Run the <em>court tracker</em> developed here inside the same pipeline (C++ probe after the jersey reader) and
@@ -103,14 +105,18 @@ report each player by identity (team + jersey number), not by track ID.</p>
 <tbody>
 <tr>
 <td><strong>Player identities, live from DeepStream</strong> (court tracker in C++ inside the pipeline, section 4.5)</td>
-<td><strong>84.3 % (74-94 %)</strong></td>
+<td><strong>88.6 % (79-96 %)</strong></td>
 </tr>
 <tr>
 <td>The same on the held-out minute 5:00-6:00 (used for no setting)</td>
-<td>90.6 % (89-92 %)</td>
+<td>92.9 % (91-94 %)</td>
 </tr>
 <tr>
-<td>Court tracker's Python reference on the output of 3 other DeepStream runs (section 4.2)</td>
+<td>The same pipeline with axis-aligned jersey crops (section 4.9)</td>
+<td>84.3 % (74-94 %); held out 90.6 %</td>
+</tr>
+<tr>
+<td>Court tracker's Python reference on the output of 3 other DeepStream runs, axis-aligned crops (section 4.2)</td>
 <td>84.4 % (72-96 %)</td>
 </tr>
 </tbody>
@@ -120,8 +126,15 @@ measured on hand-labelled ground truth (section 2.3). For reference, MV3DT's own
 them, score 59.6 % (55-64 %) on runs <code>np_r1</code>-<code>r3</code>.</p>
 <ul>
 <li>
-<p><strong>Speed on the 3060 Ti:</strong> the full pipeline, court tracker included, runs at 145-154 fps per camera with its
-    evaluation logs (real time is 30); 157-162 fps without the court tracker. Inside the pipeline the court tracker
+<p><strong>Upright jersey crops (section 4.9):</strong> NL and NR look steeply down with wide lenses, so players near their image
+    edges appear tilted, often by 30° or more, and the jersey reader rarely read a tilted number. Each torso crop is now
+    rotated upright before the reader, with the angle taken from the camera calibration at the player's foot point.
+    NL's correct reads more than doubled and NR's rose by a third, with no more wrong reads; identity IDF1 rose from
+    84.3 % to 88.6 % on the tuning minutes and from 90.6 % to 92.9 % on the held-out minute, at the same speed.</p>
+</li>
+<li>
+<p><strong>Speed on the 3060 Ti:</strong> the full pipeline, court tracker included, runs at 156-157 fps per camera with its
+    evaluation logs (real time is 30); 157-162 fps without the court tracker (axis-aligned crops). Inside the pipeline the court tracker
     takes 0.2 ms per frame (section 4.5); its C++ and Python versions give identical output (section 4.6).</p>
 </li>
 <li>
@@ -148,8 +161,9 @@ them, score 59.6 % (55-64 %) on runs <code>np_r1</code>-<code>r3</code>.</p>
     with an identity, while all but 0.7 % of player detections do.</p>
 </li>
 <li>
-<p><strong>Still not good enough for reliable per-player statistics.</strong> About 16 % of player time is credited to the wrong
-    player or no player. Most of that is a <em>wrong</em> identity (about 11 %), not a missing one (about 5 %; section 4.2).</p>
+<p><strong>Still not good enough for reliable per-player statistics.</strong> About 11 % of player time on the tuning minutes is
+    credited to the wrong player or no player (100 % − identity IDF1). On the earlier runs with axis-aligned crops
+    (16 %), most of it was a <em>wrong</em> identity (about 11 %), not a missing one (about 5 %; section 4.2).</p>
 </li>
 <li>
 <p><strong>Results vary from run to run.</strong> Repeated DeepStream runs of the same configuration give different MV3DT IDs and
@@ -342,10 +356,18 @@ arrival order. That hasn't been built or tested here (section 9).</p>
 <p><strong>Jersey reading</strong> inside DeepStream:</p>
 <ul>
 <li>torso objects are taken from player boxes at least 150 px tall</li>
-<li>a text detector (PP-OCRv4 det, 384 × 480) finds text boxes</li>
+<li>
+<p>each torso crop is rotated upright first (section 4.9): its tilt is the image direction of the body axis at the
+ player's floor point (camera matrix, MV3DT's foot point), and two <code>nvdspreprocess</code> elements with a custom library
+ (<code>apps/jersey_upright</code>) rotate the torso and then each text box on the GPU</p>
+</li>
+<li>
+<p>a text detector (PP-OCRv4 det, 384 × 480) finds text boxes</p>
+</li>
 <li>a digit recogniser (PP-OCRv4 rec, 48 × 64) reads 1-2 digit numbers</li>
-<li>both scale their crops bilinearly (<code>scaling-filter=1</code>); nvinfer's default scaled them like nearest-neighbour,
- which gave fewer reads (GitHub issue #2)</li>
+<li>each player is read every 7th frame in which their box qualifies</li>
+<li>crops are resampled bilinearly; nvinfer's default scaled them like nearest-neighbour, which gave fewer reads
+ (GitHub issue #2)</li>
 </ul>
 </li>
 <li>
@@ -482,7 +504,7 @@ is what the row's function sends to the column's. Select a cell for details.</fi
 </figure><script>
 (() => {
 const root = document.getElementById("interface-matrix");
-const N = [["align", "Camera time alignment", "gap", [["setupc", "offline"]], "The four recordings started up to 0.87 s apart. Offsets were measured from camera shake and ball-rim contacts (issue #3), and the clips were cut so that frame n of every camera shows the same moment (section 2.4).", {"Runs": "before the pipeline, on files", "Live": "needs synchronised clocks and capture-time pairing (not built)"}], ["cal", "Camera calibration", "setup", [["setupc", "fixed"]], "One 3 × 4 projection matrix per camera, in metres with the origin at centre court, fitted with the cameras on their mounts (section 5).", {"Runs": "once at installation", "Files": "camInfo/*.yml"}], ["bias", "Camera position bias", "setup", [["setupc", "fixed"]], "A constant floor-position offset per camera, measured from detections of the same person in two cameras (tools/calib_bias.py, runs npcal_r1 and r2). Re-measured after any change to the calibration, the detector or MV3DT's body model.", {"Runs": "once at installation", "Values": "NL −0.25, NR +0.25, FL +0.07, FR −0.07 m along the court"}], ["cache", "INT8 calibration cache", "setup", [["setupc", "fixed"]], "TensorRT INT8 calibration for PeopleNet, made with the deployment device's TensorRT version (10.16 here) by tools/int8_calibrate.py.", {"Runs": "once per device and TensorRT version"}], ["src", "Camera input (decode + muxer)", "live", [["none", "no model"]], "Four 1920 × 1080, 30 fps streams, hardware-decoded and grouped into one batch per frame: frame n of each camera.", {"Runs": "every frame", "Batch": "4 cameras"}], ["det", "Person detector (PeopleNet 2.6.3)", "live", [["int8", "INT8"]], "Detects people in all four frames of a batch at 960 × 544. Threshold 0.1; NMS at IoU 0.5 keeping at most 20 boxes per camera frame.", {"Runs": "every frame, GPU", "Precision": "INT8 (TensorRT)"}], ["filt", "Court filter", "live", [["none", "no model"]], "Probe after the detector. Projects each box's bottom-centre onto the floor and drops boxes outside the court plus 0.75 m (benches, crowd, scorer's table).", {"Runs": "every frame, CPU", "Code": "apps/court_filter/court_filter.c"}], ["mv3dt", "MV3DT tracker", "live", [["none", "no model"]], "NvDCF per-camera tracking with a fixed-height 3D body model, plus multi-view association between the four camera instances over MQTT. No neural network runs here.", {"Runs": "every frame", "Between cameras": "MQTT messages"}], ["torso", "Torso objects", "live", [["none", "no model"]], "Probe after the tracker. Adds a torso child object (rows 12-62 % of the box) for player boxes at least 150 px tall and not cut by the frame edge.", {"Runs": "every frame, CPU", "Code": "apps/court_filter/torso_objects.c"}], ["tdet", "Text detector (PP-OCRv4 det)", "live", [["fp16", "FP16"]], "Finds text boxes in torso crops scaled bilinearly into 384 × 480. Each player is read every 7th frame. In INT8 it gave 14.5 % fewer digit reads, so it stays FP16 (section 8).", {"Runs": "every 7th frame per player, GPU", "Precision": "FP16 (INT8 tested, not adopted)"}], ["trec", "Digit recogniser (PP-OCRv4 rec)", "live", [["fp16", "FP16"]], "Reads 1-2 digit numbers from each text box scaled into 48 × 64. In INT8 it lost 65 % of the reads, so it stays FP16 (section 8).", {"Runs": "per text box, GPU", "Precision": "FP16 (INT8 tested, not adopted)"}], ["jlog", "Jersey read log", "live", [["none", "no model"]], "Probe after the jersey reader. Passes every read to the court tracker, which keeps the most confident one per object and frame, and writes jersey_reads.csv.", {"Runs": "every frame, CPU", "Code": "apps/court_filter/jersey_log.c"}], ["ct", "Court tracker (C++)", "live", [["none", "no model"]], "Court-plane Kalman tracker over MV3DT's foot points. Removes the camera bias, drops seated spectators, matches with team colour and jersey numbers, and assigns identities (team + number) from an online roster. Its output is final as soon as it's made.", {"Runs": "every frame, CPU", "Code": "apps/courttrack"}], ["team", "Online team model", "live", [["none", "no model"]], "Every 5 s, clusters the colour summaries of the last 3 minutes of tracks into two teams and everyone else. The first model comes after 30 s; the teams are the clusters whose tracks get the most jersey reads. No operator.", {"Runs": "every 5 s, CPU", "Code": "apps/courttrack/online_teams.cpp"}], ["out", "Kafka output", "live", [["none", "no model"]], "Message broker for the results: MV3DT's metadata, and one court-tracker message per frame (section 4.5).", {"Runs": "every frame", "Topics": "MV3DT metadata, courttrack"}]], E = [["align", "src", "gap", "Aligned clips", "Clips cut with the measured offsets so that frame n matches across cameras. A live system needs synchronised clocks and capture-time pairing in the muxer; not built.", false], ["cal", "filt", "setup", "Projection matrices", "Floor point of each box's bottom-centre, tested against the court rectangle.", false], ["cal", "mv3dt", "setup", "camInfo matrices", "3D foot positions and multi-view association between cameras.", false], ["cal", "ct", "setup", "Projection matrices", "Court positions and the seated-person check (box bottom against foot point).", false], ["bias", "ct", "setup", "Bias per camera", "courtTrackerBias_m from each camInfo file, subtracted from that camera's foot points before tracking.", false], ["cache", "det", "setup", "INT8 cache", "TensorRT builds the INT8 engine from the ONNX model and this cache on first use.", false], ["src", "det", "live", "Frame batch", "Frame n of all four cameras, 1920 × 1080, scaled to 960 × 544 for the detector.", false], ["src", "ct", "live", "Frames (colour)", "Torso colour histograms from good crops (boxes ≥ 80 px) of FL, FR and NR, every 3rd frame.", false], ["det", "filt", "live", "Person boxes", "Boxes with confidence ≥ 0.1, at most 20 per camera frame after NMS.", false], ["filt", "mv3dt", "live", "On-court boxes", "Only boxes whose floor point lies within the court plus 0.75 m.", false], ["mv3dt", "torso", "live", "Tracked boxes", "Boxes with per-camera object IDs.", false], ["mv3dt", "ct", "live", "Foot points + IDs", "Per-camera foot positions on the floor (m), object IDs and visibility; box heights from FL and FR for body height.", false], ["mv3dt", "out", "live", "MV3DT metadata", "MV3DT's tracking metadata per frame.", false], ["torso", "tdet", "live", "Torso crops", "Torso objects of boxes ≥ 150 px tall; each player re-read every 7th frame.", false], ["tdet", "trec", "live", "Text boxes", "Text regions found in the torso crops.", false], ["trec", "jlog", "live", "Digits + confidence", "1-2 digit strings with confidence; empty when text was found but no digits.", false], ["jlog", "ct", "live", "Jersey reads", "Number and score per object and frame (the most confident read is used).", false], ["ct", "team", "live", "Track colours", "Per-track torso colour summaries and jersey reads per detection.", false], ["team", "ct", "live", "Team labels", "A, B or no team. The model used for frame f was built from earlier frames, so this feedback stays causal.", true], ["ct", "out", "live", "Identities + positions", "One JSON message per frame: identity (team + number) and court position of every player.", false]];
+const N = [["align", "Camera time alignment", "gap", [["setupc", "offline"]], "The four recordings started up to 0.87 s apart. Offsets were measured from camera shake and ball-rim contacts (issue #3), and the clips were cut so that frame n of every camera shows the same moment (section 2.4).", {"Runs": "before the pipeline, on files", "Live": "needs synchronised clocks and capture-time pairing (not built)"}], ["cal", "Camera calibration", "setup", [["setupc", "fixed"]], "One 3 × 4 projection matrix per camera, in metres with the origin at centre court, fitted with the cameras on their mounts (section 5).", {"Runs": "once at installation", "Files": "camInfo/*.yml"}], ["bias", "Camera position bias", "setup", [["setupc", "fixed"]], "A constant floor-position offset per camera, measured from detections of the same person in two cameras (tools/calib_bias.py, runs npcal_r1 and r2). Re-measured after any change to the calibration, the detector or MV3DT's body model.", {"Runs": "once at installation", "Values": "NL −0.25, NR +0.25, FL +0.07, FR −0.07 m along the court"}], ["cache", "INT8 calibration cache", "setup", [["setupc", "fixed"]], "TensorRT INT8 calibration for PeopleNet, made with the deployment device's TensorRT version (10.16 here) by tools/int8_calibrate.py.", {"Runs": "once per device and TensorRT version"}], ["src", "Camera input (decode + muxer)", "live", [["none", "no model"]], "Four 1920 × 1080, 30 fps streams, hardware-decoded and grouped into one batch per frame: frame n of each camera.", {"Runs": "every frame", "Batch": "4 cameras"}], ["det", "Person detector (PeopleNet 2.6.3)", "live", [["int8", "INT8"]], "Detects people in all four frames of a batch at 960 × 544. Threshold 0.1; NMS at IoU 0.5 keeping at most 20 boxes per camera frame.", {"Runs": "every frame, GPU", "Precision": "INT8 (TensorRT)"}], ["filt", "Court filter", "live", [["none", "no model"]], "Probe after the detector. Projects each box's bottom-centre onto the floor and drops boxes outside the court plus 0.75 m (benches, crowd, scorer's table).", {"Runs": "every frame, CPU", "Code": "apps/court_filter/court_filter.c"}], ["mv3dt", "MV3DT tracker", "live", [["none", "no model"]], "NvDCF per-camera tracking with a fixed-height 3D body model, plus multi-view association between the four camera instances over MQTT. No neural network runs here.", {"Runs": "every frame", "Between cameras": "MQTT messages"}], ["torso", "Torso objects", "live", [["none", "no model"]], "Probe after the tracker. For player boxes at least 150 px tall and not cut by the frame edge, every 7th such frame per player, adds a torso child object: rows 12-62 % of the player's box as it would look upright. The tilt comes from the camera matrix at MV3DT's foot point (section 4.9).", {"Runs": "every frame, CPU", "Code": "apps/court_filter/torso_objects.c"}], ["updet", "Upright torso crop (nvdspreprocess)", "live", [["none", "no model"]], "Copies each torso's bounding area into a GPU buffer and rotates the torso upright into the text detector's 384 × 480 input (letterboxed). Torsos tilted less than 5° are not rotated.", {"Runs": "per torso object, GPU (CUDA kernel)", "Code": "apps/jersey_upright"}], ["tdet", "Text detector (PP-OCRv4 det)", "live", [["fp16", "FP16"]], "Finds text boxes in the upright torso crops. In INT8 it gave 14.5 % fewer digit reads (on axis-aligned crops), so it stays FP16 (section 8).", {"Runs": "per torso object, GPU", "Precision": "FP16 (INT8 tested, not adopted)"}], ["uprec", "Upright text crop (nvdspreprocess)", "live", [["none", "no model"]], "A probe turns the detector's text boxes (upright-torso pixels) into rotated rectangles in the frame; this step rotates each one upright into the recogniser's 48 × 64 input.", {"Runs": "per text box, GPU (CUDA kernel)", "Code": "apps/jersey_upright"}], ["trec", "Digit recogniser (PP-OCRv4 rec)", "live", [["fp16", "FP16"]], "Reads 1-2 digit numbers from each upright text box. In INT8 it lost 65 % of the reads (on axis-aligned crops), so it stays FP16 (section 8).", {"Runs": "per text box, GPU", "Precision": "FP16 (INT8 tested, not adopted)"}], ["jlog", "Jersey read log", "live", [["none", "no model"]], "Probe after the jersey reader. Passes every read to the court tracker, which keeps the most confident one per object and frame, and writes jersey_reads.csv.", {"Runs": "every frame, CPU", "Code": "apps/court_filter/jersey_log.c"}], ["ct", "Court tracker (C++)", "live", [["none", "no model"]], "Court-plane Kalman tracker over MV3DT's foot points. Removes the camera bias, drops seated spectators, matches with team colour and jersey numbers, and assigns identities (team + number) from an online roster. Its output is final as soon as it's made.", {"Runs": "every frame, CPU", "Code": "apps/courttrack"}], ["team", "Online team model", "live", [["none", "no model"]], "Every 5 s, clusters the colour summaries of the last 3 minutes of tracks into two teams and everyone else. The first model comes after 30 s; the teams are the clusters whose tracks get the most jersey reads. No operator.", {"Runs": "every 5 s, CPU", "Code": "apps/courttrack/online_teams.cpp"}], ["out", "Kafka output", "live", [["none", "no model"]], "Message broker for the results: MV3DT's metadata, and one court-tracker message per frame (section 4.5).", {"Runs": "every frame", "Topics": "MV3DT metadata, courttrack"}]], E = [["align", "src", "gap", "Aligned clips", "Clips cut with the measured offsets so that frame n matches across cameras. A live system needs synchronised clocks and capture-time pairing in the muxer; not built.", false], ["cal", "filt", "setup", "Projection matrices", "Floor point of each box's bottom-centre, tested against the court rectangle.", false], ["cal", "mv3dt", "setup", "camInfo matrices", "3D foot positions and multi-view association between cameras.", false], ["cal", "torso", "setup", "Projection matrices", "Image tilt of the body at each player's foot point, and the upright box (from $COURT_FILTER_CONFIG).", false], ["cal", "ct", "setup", "Projection matrices", "Court positions and the seated-person check (box bottom against foot point).", false], ["bias", "ct", "setup", "Bias per camera", "courtTrackerBias_m from each camInfo file, subtracted from that camera's foot points before tracking.", false], ["cache", "det", "setup", "INT8 cache", "TensorRT builds the INT8 engine from the ONNX model and this cache on first use.", false], ["src", "det", "live", "Frame batch", "Frame n of all four cameras, 1920 × 1080, scaled to 960 × 544 for the detector.", false], ["src", "ct", "live", "Frames (colour)", "Torso colour histograms from good crops (boxes ≥ 80 px) of FL, FR and NR, every 3rd frame.", false], ["det", "filt", "live", "Person boxes", "Boxes with confidence ≥ 0.1, at most 20 per camera frame after NMS.", false], ["filt", "mv3dt", "live", "On-court boxes", "Only boxes whose floor point lies within the court plus 0.75 m.", false], ["mv3dt", "torso", "live", "Tracked boxes + foot points", "Boxes with per-camera object IDs and MV3DT's world foot location (for the tilt).", false], ["mv3dt", "ct", "live", "Foot points + IDs", "Per-camera foot positions on the floor (m), object IDs and visibility; box heights from FL and FR for body height.", false], ["mv3dt", "out", "live", "MV3DT metadata", "MV3DT's tracking metadata per frame.", false], ["torso", "updet", "live", "Torso objects", "Bounding area of each rotated torso, plus its centre, size and angle; each player every 7th eligible frame.", false], ["updet", "tdet", "live", "Upright torso tensors", "384 × 480 inputs, as tensor meta.", false], ["tdet", "uprec", "live", "Text boxes", "Text regions in upright-torso pixels, turned into rotated rectangles in the frame.", false], ["uprec", "trec", "live", "Upright text tensors", "48 × 64 inputs, as tensor meta.", false], ["trec", "jlog", "live", "Digits + confidence", "1-2 digit strings with confidence; empty when text was found but no digits.", false], ["jlog", "ct", "live", "Jersey reads", "Number and score per object and frame (the most confident read is used).", false], ["ct", "team", "live", "Track colours", "Per-track torso colour summaries and jersey reads per detection.", false], ["team", "ct", "live", "Team labels", "A, B or no team. The model used for frame f was built from earlier frames, so this feedback stays causal.", true], ["ct", "out", "live", "Identities + positions", "One JSON message per frame: identity (team + number) and court position of every player.", false]];
 const idx = Object.fromEntries(N.map((n, i) => [n[0], i]));
 const KIND = { live: "Causal, live", setup: "Fixed before the game", gap: "Offline in these tests; live version not built" };
 const m = root.querySelector(".matrix"), panel = root.querySelector(".panel");
@@ -540,6 +562,8 @@ const ct = idx.ct; showNode(ct, cells[ct * N.length + ct]);
 <thead>
 <tr>
 <th>Run</th>
+<th>Jersey crops</th>
+<th>Court tracker</th>
 <th>fps per camera</th>
 <th>GPU use (median)</th>
 <th>GPU memory peak</th>
@@ -547,73 +571,107 @@ const ct = idx.ct; showNode(ct, cells[ct * N.length + ct]);
 </thead>
 <tbody>
 <tr>
-<td>np_r1</td>
-<td>161.8</td>
-<td>99 %</td>
-<td>1.51 GB</td>
+<td>up_r1</td>
+<td>upright</td>
+<td>live</td>
+<td>157.0</td>
+<td>98 %</td>
+<td>1.94 GB</td>
 </tr>
 <tr>
-<td>np_r2</td>
-<td>159.8</td>
-<td>99 %</td>
-<td>1.40 GB</td>
+<td>up_r2</td>
+<td>upright</td>
+<td>live</td>
+<td>155.8</td>
+<td>98 %</td>
+<td>2.05 GB</td>
 </tr>
 <tr>
-<td>np_r3</td>
-<td>156.6</td>
-<td>97 %</td>
-<td>1.43 GB</td>
+<td>up_r3</td>
+<td>upright</td>
+<td>live</td>
+<td>156.4</td>
+<td>98 %</td>
+<td>1.93 GB</td>
+</tr>
+<tr>
+<td>npct_r1-r3</td>
+<td>axis-aligned</td>
+<td>live</td>
+<td>144.9-154.4</td>
+<td>96-99 %</td>
+<td>1.53-1.65 GB</td>
+</tr>
+<tr>
+<td>np_r1-r3</td>
+<td>axis-aligned</td>
+<td>none</td>
+<td>156.6-161.8</td>
+<td>97-99 %</td>
+<td>1.40-1.51 GB</td>
 </tr>
 </tbody>
 </table></div>
-<p>No display or annotated video (<code>reports/deploy_variants_detection.md</code>). With the court tracker running inside the
-pipeline and its evaluation logs written to this PC's hard disk: 144.9-154.4 fps per camera (section 4.5). With the
-pose model on, the same pipeline ran at 89-95 fps and peaked at 2.35 GB of GPU memory.</p>
+<p>No display or annotated video (<code>tools/evaluate.perf</code>; <code>reports/deploy_variants_detection.md</code> for the <code>np</code> runs). The
+live runs write the court tracker's evaluation logs to this PC's hard disk. Upright crops add 0.3-0.4 GB of GPU
+memory (the preprocessing buffers) and cost no speed. With the pose model on, the pipeline ran at 89-95 fps and
+peaked at 2.35 GB of GPU memory.</p>
 <ul>
-<li><strong>Jersey reader, per crop:</strong> text detector 0.36 ms, recogniser 0.16 ms (TensorRT FP16).</li>
-<li><strong>Court tracker:</strong> 0.21-0.22 ms mean per frame inside the pipeline, in C++ (section 4.5); 0.08 ms replayed alone
-    on one core of an i7-13700, and 2.1 ms for the Python reference (section 4.6).</li>
+<li>
+<p><strong>Jersey reader, per crop:</strong> text detector 0.36 ms, recogniser 0.16 ms (TensorRT FP16; measured on axis-aligned
+    crops, same input sizes).</p>
+</li>
+<li>
+<p><strong>Court tracker:</strong> 0.21-0.22 ms mean per frame inside the pipeline, in C++ (section 4.5); 0.08 ms replayed alone
+    on one core of an i7-13700, and 2.1 ms for the Python reference (section 4.6).</p>
+</li>
 </ul>
 <h3 id="42-accuracy">4.2 Accuracy</h3>
 <div class="tbl"><table>
 <thead>
 <tr>
 <th>3 runs x 2 labelled minutes</th>
-<th>Live in DeepStream (C++, <code>npct_r1</code>-<code>r3</code>)</th>
-<th>Python reference (<code>np_r1</code>-<code>r3</code>)</th>
+<th>Live in DeepStream (C++, <code>up_r1</code>-<code>r3</code>)</th>
+<th>Live, axis-aligned crops (<code>npct_r1</code>-<code>r3</code>)</th>
+<th>Python reference, axis-aligned crops (<code>np_r1</code>-<code>r3</code>)</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Identity IDF1</td>
-<td><strong>84.3 %</strong>; per run and minute 94, 77, 94, 74, 93, 74 %</td>
+<td><strong>88.6 %</strong>; per run and minute 95, 85, 96, 82, 95, 79 %</td>
+<td>84.3 %; 94, 77, 94, 74, 93, 74 %</td>
 <td>84.4 %; 96, 74, 96, 72, 94, 75 %</td>
 </tr>
 <tr>
 <td>End-to-end (correctly identified / all labelled detections)</td>
-<td>82.1 %; 97.4 % of labelled people detected</td>
+<td><strong>86.3 %</strong>; 97.4 % of labelled people detected</td>
+<td>82.1 %; 97.4 % detected</td>
 <td>82.2 %; 97.4 % detected</td>
 </tr>
 <tr>
 <td>Identity switches per labelled minute (mean)</td>
-<td>37</td>
+<td>28.5</td>
+<td>36.5</td>
 <td>37</td>
 </tr>
 <tr>
 <td><strong>Held-out minute 5:00-6:00</strong>, identity IDF1</td>
-<td><strong>90.6 %</strong> (89, 91, 92 %)</td>
+<td><strong>92.9 %</strong> (94.5, 92.8, 91.4 %)</td>
+<td>90.6 % (89, 91, 92 %)</td>
 <td>90.8 % (90, 91, 92 %)</td>
 </tr>
 <tr>
 <td>Held-out minute, end-to-end</td>
+<td>91.3 %; 98.3 % detected</td>
 <td>89.0 %; 98.2 % detected</td>
 <td>89.5 %; 98.6 % detected</td>
 </tr>
 </tbody>
 </table></div>
-<p>The two columns are different DeepStream runs, so their gap is within the run-to-run variation (below). The live
-column is the pipeline's output as recorded; replaying its recorded inputs with the C++ and the Python court tracker
-reproduces it exactly (section 4.6).</p>
+<p>The live columns are the pipeline's output as recorded; replaying the recorded inputs with the C++ and the Python
+court tracker reproduces it (section 4.6). The axis-aligned columns are different DeepStream runs, so their gap to
+each other is within the run-to-run variation (below).</p>
 <p><strong>Identity rules (issue #11).</strong> Two rules decide a track's identity: jersey reads with a recogniser score below 0.8
 count a quarter (on the labelled moments they are 74 % correct, the others 96-100 %), and the identity's team comes
 from the track's colour labels of the last 3 s, so a swap with a player of the other team shows within seconds. They
@@ -623,7 +681,8 @@ read decay, other split rules, a stricter roster, doubting identities after clos
 swap check all scored the same or worse.</p>
 <p>The held-out minute was labelled after all other settings in this report were chosen and was used for none of them.
 Turning the pose model off was decided on all three minutes together (section 3).</p>
-<p>The loss breakdown below is for the Python reference runs.</p>
+<p>The loss breakdown below is for the Python reference runs, made with axis-aligned jersey crops; upright crops
+(section 4.9) mainly reduce the losses from too few reads.</p>
 <figure class="fig"><svg class="chart" viewBox="0 0 760 246" role="img" aria-label="Where identity IDF1 is still lost"><line class="grid" x1="330.0" y1="4" x2="330.0" y2="218"/><text class="tick" x="330.0" y="234" text-anchor="middle">0</text><line class="grid" x1="402.0" y1="4" x2="402.0" y2="218"/><text class="tick" x="402.0" y="234" text-anchor="middle">2</text><line class="grid" x1="474.0" y1="4" x2="474.0" y2="218"/><text class="tick" x="474.0" y="234" text-anchor="middle">4</text><line class="grid" x1="546.0" y1="4" x2="546.0" y2="218"/><text class="tick" x="546.0" y="234" text-anchor="middle">6</text><line class="grid" x1="618.0" y1="4" x2="618.0" y2="218"/><text class="tick" x="618.0" y="234" text-anchor="middle">8</text><line class="grid" x1="690.0" y1="4" x2="690.0" y2="218"/><text class="tick" x="690.0" y="234" text-anchor="middle">10</text><g class="row hl"><title>wrong number, other: 5.3%</title><rect class="hit" x="0" y="8" width="760" height="34"/><text class="lab" x="318" y="29.0" text-anchor="end">wrong number, other</text><rect class="bar" x="330" y="16" width="190.8" height="18" rx="3"/><text class="val" x="528.8" y="29.0">5.3%</text></g><g class="row hl"><title>wrong number, carried from another player: 5.1%</title><rect class="hit" x="0" y="42" width="760" height="34"/><text class="lab" x="318" y="63.0" text-anchor="end">wrong number, carried from another player</text><rect class="bar" x="330" y="50" width="183.6" height="18" rx="3"/><text class="val" x="521.6" y="63.0">5.1%</text></g><g class="row hl"><title>unidentified: readable crops and reads, identity not established: 3.7%</title><rect class="hit" x="0" y="76" width="760" height="34"/><text class="lab" x="318" y="97.0" text-anchor="end">unidentified: readable crops and reads, identity not established</text><rect class="bar" x="330" y="84" width="133.2" height="18" rx="3"/><text class="val" x="471.2" y="97.0">3.7%</text></g><g class="row hl"><title>missed: 0.7%</title><rect class="hit" x="0" y="110" width="760" height="34"/><text class="lab" x="318" y="131.0" text-anchor="end">missed</text><rect class="bar" x="330" y="118" width="25.2" height="18" rx="3"/><text class="val" x="363.2" y="131.0">0.7%</text></g><g class="row hl"><title>wrong team (right number): 0.5%</title><rect class="hit" x="0" y="144" width="760" height="34"/><text class="lab" x="318" y="165.0" text-anchor="end">wrong team (right number)</text><rect class="bar" x="330" y="152" width="18.0" height="18" rx="3"/><text class="val" x="356.0" y="165.0">0.5%</text></g><g class="row hl"><title>unidentified: readable crops, no usable reads: 0.3%</title><rect class="hit" x="0" y="178" width="760" height="34"/><text class="lab" x="318" y="199.0" text-anchor="end">unidentified: readable crops, no usable reads</text><rect class="bar" x="330" y="186" width="10.8" height="18" rx="3"/><text class="val" x="348.8" y="199.0">0.3%</text></g></svg><figcaption>Share of labelled detections not credited to the right player (%), mean of 3 runs × 2 minutes. The remaining 84.3 % are correct.</figcaption></figure>
 <ul>
 <li><strong>Wrong number, other (5.3 %):</strong> misreads, and identities established from too few reads.</li>
@@ -705,7 +764,8 @@ number here is therefore a mean over three runs.</p>
 <h3 id="44-team-labels">4.4 Team labels</h3>
 <p>The online team model's labels were checked crop by crop over the whole game against reference colour labels (a
 colour clustering of the whole game with clusters named by hand, used only for this check; <code>tools/team_label_check.py</code>,
-<code>reports/team_label_check.txt</code>). Six runs: the three main runs and the three <code>npct</code> runs (Python reference).</p>
+<code>reports/team_label_check.txt</code>). Six runs: the three live runs <code>up_r1</code>-<code>r3</code> and the three Python-reference runs
+<code>np_r1</code>-<code>r3</code>.</p>
 <ul>
 <li><strong>Teams:</strong> maroon was A and red B in every run.</li>
 <li>
@@ -713,11 +773,11 @@ colour clustering of the whole game with clusters named by hand, used only for t
     labelled A; from 1:00 to 2:00, none.</p>
 </li>
 <li>
-<p><strong>2:00 to the end of the game (6:29):</strong> no crop got the other team's name, and at most 9 referee crops per run got
+<p><strong>2:00 to the end of the game (6:29):</strong> no crop got the other team's name, and at most 5 referee crops per run got
     a team label.</p>
 </li>
 <li>
-<p><strong>Unchecked:</strong> the model also gives team names to about 4,900-5,800 crops per run that the reference left
+<p><strong>Unchecked:</strong> the model also gives team names to about 4,900-6,000 crops per run that the reference left
     unlabelled, mostly A. It hasn't been checked whether those are players or people beside the court.</p>
 </li>
 <li>
@@ -754,7 +814,8 @@ colour clustering of the whole game with clusters named by hand, used only for t
     Python reference can replay.</p>
 </li>
 </ul>
-<p><strong>Checked on three full-game runs</strong> (<code>npct_r1</code>-<code>r3</code>, <code>reports/courttrack_live.txt</code>):</p>
+<p><strong>Checked on three full-game runs</strong> (<code>up_r1</code>-<code>r3</code>, <code>reports/courttrack_live.txt</code>; the axis-aligned runs
+<code>npct_r1</code>-<code>r3</code> in <code>reports/courttrack_live_axis_aligned.txt</code>):</p>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -765,27 +826,27 @@ colour clustering of the whole game with clusters named by hand, used only for t
 <tbody>
 <tr>
 <td>C++ and Python replays of the recorded inputs</td>
-<td>identical to each other and to the live output (all of about 527,100-527,300 detection identities per run)</td>
+<td>identical to each other; identical to the live output in two runs (all of about 526,700-527,500 detection identities), 16 differ in <code>up_r2</code> (section 4.6)</td>
 </tr>
 <tr>
 <td>Identity IDF1, live</td>
-<td><strong>84.3 %</strong> (74-94 %); end-to-end 82.1 % (97.4 % of labelled people detected)</td>
+<td><strong>88.6 %</strong> (79-96 %); end-to-end 86.3 % (97.4 % of labelled people detected)</td>
 </tr>
 <tr>
 <td>Python reference on the same runs (Kafka output, OpenCV histograms)</td>
-<td>85.2 %</td>
+<td>87.8 %</td>
 </tr>
 <tr>
 <td>Pipeline speed with the court tracker</td>
-<td>144.9-154.4 fps per camera, with the evaluation logs written to this PC's hard disk</td>
+<td>155.8-157.0 fps per camera, with the evaluation logs written to this PC's hard disk</td>
 </tr>
 <tr>
 <td>Court tracker + team model, in the pipeline</td>
-<td>0.19-0.27 ms mean, 1.5-2.0 ms p99, 10-14 ms max per frame</td>
+<td>0.19-0.20 ms mean, 1.5-2.0 ms p99, 9-11 ms max per frame</td>
 </tr>
 <tr>
 <td>Torso histograms, in the pipeline</td>
-<td>2.3 ms mean per four-camera batch (every 3rd frame)</td>
+<td>2.2 ms mean per four-camera batch (every 3rd frame)</td>
 </tr>
 <tr>
 <td>Kafka messages</td>
@@ -795,7 +856,8 @@ colour clustering of the whole game with clusters named by hand, used only for t
 </table></div>
 <ul>
 <li>
-<p><strong>Live vs Python reference:</strong> 84.3 % against 85.2 %; 4 run-minutes within 1 point, 2 worse by 1.8 and 4.1 points.
+<p><strong>Live vs Python reference:</strong> 88.6 % against 87.8 %; 4 run-minutes within 1 point, 2 better by 1.5 and 3.7 points
+    (the axis-aligned runs: 84.3 % against 85.2 %).
     The live pipeline computes the torso histograms differently (NV12 frames scaled to small tiles, against OpenCV on
     full-resolution frames); the team model learns from whichever it gets.</p>
 </li>
@@ -821,10 +883,18 @@ inputs recorded in the live runs (<code>apps/courttrack/ct_replay</code> and the
 live</code>):</p>
 <ul>
 <li>
-<p><strong>Same output:</strong> on <code>npct_r1</code>-<code>r3</code>, the C++ and the Python replays reproduce all of about 527,100-527,300 live
-    detection identities per run (the whole recording). This needs the colour statistics summed in a fixed order, fused
+<p><strong>Same output:</strong> on <code>npct_r1</code>-<code>r3</code>, <code>up_r1</code> and <code>up_r3</code>, the C++ and the Python replays reproduce all of about
+    526,700-527,500 live detection identities per run (the whole recording). This needs the colour statistics summed in a fixed order, fused
     multiply-add disabled in the C++ builds (<code>-ffp-contract=off</code>, which matters on the Jetson's ARM CPU) and NumPy's
     percentile formula matched exactly.</p>
+</li>
+<li>
+<p><strong>One exception, cause not found:</strong> in <code>up_r2</code> both replays agree with each other but differ from the live output
+    on 16 of 527,250 detection identities, in frames 3648-4705 (team letter or number on a few detections, after which
+    they agree again). A replay built inside the DeepStream container gives the same 16, the replay is clean under
+    valgrind, and every frame was stepped with all four cameras, so something in the live process differs from the
+    replay. The scores are unaffected (live, C++ and Python replay give the same IDF1 in every minute), but the live
+    output isn't strictly reproducible from the recorded inputs.</p>
 </li>
 <li>
 <p><strong>Speed:</strong> 0.08 ms per frame on one core of the i7 (replay of <code>npct_r1</code>), against 2.1 ms for the Python version
@@ -869,8 +939,8 @@ spectators in the front-row seats, seen by FR, which looks across the court at t
 <td>99.3 %</td>
 </tr>
 <tr>
-<td>Live in DeepStream (<code>npct</code> runs)</td>
-<td>4 % (12 of 329)</td>
+<td>Live in DeepStream (<code>up</code> runs)</td>
+<td>4 % (12 of 330)</td>
 <td>0 % (0)</td>
 <td>99.3 %</td>
 </tr>
@@ -953,6 +1023,133 @@ ByteTrack boxes. Everything else is the default configuration of the time, with 
 <p><strong>Caveat:</strong> the labels sit on MV3DT boxes of run <code>js_r1</code>, carried to each run by box overlap; MV3DT's held-out score
     on these three runs (83.9 %) is lower than on the earlier live runs with the pose model on (88.4 %), which is
     run-to-run variation.</p>
+</li>
+</ul>
+<h3 id="49-upright-jersey-crops">4.9 Upright jersey crops</h3>
+<p><strong>The problem.</strong> NL and NR look steeply down with wide lenses, so a standing player near their image edges appears
+tilted. Measured as the image direction of the body axis at the player's floor point, over half of NL's and NR's
+read-eligible boxes (at least 150 px, not cut by the frame) are tilted 30° or more; FL's and FR's almost never more than
+5°. The reader rarely read a tilted number: on the axis-aligned runs, NL and NR read 7.7-9.3 % of their upright
+eligible boxes but 0.5-0.6 % of those tilted 30° or more, although in contact sheets of a player who stopped being
+read in 4:00-5:00 the number was large and clear in most of the tilted crops. Box size and tilt together predicted
+each player's read rate per labelled minute closely (correlation 0.83 over 26 player-minutes).</p>
+<p><strong>What changed</strong> (<code>JERSEY_UPRIGHT=1</code>, the default; <code>apps/jersey_upright</code>, <code>apps/court_filter/torso_objects.c</code>):</p>
+<ul>
+<li>
+<p><strong>Angle:</strong> for each eligible player, the image direction of the segment from 0.9 m to 1.5 m above MV3DT's foot
+    point, with the camera's projection matrix (the floor point under the box bottom if MV3DT gives none). Under 5°
+    counts as upright.</p>
+</li>
+<li>
+<p><strong>Upright torso:</strong> the player's box as it would look upright (a 0.25 m × 1.85 m cylinder at the foot point, rotated,
+    scaled to the real box); the torso is rows 12-62 % of it, as before.</p>
+</li>
+<li>
+<p><strong>Rotation:</strong> two <code>nvdspreprocess</code> elements with a custom library, one in front of each reader model, copy the crop's
+    bounding area into a GPU buffer and rotate it upright into the model's input with a CUDA kernel. A probe after the
+    text detector turns its text boxes into rotated rectangles in the frame, so the recogniser reads them upright too.
+    The models are unchanged (FP16).</p>
+</li>
+<li>
+<p><strong>Cadence:</strong> unchanged (every 7th qualifying frame per player), now kept by the torso objects, since the models take
+    their input as tensors.</p>
+</li>
+</ul>
+<p><strong>How it was tested.</strong></p>
+<ol>
+<li>
+<p><strong>Offline first</strong> (axis-aligned runs <code>npct_r1</code>-<code>r3</code>): about 3,600 labelled crops per run were read by the same
+    models in onnxruntime, as they are and rotated upright. Correct reads per crop rose from 14-15 % to 26-31 % on NL
+    and from 23-25 % to 32-35 % on NR; FL and FR didn't change. With these emulated reads in place of the live ones,
+    the court tracker's replay gained 4.2 points identity IDF1 on the tuning minutes and 2.9 held out.</p>
+</li>
+<li>
+<p><strong>Crop check:</strong> 300 rotated text-detector inputs dumped from the pipeline matched the offline crops of the same
+    frames and boxes (mean difference 7 grey levels, from resampling).</p>
+</li>
+<li>
+<p><strong>Live:</strong> three default runs with upright crops (<code>up_r1</code>-<code>r3</code>) against the three axis-aligned live runs.</p>
+</li>
+</ol>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>3 runs each</th>
+<th>Axis-aligned crops (<code>npct_r1</code>-<code>r3</code>)</th>
+<th>Upright crops (<code>up_r1</code>-<code>r3</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Correct reads near the labelled moments (3 minutes), NL / NR</td>
+<td>165-169 / 354-358</td>
+<td><strong>360-366 / 478-485</strong></td>
+</tr>
+<tr>
+<td>Wrong reads there, NL / NR</td>
+<td>38-45 / 35-39</td>
+<td>29-35 / 32-37</td>
+</tr>
+<tr>
+<td>Correct reads there, FL / FR</td>
+<td>890-901 / 1,091</td>
+<td>901-910 / 1,079-1,085</td>
+</tr>
+<tr>
+<td>Digit reads over the game</td>
+<td>6,537-6,624</td>
+<td>7,226-7,258</td>
+</tr>
+<tr>
+<td>Identity IDF1, 2:00-3:00</td>
+<td>93.7 % (93-94 %)</td>
+<td><strong>95.2 %</strong> (95-96 %)</td>
+</tr>
+<tr>
+<td>Identity IDF1, 4:00-5:00</td>
+<td>74.9 % (74-77 %)</td>
+<td><strong>82.0 %</strong> (79-85 %)</td>
+</tr>
+<tr>
+<td>Identity IDF1, held-out 5:00-6:00</td>
+<td>90.6 % (89-92 %)</td>
+<td><strong>92.9 %</strong> (91-94 %)</td>
+</tr>
+<tr>
+<td>Identity switches per labelled minute, tuning / held out</td>
+<td>36.5 / 20.7</td>
+<td>28.5 / 14.3</td>
+</tr>
+<tr>
+<td>fps per camera</td>
+<td>144.9-154.4</td>
+<td>155.8-157.0</td>
+</tr>
+<tr>
+<td>GPU memory peak</td>
+<td>1.53-1.65 GB</td>
+<td>1.93-2.05 GB</td>
+</tr>
+</tbody>
+</table></div>
+<p>"Near the labelled moments": detections within 1 s of a labelled moment, on the same MV3DT object.</p>
+<ul>
+<li>
+<p><strong>More right reads, not more wrong ones:</strong> NL's correct reads more than doubled and NR's rose by a third; FL and FR,
+    which see players upright, are unchanged.</p>
+</li>
+<li>
+<p><strong>Identity:</strong> better in every labelled minute. The ranges of the three runs don't overlap on the tuning minutes;
+    on the held-out minute the lowest upright run (91.4 %) is below the highest axis-aligned one (92.3 %). The largest
+    gain is in 4:00-5:00.</p>
+</li>
+<li>
+<p><strong>Cost:</strong> no loss of speed on the 3060 Ti; 0.3-0.4 GB more GPU memory for the preprocessing buffers, which matters
+    on the Orin Nano Super's shared 8 GB. Not yet run on a Jetson: the buffers are CUDA device memory on every platform,
+    so the same code should run there.</p>
+</li>
+<li>
+<p><strong>Still unread:</strong> players bending over or turned away; the rotation corrects only the camera's geometry.</p>
 </li>
 </ul>
 <h2 id="5-calibration">5. Calibration</h2>
@@ -1141,8 +1338,9 @@ spec sheets before buying.</p>
 </tbody>
 </table></div>
 <p><strong>Assumed relative speed on this workload:</strong> the Orin Nano Super 5-8 times slower than the 3060 Ti, the AGX Orin
-64 GB 2.5-3.5 times slower (twice the Nano's GPU cores and memory bandwidth). The 3060 Ti figures are the main runs
-(section 4.1, 157-162 fps per camera, GPU 97-99 % busy).</p>
+64 GB 2.5-3.5 times slower (twice the Nano's GPU cores and memory bandwidth). The 3060 Ti figures are the runs
+without the court tracker (section 4.1, 157-162 fps per camera, GPU 97-99 % busy, axis-aligned jersey crops; upright
+crops cost no speed on the 3060 Ti but 0.3-0.4 GB more GPU memory, section 4.9).</p>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -1290,6 +1488,12 @@ triangulate positions and separate players who overlap in one view.</p>
 <p><strong>Validation:</strong> for the current cameras, real detection boxes measure 0.89-1.01 times the predicted standing height
     (median per camera, js_r1, game frames; FL lowest). So the model's pixel sizes are realistic, if somewhat
     generous for FL.</p>
+</li>
+<li>
+<p><strong>Not modelled: image tilt.</strong> A player near the edge of a steep, wide view appears tilted, and before upright crops
+    the reader rarely read a tilted number (section 4.9). This study counts every box of 150 px or more as readable, so
+    for the axis-aligned reader it overstated the steep views, the high corner mounts among them. With upright crops
+    most of that loss is recovered, but how readable a rotated crop is at each tilt hasn't been measured per layout.</p>
 </li>
 <li>
 <p><strong>Choice of lenses and aims:</strong> each new camera's lens (50-95° horizontal) and aim point are chosen by a search that
@@ -1554,7 +1758,7 @@ pipeline and scored on newly labelled ground truth.</p>
 <li><strong>Small ground truth:</strong> two minutes of one game on one court, with 10 players and refs not scored.</li>
 <li>
 <p><strong>Held-out data is one minute:</strong> both tuning minutes informed development decisions, including the online team
-    model's settings. The held-out minute 5:00-6:00 (90.6 % identity IDF1 live) is untouched by tuning but is a single
+    model's settings. The held-out minute 5:00-6:00 (92.9 % identity IDF1 live) is untouched by tuning but is a single
     minute of the same game.</p>
 </li>
 <li>
@@ -1582,6 +1786,14 @@ pipeline and scored on newly labelled ground truth.</p>
     (6.1) and the 4K jersey replay (7.3) were measured with the pose model on; each compares runs made alike.</p>
 </li>
 <li>
+<p><strong>Upright crops correct the camera's geometry only:</strong> the tilt comes from a standing-person model at MV3DT's foot
+    point, so players bending over or leaning stay tilted, and an error in the foot point gives a wrong angle.</p>
+</li>
+<li>
+<p><strong>Live output not strictly reproducible:</strong> in one live run of seven checked, 16 of about 527,000 detection identities
+    differ from the replay of the recorded inputs, cause not found (section 4.6); the scores are unaffected.</p>
+</li>
+<li>
 <p><strong>Other models in FP16:</strong> the jersey reader's text detector and recogniser run in FP16 (section 4.1), not INT8.
     INT8 was tested on the live pipeline, one run each. The calibration used 512 torso crops and 2,048 text boxes cut from
     np_r1, spread over the whole recording, with TensorRT entropy calibration (as for PeopleNet).</p>
@@ -1593,6 +1805,9 @@ minute.</p>
 <li>
 <p><strong>Text detector only in INT8:</strong> 14.5 % fewer digit reads (10,918 against 12,717-12,846 in npct_r1-r3); identity IDF1
 81.7 % on the tuning minutes and 89.5 % on the held-out minute, against 84.3 % and 90.6 %. 158 fps against 142-154 fps.</p>
+</li>
+<li>
+<p>Both tests used axis-aligned crops, before upright crops (section 4.9); INT8 hasn't been tried on upright crops.</p>
 </li>
 </ul>
 </li>
@@ -1608,7 +1823,8 @@ minute.</p>
  pre-aligned).</p>
 </li>
 <li>
-<p>Measure fps per camera without display, and DLA throughput (AGX Orin; issue #4).</p>
+<p>Measure fps per camera without display, and DLA throughput (AGX Orin; issue #4), with and without upright crops
+ (<code>JERSEY_UPRIGHT=0</code>), and GPU memory on the Orin Nano Super.</p>
 </li>
 <li>
 <p>Measure the court tracker's worst-frame time in the pipeline; move the team model's re-clustering to a worker
@@ -1627,8 +1843,13 @@ and compare with the current layout, including the highlight framing of both bas
 </li>
 <li>
 <p><strong>Identity logic</strong> (issue #11). The largest remaining loss is a wrong number on the same team when the true
-    number hasn't been read for 10 s (about 5 % of labelled detections); colour can't separate those players. More
-    reads don't help (issue #8: reading every frame scored the same).</p>
+    number hasn't been read for 10 s (about 5 % of labelled detections on the axis-aligned runs); colour can't separate
+    those players. Reading the same crops more often doesn't help (issue #8: reading every frame scored the same);
+    reading the crops that failed does (upright crops, section 4.9).</p>
+</li>
+<li>
+<p><strong>Camera placement with image tilt:</strong> add the read rate by tilt, measured with upright crops, to the camera-layout
+    simulator before comparing layouts again (section 7.1).</p>
 </li>
 <li>
 <p><strong>Use the official roster</strong> (numbers per team, available for real games): reject reads of numbers on neither
@@ -1642,8 +1863,9 @@ and compare with the current layout, including the highlight framing of both bas
 python -m tools.make_clips --start 0 --seconds 898 --offsets NL=26,FL=13,NR=4 --name gym_sync   # aligned clips
 for r in npcal_r1 npcal_r2; do ./scripts/run_default.sh $r; done   # camera bias (not scored)
 ~/.venvs/mv3dt/bin/python -m tools.calib_bias npcal_r1 npcal_r2 --write
-for r in np_r1 np_r2 np_r3; do ./scripts/run_default.sh $r; done                 # main runs
-for r in npct_r1 npct_r2 npct_r3; do COURTTRACK=1 ./scripts/run_default.sh $r; done   # section 4.5
+for r in np_r1 np_r2 np_r3; do JERSEY_UPRIGHT=0 ./scripts/run_default.sh $r; done   # Python-reference runs
+for r in up_r1 up_r2 up_r3; do COURTTRACK=1 ./scripts/run_default.sh $r; done   # sections 4.5, 4.9 (upright crops)
+for r in npct_r1 npct_r2 npct_r3; do COURTTRACK=1 JERSEY_UPRIGHT=0 ./scripts/run_default.sh $r; done   # section 4.9 (axis-aligned)
 POSE=1 ./scripts/phase7_deploy_variants.sh js_r1 js_r2 js_r3   # section 2.4, aligned clips ²
 POSE=1 DATASET=gym PREFIX=j_ ./scripts/phase7_deploy_variants.sh int8t10_r1 int8t10_r2 int8t10_r3   # section 2.4, original clips
 POSE=1 DATASET=gym_sync2x PREFIX=j2x_ ./scripts/phase7_deploy_variants.sh int8t10_r1           # section 2.4, offsets doubled

@@ -1,5 +1,5 @@
 --- /media/geoff/DATA/Documents/TESTmv3dt/external/DeepStream/src/apps/sample_apps/deepstream-test5/deepstream_test5_app_main.c	2026-10-21 15:49:42.804302100 -0400
-+++ deepstream_test5_app_main.c	2026-10-27 13:15:27.791869800 -0400
++++ deepstream_test5_app_main.c	2026-10-30 16:51:49.463731700 -0400
 @@ -47,6 +47,10 @@
  #include "nvdsmeta_schema.h"
  
@@ -11,7 +11,7 @@
  
  /* External reference to global error capture buffer */
  extern gchar *g_nvds_last_error_message;
-@@ -1827,6 +1831,39 @@
+@@ -1827,6 +1831,40 @@
        return_value = -1;
        goto done;
      }
@@ -26,6 +26,7 @@
 +        for (guint k = 0; k < MAX_SECONDARY_GIE_BINS; k++)
 +          sg[k] = appCtx[i]->pipeline.common_elements.secondary_gie_bin.sub_bins[k].secondary_gie;
 +        torso_objects_retarget (sg, MAX_SECONDARY_GIE_BINS);
++        torso_objects_upright (sg, MAX_SECONDARY_GIE_BINS);   /* gym-mv3dt: upright crops ($JERSEY_UPRIGHT) */
 +      }
 +      if (appCtx[i]->pipeline.common_elements.tracker_bin.bin) { /* gym-mv3dt: torso objects */
 +        GstPad *to_pad = gst_element_get_static_pad (
@@ -51,11 +52,12 @@
      /** Now add probe to RTPSession plugin src pad */
      for (guint j = 0; j < appCtx[i]->pipeline.multi_src_bin.num_bins; j++) {
        testAppCtx->streams[j].id = j;
-@@ -1987,6 +2024,7 @@
+@@ -1987,6 +2025,8 @@
  done:
  
    g_print ("Quitting\n");
 +  courttrack_close ();  /* gym-mv3dt: flush the court tracker */
++  torso_objects_report ();  /* gym-mv3dt */
  
    /* GENERIC error reporting via msgapi - catches ALL failures
     * Check each appCtx individually since return_value might not be set yet */

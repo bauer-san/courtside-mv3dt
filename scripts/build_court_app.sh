@@ -6,7 +6,8 @@
 #   apps/courttrack/                  court tracker + online team model, per-frame Kafka messages (probe after
 #                                     jersey_log on the same pad; active with $COURTTRACK_CONFIG)
 # and the nvinfer parser libraries apps/jersey/libnvdsinfer_jersey.so (text-detector + digit-recogniser SGIEs)
-# and apps/yolox/libnvdsinfer_yolox.so (YOLOX person detector, GitHub issue #10).
+# and apps/yolox/libnvdsinfer_yolox.so (YOLOX person detector, GitHub issue #10), and the nvdspreprocess library
+# apps/jersey_upright/libnvds_upright_preprocess.so (upright jersey crops, $JERSEY_UPRIGHT).
 # Changes to NVIDIA's code: #includes and two probe attachments after create_pipeline() in main.c, one SRCS line
 # in the Makefile. Built inside the DeepStream container; binary and library go to external/bin/.
 set -euo pipefail
@@ -18,6 +19,7 @@ IMAGE="${DEEPSTREAM_IMAGE:-nvcr.io/nvidia/deepstream:9.1-triton-multiarch}"
 
 rm -rf "$DST" && cp -r "$SRC" "$DST"
 cp "$ROOT"/apps/court_filter/{court_filter,jersey_log,torso_objects}.{c,h} "$DST/"
+cp "$ROOT"/apps/jersey_upright/upright_meta.h "$DST/"
 cp "$ROOT"/apps/courttrack/{courttrack,online_teams,courttrack_probe}.{cpp,h} "$DST/"
 python3 - "$DST" <<'EOF'
 import sys
@@ -36,7 +38,7 @@ call = """    if (!create_pipeline (appCtx[i], bbox_generated_probe_after_analyt
 quit = '  g_print ("Quitting\\n");\n'
 assert s.count(inc) == 1 and s.count(call) == 1 and s.count(quit) == 1, "anchors not found: DeepStream source changed?"
 s = s.replace(inc, inc + '#include "court_filter.h"  /* gym-mv3dt */\n#include "jersey_log.h"  /* gym-mv3dt */\n#include "torso_objects.h"  /* gym-mv3dt */\n#include "courttrack_probe.h"  /* gym-mv3dt */\n')
-s = s.replace(quit, quit + '  courttrack_close ();  /* gym-mv3dt: flush the court tracker */\n')
+s = s.replace(quit, quit + '  courttrack_close ();  /* gym-mv3dt: flush the court tracker */\n  torso_objects_report ();  /* gym-mv3dt */\n')
 s = s.replace(call, call + """    { /* gym-mv3dt: court filter before the tracker */
       GstPad *cf_pad = gst_element_get_static_pad (
           appCtx[i]->pipeline.common_elements.primary_gie_bin.bin, "src");
@@ -48,6 +50,7 @@ s = s.replace(call, call + """    { /* gym-mv3dt: court filter before the tracke
         for (guint k = 0; k < MAX_SECONDARY_GIE_BINS; k++)
           sg[k] = appCtx[i]->pipeline.common_elements.secondary_gie_bin.sub_bins[k].secondary_gie;
         torso_objects_retarget (sg, MAX_SECONDARY_GIE_BINS);
+        torso_objects_upright (sg, MAX_SECONDARY_GIE_BINS);   /* gym-mv3dt: upright crops ($JERSEY_UPRIGHT) */
       }
       if (appCtx[i]->pipeline.common_elements.tracker_bin.bin) { /* gym-mv3dt: torso objects */
         GstPad *to_pad = gst_element_get_static_pad (
@@ -90,9 +93,12 @@ docker run --rm -v "$DS:/ds" -w /ds/src/apps/sample_apps/deepstream-test5-court 
   -c "CV=\$(ls -d /usr/local/cuda-*.* | sed s/.*cuda-// | sort -V | tail -1); make CUDA_VER=\$CV -j8 >/tmp/build.log 2>&1 || { tail -40 /tmp/build.log; exit 1; }; chown $(id -u):$(id -g) deepstream-test5-court-app *.o ../deepstream-app/*.o ../../common/src/*.o ../../common/src/deepstream-yaml/*.o ../../../utils/nvds_msgapi/common_src/*.o 2>/dev/null || true"
 docker run --rm -v "$ROOT/apps/jersey:/src" -w /src --entrypoint bash "$IMAGE" \
   -c "make -s CUDA_VER=\$(ls -d /usr/local/cuda-*.* | sed s/.*cuda-// | sort -V | tail -1) 2>&1 | grep -v Winfinite-recursion | grep -E 'error' ; chown $(id -u):$(id -g) libnvdsinfer_jersey.so"
+docker run --rm -v "$ROOT/apps/jersey_upright:/src" -w /src --entrypoint bash "$IMAGE" \
+  -c "make -s CUDA_VER=\$(ls -d /usr/local/cuda-*.* | sed s/.*cuda-// | sort -V | tail -1) 2>&1 | grep -E 'error' ; chown $(id -u):$(id -g) libnvds_upright_preprocess.so *.o"
 docker run --rm -v "$ROOT/apps/yolox:/src" -w /src --entrypoint bash "$IMAGE" \
   -c "make -s CUDA_VER=\$(ls -d /usr/local/cuda-*.* | sed s/.*cuda-// | sort -V | tail -1) 2>&1 | grep -v Winfinite-recursion | grep -E 'error' ; chown $(id -u):$(id -g) libnvdsinfer_yolox.so"
 mkdir -p "$ROOT/external/bin"
 cp "$DST/deepstream-test5-court-app" "$ROOT/apps/jersey/libnvdsinfer_jersey.so" "$ROOT/apps/yolox/libnvdsinfer_yolox.so" \
+  "$ROOT/apps/jersey_upright/libnvds_upright_preprocess.so" \
   "$ROOT/external/bin/"
 echo "built external/bin/deepstream-test5-court-app, external/bin/libnvdsinfer_jersey.so, external/bin/libnvdsinfer_yolox.so"

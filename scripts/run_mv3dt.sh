@@ -7,6 +7,7 @@
 #        JERSEY=1 ./scripts/run_mv3dt.sh ...          # jersey-number SGIEs (apps/jersey) + jersey_reads.csv
 #        JERSEY_SCALING=1 (with JERSEY=1)              # bilinear crop scaling for the jersey SGIEs (default: nvinfer's)
 #        JERSEY_REINFER=n (with JERSEY=1)              # frames skipped between reads of one player (default 6)
+#        JERSEY_UPRIGHT=1 (with JERSEY=1, COURT_FILTER=1) # torso crops rotated upright (apps/jersey_upright)
 #        DET_LOG=1 (with COURT_FILTER=1)               # detections.csv: the tracker's input detections
 #        DETECTOR_MODEL=PeopleNet2.6.3 ./scripts/run_mv3dt.sh gym_60s c60_pn263
 #        POSE=1 ./scripts/run_mv3dt.sh ...               # MV3DT's 3D pose model on (default off, see below)
@@ -170,6 +171,17 @@ if [[ "${JERSEY:-0}" == 1 ]]; then
     secondary-gie1.operate-on-class-ids=0 secondary-gie1.batch-size=32 secondary-gie1.config-file=config_sgie_textrec.txt
   APP_BIN=/workspace/bin/deepstream-test5-court-app
   ENVS+=(-e JERSEY_LOG=/workspace/experiments/jersey_reads.csv)
+  if [[ "${JERSEY_UPRIGHT:-0}" == 1 ]]; then   # nvdspreprocess in front of both SGIEs; needs the camera matrices
+    [[ "${COURT_FILTER:-0}" == 1 ]] || { echo "JERSEY_UPRIGHT=1 needs COURT_FILTER=1 (camera matrices)"; exit 1; }
+    [[ -f "$ROOT/external/bin/libnvds_upright_preprocess.so" ]] || { echo "run scripts/build_court_app.sh first"; exit 1; }
+    cp "$ROOT"/apps/jersey_upright/config_preprocess_text{det,rec}.txt "$OUT/"
+    ENVS+=(-e JERSEY_UPRIGHT=1)
+    [[ -n "${JERSEY_REINFER:-}" ]] && ENVS+=(-e JERSEY_REINFER="$JERSEY_REINFER")
+    if [[ "${UPRIGHT_DUMP:-0}" == 1 ]]; then   # first 300 rotated text-detector inputs, for checking against offline crops
+      mkdir -p "$OUT/upright_dump"
+      ENVS+=(-e UPRIGHT_DUMP=/workspace/experiments/upright_dump)
+    fi
+  fi
 fi
 
 # Optional court tracker inside DeepStream (apps/courttrack): court tracker + online team model on every frame, one
@@ -227,7 +239,7 @@ if [[ $rc -ne 0 ]]; then kill $REC_PID $BEV_PID $CT_PID 2>/dev/null; fi
 echo "waiting for Kafka recorder / BEV renderer to finish..."
 wait $REC_PID; wait $BEV_PID; [[ -n "$CT_PID" ]] && wait $CT_PID
 {
-  echo "dataset=$DATASET detector=$DETECTOR_MODEL court_filter=${COURT_FILTER:-0} neighbors=${NEIGHBORS:-all} jersey=${JERSEY:-0} display=${DISPLAY_OUT:-1} pgie_interval=${PGIE_INTERVAL:-0} pgie_precision=$([[ "$DETECTOR_MODEL" == YOLOX-m ]] && echo int8 || echo "${PGIE_PRECISION:-fp16}") pgie_threshold=${PGIE_THRESHOLD:-default} courttrack=${COURTTRACK:-0} dla=${PGIE_DLA_CORE:-none} pose=${POSE:-0} extra=$*"
+  echo "dataset=$DATASET detector=$DETECTOR_MODEL court_filter=${COURT_FILTER:-0} neighbors=${NEIGHBORS:-all} jersey=${JERSEY:-0} jersey_upright=${JERSEY_UPRIGHT:-0} display=${DISPLAY_OUT:-1} pgie_interval=${PGIE_INTERVAL:-0} pgie_precision=$([[ "$DETECTOR_MODEL" == YOLOX-m ]] && echo int8 || echo "${PGIE_PRECISION:-fp16}") pgie_threshold=${PGIE_THRESHOLD:-default} courttrack=${COURTTRACK:-0} dla=${PGIE_DLA_CORE:-none} pose=${POSE:-0} extra=$*"
   echo "pipeline_exit=$rc pipeline_elapsed_s=$elapsed"
   grep -E "^\*\*PERF:\s+[0-9]" "$OUT/console.log" | tail -1 | sed 's/^/last_perf=/'
 } | tee "$OUT/run.txt"

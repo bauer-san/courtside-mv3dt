@@ -16,4 +16,12 @@ gboolean torso_objects_attach (GstPad * pad);
  * element with unique-id $JERSEY_DET_GIE (default 2) gets infer-on-gie-id = TORSO_GIE_ID. */
 void torso_objects_retarget (GstElement ** sgies, guint n);
 
+/* $JERSEY_UPRIGHT=1: insert nvdspreprocess (config_preprocess_textdet.txt / _textrec.txt, apps/jersey_upright)
+ * in front of each jersey SGIE, switch the SGIEs to tensor-meta input, and convert the text boxes
+ * behind the text detector (see torso_objects.c). */
+void torso_objects_upright (GstElement ** sgies, guint n);
+
+/* Counts of upright crops (at exit). */
+void torso_objects_report (void);
+
 #endif

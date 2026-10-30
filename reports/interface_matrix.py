@@ -42,16 +42,25 @@ NODES = [
      "camera instances over MQTT. No neural network runs here.",
      {"Runs": "every frame", "Between cameras": "MQTT messages"}),
     ("torso", "Torso objects", "live", [("none", "no model")],
-     "Probe after the tracker. Adds a torso child object (rows 12-62 % of the box) for player boxes at least 150 px "
-     "tall and not cut by the frame edge.",
+     "Probe after the tracker. For player boxes at least 150 px tall and not cut by the frame edge, every 7th such "
+     "frame per player, adds a torso child object: rows 12-62 % of the player's box as it would look upright. The "
+     "tilt comes from the camera matrix at MV3DT's foot point (section 4.9).",
      {"Runs": "every frame, CPU", "Code": "apps/court_filter/torso_objects.c"}),
+    ("updet", "Upright torso crop (nvdspreprocess)", "live", [("none", "no model")],
+     "Copies each torso's bounding area into a GPU buffer and rotates the torso upright into the text detector's "
+     "384 × 480 input (letterboxed). Torsos tilted less than 5° are not rotated.",
+     {"Runs": "per torso object, GPU (CUDA kernel)", "Code": "apps/jersey_upright"}),
     ("tdet", "Text detector (PP-OCRv4 det)", "live", [("fp16", "FP16")],
-     "Finds text boxes in torso crops scaled bilinearly into 384 × 480. Each player is read every 7th frame. In INT8 "
-     "it gave 14.5 % fewer digit reads, so it stays FP16 (section 8).",
-     {"Runs": "every 7th frame per player, GPU", "Precision": "FP16 (INT8 tested, not adopted)"}),
+     "Finds text boxes in the upright torso crops. In INT8 it gave 14.5 % fewer digit reads (on axis-aligned crops), "
+     "so it stays FP16 (section 8).",
+     {"Runs": "per torso object, GPU", "Precision": "FP16 (INT8 tested, not adopted)"}),
+    ("uprec", "Upright text crop (nvdspreprocess)", "live", [("none", "no model")],
+     "A probe turns the detector's text boxes (upright-torso pixels) into rotated rectangles in the frame; this step "
+     "rotates each one upright into the recogniser's 48 × 64 input.",
+     {"Runs": "per text box, GPU (CUDA kernel)", "Code": "apps/jersey_upright"}),
     ("trec", "Digit recogniser (PP-OCRv4 rec)", "live", [("fp16", "FP16")],
-     "Reads 1-2 digit numbers from each text box scaled into 48 × 64. In INT8 it lost 65 % of the reads, so it stays "
-     "FP16 (section 8).",
+     "Reads 1-2 digit numbers from each upright text box. In INT8 it lost 65 % of the reads (on axis-aligned crops), "
+     "so it stays FP16 (section 8).",
      {"Runs": "per text box, GPU", "Precision": "FP16 (INT8 tested, not adopted)"}),
     ("jlog", "Jersey read log", "live", [("none", "no model")],
      "Probe after the jersey reader. Passes every read to the court tracker, which keeps the most confident one per "
@@ -78,6 +87,8 @@ EDGES = [
     ("cal", "filt", "setup", "Projection matrices", "Floor point of each box's bottom-centre, tested against the "
      "court rectangle.", False),
     ("cal", "mv3dt", "setup", "camInfo matrices", "3D foot positions and multi-view association between cameras.", False),
+    ("cal", "torso", "setup", "Projection matrices", "Image tilt of the body at each player's foot point, and the "
+     "upright box (from $COURT_FILTER_CONFIG).", False),
     ("cal", "ct", "setup", "Projection matrices", "Court positions and the seated-person check (box bottom against "
      "foot point).", False),
     ("bias", "ct", "setup", "Bias per camera", "courtTrackerBias_m from each camInfo file, subtracted from that "
@@ -90,13 +101,17 @@ EDGES = [
      "NR, every 3rd frame.", False),
     ("det", "filt", "live", "Person boxes", "Boxes with confidence ≥ 0.1, at most 20 per camera frame after NMS.", False),
     ("filt", "mv3dt", "live", "On-court boxes", "Only boxes whose floor point lies within the court plus 0.75 m.", False),
-    ("mv3dt", "torso", "live", "Tracked boxes", "Boxes with per-camera object IDs.", False),
+    ("mv3dt", "torso", "live", "Tracked boxes + foot points", "Boxes with per-camera object IDs and MV3DT's world "
+     "foot location (for the tilt).", False),
     ("mv3dt", "ct", "live", "Foot points + IDs", "Per-camera foot positions on the floor (m), object IDs and "
      "visibility; box heights from FL and FR for body height.", False),
     ("mv3dt", "out", "live", "MV3DT metadata", "MV3DT's tracking metadata per frame.", False),
-    ("torso", "tdet", "live", "Torso crops", "Torso objects of boxes ≥ 150 px tall; each player re-read every 7th "
-     "frame.", False),
-    ("tdet", "trec", "live", "Text boxes", "Text regions found in the torso crops.", False),
+    ("torso", "updet", "live", "Torso objects", "Bounding area of each rotated torso, plus its centre, size and "
+     "angle; each player every 7th eligible frame.", False),
+    ("updet", "tdet", "live", "Upright torso tensors", "384 × 480 inputs, as tensor meta.", False),
+    ("tdet", "uprec", "live", "Text boxes", "Text regions in upright-torso pixels, turned into rotated rectangles in "
+     "the frame.", False),
+    ("uprec", "trec", "live", "Upright text tensors", "48 × 64 inputs, as tensor meta.", False),
     ("trec", "jlog", "live", "Digits + confidence", "1-2 digit strings with confidence; empty when text was found but "
      "no digits.", False),
     ("jlog", "ct", "live", "Jersey reads", "Number and score per object and frame (the most confident read is "

@@ -1,0 +1,42 @@
+# Gym MV3DT: nvdspreprocess in front of the jersey digit recogniser (text boxes): crops rotated
+# upright by libnvds_upright_preprocess.so (upright_preprocess.cpp). The scaling pool holds each object's
+# axis-aligned box at up to 256x128 (aspect kept, top-left); the library rotates the crop from there into the
+# network input. network-input-order=2 (custom: the library writes NCHW itself) lets the pool size differ from it.
+[property]
+enable=1
+target-unique-ids=3
+operate-on-gie-id=2
+process-on-frame=0
+unique-id=13
+gpu-id=0
+processing-width=256
+processing-height=128
+maintain-aspect-ratio=1
+symmetric-padding=0
+scaling-buf-pool-size=8
+tensor-buf-pool-size=8
+network-input-order=2
+network-input-shape=32;3;48;64
+network-color-format=1
+tensor-data-type=0
+tensor-name=x
+# CUDA device memory on every platform (the library reads it in a kernel); GPU scaling, bilinear
+scaling-pool-memory-type=2
+scaling-pool-compute-hw=1
+scaling-filter=1
+custom-lib-path=/workspace/bin/libnvds_upright_preprocess.so
+custom-tensor-preparation-function=CustomTensorPreparation
+
+[user-configs]
+mode=rec
+
+[group-0]
+src-ids=0;1;2;3
+process-on-all-objects=1
+roi-params-src-0=0;0;1920;1080
+roi-params-src-1=0;0;1920;1080
+roi-params-src-2=0;0;1920;1080
+roi-params-src-3=0;0;1920;1080
+operate-on-class-ids=0
+input-object-min-width=1
+input-object-min-height=1

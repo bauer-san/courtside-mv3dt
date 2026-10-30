@@ -127,6 +127,7 @@ and optionally videos. Options:
 | `DETECTOR_MODEL=PeopleNet2.6.3\|PeopleNetTransformer\|RTDETR` | detector (PeopleNet 2.6.3 is the one used) |
 | `COURT_FILTER=1` | drop detections outside the court (+ `COURT_MARGIN`, default 0.75 m) before the tracker |
 | `JERSEY=1` | jersey-number reading inside DeepStream (text detector + digit recogniser on torso crops) |
+| `JERSEY_UPRIGHT=1` | torso crops rotated upright before the jersey reader (`apps/jersey_upright`; needs `JERSEY=1`, `COURT_FILTER=1`; on in `run_default.sh`, `JERSEY_UPRIGHT=0` turns it off) |
 | `COURTTRACK=1` | court tracker + automatic team colours in the pipeline; one Kafka message per frame on topic `courttrack` (needs `JERSEY=1`) |
 | `DISPLAY_OUT=0` | no on-screen display or annotated video |
 | `PGIE_PRECISION=int8`, `PGIE_INTERVAL=n`, `PGIE_THRESHOLD=x` | detector precision, interval and threshold |
