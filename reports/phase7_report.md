@@ -195,6 +195,14 @@ arrival order. That hasn't been built or tested here (section 9).
    - per-camera colour correction is learned as the game runs
 7. **Output:** one JSON message per frame on Kafka (section 4.5).
 
+**Interfaces.** Every interface between these functions is causal: each output for a frame uses that frame or earlier
+ones, or inputs fixed before the game (calibration, camera bias, INT8 calibration cache). The exception is the time
+alignment, which here comes from cutting the recorded files (section 2.4). Only PeopleNet runs in INT8; the jersey
+reader's two models run in FP16 (section 8). The web version of this report shows the interfaces as an interactive
+matrix.
+
+<!-- interface-matrix -->
+
 ## 4. Results
 
 ### 4.1 Speed (RTX 3060 Ti)
@@ -691,6 +699,12 @@ pipeline and scored on newly labelled ground truth.
 - **Earlier runs:** the time-alignment comparison (2.4), the ByteTrack comparison (4.8), the detection thresholds
   (6.1) and the 4K jersey replay (7.3) were measured with the pose model on; each compares runs made alike.
 - **Other models in FP16:** the jersey reader's text detector and recogniser run in FP16 (section 4.1), not INT8.
+  INT8 was tested on the live pipeline, one run each. The calibration used 512 torso crops and 2,048 text boxes cut from
+  np_r1, spread over the whole recording, with TensorRT entropy calibration (as for PeopleNet).
+  - **Both models in INT8:** 65 % fewer digit reads; identity IDF1 62.6 % on the tuning minutes and 78.6 % on the held-out
+    minute.
+  - **Text detector only in INT8:** 14.5 % fewer digit reads (10,918 against 12,717-12,846 in npct_r1-r3); identity IDF1
+    81.7 % on the tuning minutes and 89.5 % on the held-out minute, against 84.3 % and 90.6 %. 158 fps against 142-154 fps.
 
 ## 9. Next steps (prioritised)
 

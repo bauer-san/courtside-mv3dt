@@ -1,7 +1,8 @@
 """Build the web page version of the Phase 7 report (reports/phase7_report.html) from phase7_report.md.
 
 The two bar charts are drawn as inline SVG from the result tables (theme-aware, hover tooltips); the court heat map
-and the FL calibration photo are published next to the page (figures/...).
+and the FL calibration photo are published next to the page (figures/...). The interactive interface matrix in
+section 3 comes from reports/interface_matrix.py.
 
   python3 reports/build_page.py
 """
@@ -11,6 +12,8 @@ import re
 from pathlib import Path
 
 import markdown
+
+from interface_matrix import fragment as interface_matrix
 
 HERE = Path(__file__).resolve().parent
 
@@ -191,6 +194,7 @@ def main() -> None:
                                                          "court (yellow) sits on the paint, and the 3-point arc "
                                                          "(magenta, not used in the fit) lands on the painted arc."),
     }
+    body = body.replace("<!-- interface-matrix -->", interface_matrix())
     for src, rep in figs.items():
         body = re.sub(rf'<p><img alt="[^"]*" src="{re.escape(src)}" ?/?></p>', lambda m, r=rep: r, body)
     toc = re.findall(r'<h2 id="([^"]+)">(.+?)</h2>', body)
