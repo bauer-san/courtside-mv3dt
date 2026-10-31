@@ -184,10 +184,12 @@ them, score 59.6 % (55-64 %) on runs <code>np_r1</code>-<code>r3</code>.</p>
     64 GB. On an Orin Nano Super they don't at 30 fps, but four cameras at 15 fps now look feasible.</p>
 </li>
 <li>
-<p><strong>Camera placement (section 7):</strong> moving the same four cameras from the backboards to high corner mounts would
-    raise the share of the play seen by two cameras at jersey-readable size, from clearly different directions, from
-    22 % to about 86 %, while framing both baskets for highlight clips (simulated). Six high wall cameras would reach
-    99 % with two highlight views per basket; at 30 fps they would be borderline on an AGX Orin by these estimates.</p>
+<p><strong>Camera placement (section 7):</strong> high corner mounts would raise geometric coverage (the share of the play seen by
+    two cameras from clearly different directions with players at least 150 px tall) from 22 % to about 86 %, but a
+    tracking simulation of the whole game with the measured read rates (section 7.3) finds no gain for four corner
+    cameras: their wide views make players small, and small players are read less often. Six high wall cameras
+    (layout F) did best in the simulation (14-18 % fewer identity switches, up to 1.5 points higher identity IDF1 over
+    the game), but within the simulator's margin; at 30 fps they would be borderline on an AGX Orin by these estimates.</p>
 </li>
 </ul>
 <h2 id="2-setup">2. Setup</h2>
@@ -1490,10 +1492,11 @@ triangulate positions and separate players who overlap in one view.</p>
     generous for FL.</p>
 </li>
 <li>
-<p><strong>Not modelled: image tilt.</strong> A player near the edge of a steep, wide view appears tilted, and before upright crops
-    the reader rarely read a tilted number (section 4.9). This study counts every box of 150 px or more as readable, so
-    for the axis-aligned reader it overstated the steep views, the high corner mounts among them. With upright crops
-    most of that loss is recovered, but how readable a rotated crop is at each tilt hasn't been measured per layout.</p>
+<p><strong>Readability is a threshold here, not a rate.</strong> This geometric study counts every box of 150 px or more as
+    readable. Measured on the live runs, the read rate per detection climbs steeply with box height (2.0 % at
+    150-174 px, 7.9 % at 275-299 px) and falls with the body's image tilt even with upright crops (to about half at 30°
+    or more; section 4.9). So the coverage figures flatter layouts whose players appear small or tilted; section 7.3
+    simulates tracking with the measured rates instead.</p>
 </li>
 <li>
 <p><strong>Choice of lenses and aims:</strong> each new camera's lens (50-95° horizontal) and aim point are chosen by a search that
@@ -1622,10 +1625,187 @@ triangulate positions and separate players who overlap in one view.</p>
 <ul>
 <li><strong>Lower mounts:</strong> players appear larger, so slightly more of the court is readable.</li>
 <li><strong>Higher mounts:</strong> steeper views, which shrink the area hidden behind each player.</li>
-<li><strong>For the corner layout, about 4.5-5 m is the best balance:</strong> 86 % of the action seen by two well-separated cameras,
-    2 % unreadable, both baskets framed from two directions.</li>
+<li><strong>For the corner layout, about 4.5-5 m is the best balance</strong> by these coverage figures: 86 % of the action seen by
+    two well-separated cameras, 2 % unreadable, both baskets framed from two directions.</li>
 </ul>
-<h3 id="73-compute-per-camera-stream">7.3 Compute per camera stream</h3>
+<h3 id="73-simulated-tracking-accuracy">7.3 Simulated tracking accuracy</h3>
+<p>Geometric coverage doesn't say how well identities hold. A tracking simulator (<code>tools/layout_sim.py</code>) replays the
+game in front of each candidate layout and runs what the cameras would see through the unchanged C++ court tracker
+and online team model.</p>
+<p><strong>How it works.</strong></p>
+<ul>
+<li>
+<p><strong>Players:</strong> the game as it was played: one person per real player (8, a 4-on-4 game) plus referees, moving as the
+    live court tracker of run <code>up_r1</code> placed them, its track pieces grouped by identity (labels near the labelled
+    moments, live identities elsewhere). At the labelled moments, 85-97 % of labelled detections sit on the person with
+    the right identity.</p>
+</li>
+<li>
+<p><strong>Detections:</strong> per camera and frame, each person's box from a cylinder of their height (1.70-2.05 m); missed when
+    mostly hidden behind nearer people, cut by the image border, smaller than 30 px, or suppressed by NMS.</p>
+</li>
+<li>
+<p><strong>Positions:</strong> MV3DT's fixed-height body model fitted to a noisy box, plus a depth error along the line of sight that
+    is shared by cameras on one mount and grows with distance. Both were fitted to the measured distance between two
+    cameras' foot points of the same person (cameras on one mount agree closely; cameras at opposite ends disagree
+    most). Each camera's mean offset is removed, as the installation calibration does.</p>
+</li>
+<li>
+<p><strong>Jersey reads:</strong> tried every 7th frame on unhidden torsos of boxes of at least 150 px; succeed at the rate
+    measured on the live runs with upright crops for that box height and image tilt, scaled by how squarely the camera
+    faces the player's front or back and by the player's own read factor for that game minute (pose, free throws and
+    the like, measured on <code>up_r1</code>). Wrong reads at each player's measured share, mostly as the numbers that player was
+    actually misread as at the labelled moments.</p>
+</li>
+<li>
+<p><strong>Colours:</strong> real torso histograms of each player.</p>
+</li>
+<li><strong>Scoring:</strong> identity IDF1 at the labelled moments and every 2 s over the whole game (players only).</li>
+</ul>
+<p><strong>Validation on the current layout</strong> (6 simulated runs with different random seeds, against the 3 live runs
+<code>up_r1</code>-<code>r3</code>):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th></th>
+<th>Simulated (6 seeds)</th>
+<th>Live (3 runs)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Identity IDF1, 2:00-3:00</td>
+<td>91.9 % (89-94 %)</td>
+<td>95.2 % (95-96 %)</td>
+</tr>
+<tr>
+<td>Identity IDF1, 4:00-5:00</td>
+<td>89.4 % (88-92 %)</td>
+<td>82.0 % (79-85 %)</td>
+</tr>
+<tr>
+<td>Identity IDF1, held-out 5:00-6:00</td>
+<td>93.9 % (91-96 %)</td>
+<td>92.9 % (91-94 %)</td>
+</tr>
+<tr>
+<td>Identity switches per tuning minute</td>
+<td>30</td>
+<td>28.5</td>
+</tr>
+<tr>
+<td>Digit reads per detection, FL / FR / NL / NR</td>
+<td>5.1 / 5.7 / 2.4 / 3.4 %</td>
+<td>4.3 / 4.3 / 2.8 / 3.0 %</td>
+</tr>
+<tr>
+<td>Same person, two cameras, median (90 %) distance: same mount; opposite ends</td>
+<td>0.19 (0.45-0.51); 0.31-0.33 (0.73-0.78) m</td>
+<td>0.17-0.19 (0.41-0.46); 0.31-0.40 (1.01-1.23) m</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>The overall level is right</strong>, on the tuning minutes together (90.7 % against 88.6 %) and held out.</li>
+<li>
+<p><strong>What makes a stretch of play hard is not:</strong> live, 4:00-5:00 is 13 points harder than 2:00-3:00; simulated, 2.5.
+    The same confusions occur (red players taken for each other in close play), but less often. Per-player-minute
+    misreads and the shared depth error didn't close the gap; merged or split boxes in crowds, heavier error tails
+    (the 90th-percentile distances above) and people beside the court aren't modelled.</p>
+</li>
+<li>
+<p><strong>So only large differences between layouts are meaningful:</strong> more than about 5 points of identity IDF1.</p>
+</li>
+</ul>
+<p><strong>Results</strong> (6 seeds per layout and height; lenses and aims as chosen in section 7.1; <code>reports/layout_sim.md</code>):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Layout</th>
+<th>Streams</th>
+<th>Identity IDF1, 4:00-5:00</th>
+<th>Held-out</th>
+<th>Whole game</th>
+<th>Switches, whole game</th>
+<th>Digit reads per frame</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A. Current</td>
+<td>4</td>
+<td>89.4 %</td>
+<td>93.8 %</td>
+<td>86.5 %</td>
+<td>171</td>
+<td>0.66</td>
+</tr>
+<tr>
+<td>C. 4 corners, 5 m</td>
+<td>4</td>
+<td>89.8 %</td>
+<td>90.9 %</td>
+<td>86.0 %</td>
+<td>158</td>
+<td>0.87</td>
+</tr>
+<tr>
+<td>C, 4.5 / 6 / 7 m</td>
+<td>4</td>
+<td>85-89 %</td>
+<td>88-91 %</td>
+<td>82-85 %</td>
+<td>161-171</td>
+<td>0.71-0.87</td>
+</tr>
+<tr>
+<td>E. 2 far backboard + 2 sideline walls, 4.5-7 m</td>
+<td>4</td>
+<td>89-91 %</td>
+<td>90-93 %</td>
+<td>85-87 %</td>
+<td>154-171</td>
+<td>0.73-0.82</td>
+</tr>
+<tr>
+<td><strong>F. 4 sideline quarter lines + 2 baselines, 6 m</strong></td>
+<td>6</td>
+<td><strong>92.8 %</strong></td>
+<td>93.6 %</td>
+<td><strong>88.0 %</strong></td>
+<td><strong>140</strong></td>
+<td><strong>1.12</strong></td>
+</tr>
+<tr>
+<td>F, 4.5 / 5 / 7 m</td>
+<td>6</td>
+<td>90-92 %</td>
+<td>92-94 %</td>
+<td>86.5-87.9 %</td>
+<td>141-147</td>
+<td>1.00-1.17</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>No layout beats the current one by more than the 5-point margin.</strong></li>
+<li>
+<p><strong>F is best at every height:</strong> 14-18 % fewer switches than the current layout, 1.5-1.8 times the digit reads,
+    0-1.5 points higher identity IDF1 over the whole game and 0.3-3.4 points in 4:00-5:00. A likely improvement, not a
+    proven one.</p>
+</li>
+<li>
+<p><strong>The four corner cameras (C) are no better than the current layout, and less stable.</strong> Their wide views (chosen to
+    see most of the court and frame both baskets) make players small: median box height 168-209 px at 5 m, against
+    260-307 px for the current cameras. Each detection is read less often (3.0 % against 4.1 %); every player is seen by
+    all four cameras, so reads per frame still rise by about 30 %, but identities don't improve. At 4.5, 6 and 7 m some
+    seeds failed badly (lowest 65-80 % identity IDF1); the cause wasn't examined.</p>
+</li>
+<li>
+<p><strong>Mounting height</strong> between 4.5 and 7 m changes little for E and F; C does best at 5 m.</p>
+</li>
+</ul>
+<h3 id="74-compute-per-camera-stream">7.4 Compute per camera stream</h3>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -1691,36 +1871,25 @@ Reading jerseys from 4K is therefore not pursued.</p>
 </ul>
 </li>
 </ul>
-<h3 id="74-proposal">7.4 Proposal</h3>
+<h3 id="75-proposal">7.5 Proposal</h3>
 <ol>
 <li>
-<p><strong>Same compute as today (4 streams): move to layout C, four corner cameras at about 4.5-5 m.</strong></p>
-<ul>
-<li>
-<p>Lenses and aims as chosen by the search (about 60-70° horizontal at 6 m), so that each basket is framed side-on
- from its near corner and end-on from a far corner.</p>
+<p><strong>If six streams are affordable, use layout F:</strong> four sideline cameras at the quarter lines plus one per baseline,
+    at about 5-6 m. It covers 99 % of the action from two well-separated directions, frames both baskets from two
+    directions, and did best in the tracking simulation (section 7.3). Six streams at 30 fps are borderline on an AGX
+    Orin's GPU by the estimates in section 6.2; its DLAs could take the detector (untested).</p>
 </li>
 <li>
-<p>The share of the action seen by two well-separated readable cameras rises from 22 % to about 86 %, and both
- baskets are framed for highlight clips from two directions (rim about 140 px wide from the sideline, 60 px
- end-on, in 4K).</p>
-</li>
-<li>
-<p>Views become steeper (median look-down 15° → 20-22°), and the area hidden behind players shrinks from about 9 m
- to about 6 m.</p>
-</li>
-<li>
-<p>With four streams it needs an AGX Orin 64 GB at 30 fps (section 6.2).</p>
-</li>
-<li><strong>If six streams are affordable, use layout F:</strong> four sideline cameras at the quarter lines plus one per baseline,
-at 4.5-5 m: 99 % of the action covered, both baskets framed from two directions. Six streams at 30 fps are
-borderline on an AGX Orin's GPU by the estimates in section 6.2; its DLAs could take the detector (untested).</li>
-</ul>
+<p><strong>With four streams, no move is clearly worth it for tracking.</strong> The four corner cameras (layout C) would frame both
+    baskets for highlight clips from two directions (rim about 140 px wide from the sideline, 60 px end-on, in 4K) and
+    quadruple the geometric coverage, but in the simulation they tracked no better than the current cameras, because
+    their wide views make players small. If highlights matter, C at about 5 m keeps tracking about level; narrower
+    lenses (larger players, each camera seeing less of the court) are untested and would be worth comparing.</p>
 </li>
 <li>
 <p><strong>If cameras can't move:</strong> keep the far backboard cameras and move the two near ones to the sideline walls at half
-    court (layout E, still 4 streams): 81 % of the action, and the backboard cameras keep the best end-on basket views
-    (rim about 98 px).</p>
+    court (layout E, still 4 streams): about level with the current layout in the simulation, and the backboard
+    cameras keep the best end-on basket views (rim about 98 px).</p>
 </li>
 <li>
 <p><strong>Whatever the layout:</strong></p>
@@ -1732,9 +1901,10 @@ borderline on an AGX Orin's GPU by the estimates in section 6.2; its DLAs could 
 </ul>
 </li>
 </ol>
-<p><strong>Caveat.</strong> These are geometric coverage figures, not tracking accuracy or clip quality. Before buying hardware, the
-best check is a temporary installation (stands or poles at the corners) for one session, run through the same
-pipeline and scored on newly labelled ground truth.</p>
+<p><strong>Caveat.</strong> The coverage figures are geometry; the tracking figures come from a simulator that gets the overall level
+right but underrates crowded play (section 7.3). Neither measures clip quality. Before buying hardware, the best
+check is a temporary installation for one session, run through the same pipeline and scored on newly labelled ground
+truth, measuring box sizes and read rates per camera as well as identities.</p>
 <p><strong>How the professional systems compare</strong> (general knowledge, not verified here):</p>
 <ul>
 <li>
@@ -1782,8 +1952,13 @@ pipeline and scored on newly labelled ground truth.</p>
     wall distances and mounting heights.</p>
 </li>
 <li>
+<p><strong>Layout simulation:</strong> it replays one game's motion and gets the current layout's overall identity level right, but
+    makes crowded play too easy (minute 4:00-5:00: 89 % simulated against 82 % live), so layout differences under about
+    5 points aren't meaningful (section 7.3).</p>
+</li>
+<li>
 <p><strong>Earlier runs:</strong> the time-alignment comparison (2.4), the ByteTrack comparison (4.8), the detection thresholds
-    (6.1) and the 4K jersey replay (7.3) were measured with the pose model on; each compares runs made alike.</p>
+    (6.1) and the 4K jersey replay (7.4) were measured with the pose model on; each compares runs made alike.</p>
 </li>
 <li>
 <p><strong>Upright crops correct the camera's geometry only:</strong> the tilt comes from a standing-person model at MV3DT's foot
@@ -1837,8 +2012,10 @@ minute.</p>
 <li>
 <p>Re-score accuracy with <code>tools/multi_eval.py</code> and <code>tools/courttrack_export.py live</code>.</p>
 </li>
-<li><strong>Trial the corner layout (C) for one session</strong> (issue #9) with temporary mounts at about 4.5-5 m, label a minute
-and compare with the current layout, including the highlight framing of both baskets.</li>
+<li><strong>Trial a new layout for one session</strong> (issue #9) with temporary mounts at about 5 m, label a minute and compare
+with the current layout: identities, box sizes and read rates per camera, and the highlight framing of both
+baskets. The simulation (section 7.3) favours six cameras (F); for four corner cameras it suggests narrower lenses
+than the coverage search chose.</li>
 </ul>
 </li>
 <li>
@@ -1846,10 +2023,6 @@ and compare with the current layout, including the highlight framing of both bas
     number hasn't been read for 10 s (about 5 % of labelled detections on the axis-aligned runs); colour can't separate
     those players. Reading the same crops more often doesn't help (issue #8: reading every frame scored the same);
     reading the crops that failed does (upright crops, section 4.9).</p>
-</li>
-<li>
-<p><strong>Camera placement with image tilt:</strong> add the read rate by tilt, measured with upright crops, to the camera-layout
-    simulator before comparing layouts again (section 7.1).</p>
 </li>
 <li>
 <p><strong>Use the official roster</strong> (numbers per team, available for real games): reject reads of numbers on neither
@@ -1884,7 +2057,13 @@ for r in bt_r1 bt_r2 bt_r3; do POSE=1 DET_LOG=1 COURTTRACK=1 ./scripts/run_defau
 ~/.venvs/mv3dt/bin/python -m tools.hires_jersey read s_int8t10_r1 s_int8t10_r2 s_int8t10_r3 --interp nearest --tag _nearest --min-h 150
 ~/.venvs/mv3dt/bin/python -m tools.hires_jersey score s_int8t10_r1 s_int8t10_r2 s_int8t10_r3 \
   --files jersey.npz,jersey_1080p_h150_nearest.npz,jersey_1080p_h150_area.npz,jersey_4k_h150_area.npz \
-  --md reports/hires_jersey.md   # section 7.3 (offline reader replay)
+  --md reports/hires_jersey.md   # section 7.4 (offline reader replay)
+~/.venvs/mv3dt/bin/python -m tools.layout_sim people --run up_r1                  # section 7.3: the game's people
+~/.venvs/mv3dt/bin/python -m tools.layout_sim stats --run up_r1 up_r2 up_r3       # read model, misreads, colours
+~/.venvs/mv3dt/bin/python -m tools.layout_sim sim A --seeds 0 1 2 3 4 5 --tag val4 --keep   # validation
+for L in C E F; do for h in 4.5 5 6 7; do ~/.venvs/mv3dt/bin/python -m tools.layout_sim sim $L --height $h \
+  --seeds 0 1 2 3 4 5 --tag screen; done; done
+~/.venvs/mv3dt/bin/python -m tools.layout_sim summary --tags val4 screen --md reports/layout_sim.md
 python3 reports/build_page.py   # web page version
 </code></pre>
 <p>Each run is followed by the jersey-read conversion and appearance extraction (in the scripts). The original and
