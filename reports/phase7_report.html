@@ -68,14 +68,13 @@ svg.chart .row:hover .hit { fill: var(--accent-soft); }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
 </style>
 <div class="wrap"><header class="top">
-<div class="eyebrow">Phase 7 report · 2026-10-29</div>
+<div class="eyebrow">Phase 7 report · 2026-10-30</div>
 <h1>Multi-camera basketball player tracking</h1>
 <div class="meta">Four cameras, DeepStream 9.1 MV3DT, RTX 3060 Ti; target device Jetson AGX Orin 64 GB or Orin Nano Super.
-Time-aligned streams, INT8 detector, MV3DT's pose model off, cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
+Time-aligned streams, INT8 detector, MV3DT's pose model off, jersey crops rotated upright, cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
 <div class="board">
 <div class="hl"><b>88.6%</b><span>identity IDF1, live from DeepStream (players reported by team + number)</span></div>
-<div><b>59.6%</b><span>identity IDF1, MV3DT global IDs as delivered</span></div>
-<div><b>157-162 fps</b><span>per camera on the 3060 Ti with jersey reading, INT8 (30 needed)</span></div>
+<div><b>156-157 fps</b><span>per camera on the 3060 Ti, full live pipeline incl. jersey reading and court tracker (30 needed)</span></div>
 <div><b>79-96%</b><span>range of identity IDF1 per run and labelled minute (identical DeepStream runs)</span></div>
 </div>
 <nav class="toc" aria-label="Sections"><a href="#1-summary">1. Summary</a><a href="#2-setup">2. Setup</a><a href="#3-pipeline">3. Pipeline</a><a href="#4-results">4. Results</a><a href="#5-calibration">5. Calibration</a><a href="#6-deployment-options-measured-on-the-3060-ti-estimated-for-jetson">6. Deployment options: measured on the 3060 Ti, estimated for Jetson</a><a href="#7-camera-placement-and-quantity">7. Camera placement and quantity</a><a href="#8-limitations">8. Limitations</a><a href="#9-next-steps-prioritised">9. Next steps (prioritised)</a><a href="#10-how-to-reproduce">10. How to reproduce</a></nav>

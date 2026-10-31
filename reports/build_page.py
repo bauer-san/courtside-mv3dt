@@ -171,6 +171,9 @@ def normalise(md: str) -> str:
 
 def main() -> None:
     md = (HERE / "phase7_report.md").read_text()
+    date = re.search(r"Date: (\d{4}-\d{2}-\d{2})", md).group(1)
+    # speed of the live runs (court tracker inside the pipeline, upright jersey crops): section 4.1's table
+    fps = [float(x) for x in re.findall(r"^\| up_r\d \| upright \| live \| ([\d.]+) \|", md, re.M)]
     md = normalise(md.split("\n", 1)[1])                             # drop the H1: the page header carries it
     body = markdown.markdown(md, extensions=["tables", "fenced_code", "toc"])
     body = body.replace("<table>", '<div class="tbl"><table>').replace("</table>", "</table></div>")
@@ -200,21 +203,17 @@ def main() -> None:
     toc = re.findall(r'<h2 id="([^"]+)">(.+?)</h2>', body)
     nav = '<nav class="toc" aria-label="Sections">' + "".join(
         f'<a href="#{i}">{re.sub(r"<[^>]+>", "", t)}</a>' for i, t in toc) + "</nav>"
-    me = {r[0]: r for r in table(HERE / "multi_eval_final.md")}
-    mv = me["MV3DT global IDs"]
     live = re.search(r"mean over 6 run-minutes: C\+\+ replay ([\d.]+%) \(range (\d+)%-(\d+)%\)",
                      (HERE / "courttrack_live.txt").read_text())
     live_idf1, lo, hi = live.groups()
-    fps = [float(m) for m in re.findall(r"^\| np_r\d \| [^|]+ \| ([\d.]+) \|", (HERE / "deploy_variants_detection.md").read_text(), re.M)]
     header = f"""<header class="top">
-<div class="eyebrow">Phase 7 report · 2026-10-29</div>
+<div class="eyebrow">Phase 7 report · {date}</div>
 <h1>Multi-camera basketball player tracking</h1>
 <div class="meta">Four cameras, DeepStream 9.1 MV3DT, RTX 3060 Ti; target device Jetson AGX Orin 64 GB or Orin Nano Super.
-Time-aligned streams, INT8 detector, MV3DT's pose model off, cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
+Time-aligned streams, INT8 detector, MV3DT's pose model off, jersey crops rotated upright, cameras calibrated on their physical mounts. Scores are averages over 3 DeepStream runs × 2 hand-labelled game minutes.</div>
 <div class="board">
 <div class="hl"><b>{live_idf1}</b><span>identity IDF1, live from DeepStream (players reported by team + number)</span></div>
-<div><b>{mv[1]}</b><span>identity IDF1, MV3DT global IDs as delivered</span></div>
-<div><b>{min(fps):.0f}-{max(fps):.0f} fps</b><span>per camera on the 3060 Ti with jersey reading, INT8 (30 needed)</span></div>
+<div><b>{min(fps):.0f}-{max(fps):.0f} fps</b><span>per camera on the 3060 Ti, full live pipeline incl. jersey reading and court tracker (30 needed)</span></div>
 <div><b>{lo}-{hi}%</b><span>range of identity IDF1 per run and labelled minute (identical DeepStream runs)</span></div>
 </div>
 {nav}
